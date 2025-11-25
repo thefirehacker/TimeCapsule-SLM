@@ -1238,7 +1238,7 @@ export default function EnhancedLearningGraph({
     requiredMembership.forEach(({ chapter, frame, chapterId }) => {
       changed = true;
       nextEdges.push({
-        id: `edge_chapter_${chapter.id}_${frame.id}`,
+        id: `edge|chapter|${chapter.id}|${frame.id}`,
         source: chapter.id,
         target: frame.id,
         sourceHandle: 'chapter-frame-out',
@@ -1253,7 +1253,7 @@ export default function EnhancedLearningGraph({
     requiredSequence.forEach(({ source, target, chapterId }) => {
       changed = true;
       nextEdges.push({
-        id: `edge_seq_${source.id}_${target.id}`,
+        id: `edge|seq|${source.id}|${target.id}`,
         source: source.id,
         target: target.id,
         sourceHandle: 'frame-sequence-out',
@@ -2089,7 +2089,7 @@ export default function EnhancedLearningGraph({
           
           // Create attachment edge with unique ID
           newEdges.push({
-            id: `edge_${attachmentNodeId}_${nodeId}_attachment`,
+            id: `edge|${attachmentNodeId}|${nodeId}|attachment`,
             source: attachmentNodeId,
             target: nodeId,
             targetHandle: "attachment-slot",
@@ -2482,7 +2482,7 @@ export default function EnhancedLearningGraph({
       updatedNodes.push(attachmentNode);
       attachmentKeySet.add(attachmentKey);
       attachmentEdgesToAdd.push({
-        id: `edge_${attachmentNodeId}_${frameNode.id}_attachment`,
+        id: `edge|${attachmentNodeId}|${frameNode.id}|attachment`,
         source: attachmentNodeId,
         target: frameNode.id,
         targetHandle: 'attachment-slot',
@@ -2858,7 +2858,7 @@ export default function EnhancedLearningGraph({
 
       // Create the edge with enhanced styling and guaranteed unique ID
       const edge: Edge = {
-        id: `edge_${params.source}_${params.target}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `edge|${params.source}|${params.target}|${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         source: params.source!,
         target: params.target!,
         sourceHandle: params.sourceHandle || null,

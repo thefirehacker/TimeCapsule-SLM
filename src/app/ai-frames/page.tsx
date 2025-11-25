@@ -58,6 +58,7 @@ import { ChapterDialog } from "@/components/ai-graphs/chapter-dialog";
 import { KnowledgeBaseSection } from "@/components/ui/knowledge-base-section";
 import { AIFlowBuilderPanel } from "./components/AIFlowBuilderPanel";
 import { SessionContinuationDialog } from "./components/SessionContinuationDialog";
+import { TimeCapsuleSelector } from "./components/TimeCapsuleSelector";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,7 @@ import {
   getGraphStorageManager,
   GraphStorageManager,
 } from "@/lib/GraphStorageManager";
+import { useTimeCapsule } from "./hooks/useTimeCapsule";
 import {
   BubblSpace,
   TimeCapsuleMetadata,
@@ -872,6 +874,15 @@ export default function AIFramesPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [graphResetKey, setGraphResetKey] = useState(0);
+
+  // Function to trigger graph reset
+  const triggerGraphReset = useCallback(() => {
+    setGraphResetKey((prev) => prev + 1);
+    // Ensure edges are also cleared to prevent duplicate edge keys
+    unifiedStorage.updateGraphState({ nodes: [], edges: [] });
+    console.log('🧹 Graph reset: cleared nodes and edges');
+  }, [unifiedStorage]);
+
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportForm, setExportForm] = useState({
     title: "",
@@ -1094,7 +1105,8 @@ export default function AIFramesPage() {
               // Create new SWE Bridge session
               flowBuilder.createNewSession(
                 "swe-bridge",
-                `SWE Sync ${new Date().toLocaleString()}`
+                `SWE Sync ${new Date().toLocaleString()}`,
+                triggerGraphReset
               );
 
               // Then sync frames from SWE Bridge
@@ -1212,7 +1224,15 @@ export default function AIFramesPage() {
   const flowBuilder = useAIFlowBuilder({
     vectorStore: providerVectorStore,
     vectorStoreInitialized,
+    onAcceptFrames: (frames: AIFrame[]) => {
+      // Replace all frames with the ones from the switched session
+      unifiedStorage.updateFrames(frames);
+      console.log(`✅ Loaded ${frames.length} frames from session into workspace`);
+    },
   });
+
+  // TimeCapsule management hook
+  const timeCapsule = useTimeCapsule(providerVectorStore);
 
   // Debug: Log session state changes
   useEffect(() => {
@@ -1223,17 +1243,80 @@ export default function AIFramesPage() {
     });
   }, [flowBuilder.activeSessionId, flowBuilder.sessions]);
 
-  // Session-based frame filtering - only show frames belonging to active session
+  // Session-based frame filtering with TimeCapsule isolation
   const sessionFilteredFrames = useMemo(() => {
+    // No active session: show all frames from active TimeCapsule
     if (!flowBuilder.activeSessionId) {
-      // No active session: show all frames (legacy behavior)
-      return unifiedStorage.frames;
+      return unifiedStorage.frames.filter(f => 
+        f.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+      );
     }
-    // Filter to show only frames from active session OR frames without sessionId (legacy frames)
+    
+    // Active session: show only frames from that session in the active TimeCapsule
     return unifiedStorage.frames.filter(f => 
-      f.sessionId === flowBuilder.activeSessionId || !f.sessionId
+      f.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
+      f.sessionId === flowBuilder.activeSessionId
     );
-  }, [unifiedStorage.frames, flowBuilder.activeSessionId]);
+  }, [unifiedStorage.frames, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
+
+  // Session-based chapter filtering
+  const sessionFilteredChapters = useMemo(() => {
+    // No active session: show all chapters from active TimeCapsule
+    if (!flowBuilder.activeSessionId) {
+      return unifiedStorage.chapters.filter(c => 
+        c.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+      );
+    }
+    
+    // Active session: show only chapters from that session in the active TimeCapsule
+    return unifiedStorage.chapters.filter(c => 
+      c.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
+      c.sessionId === flowBuilder.activeSessionId
+    );
+  }, [unifiedStorage.chapters, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
+
+  // REMOVED: Infinite loop fix - session frame count is already tracked by session metadata
+  // The useEffect here was causing infinite saves by triggering re-renders on every save
+
+  // TimeCapsule switch event listeners
+  useEffect(() => {
+    const handleSwitchStart = () => {
+      console.log('🧹 Clearing workspace for TimeCapsule switch');
+      // Clear graph state
+      if (triggerGraphReset) {
+        triggerGraphReset();
+      }
+    };
+    
+    const handleSwitched = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { timeCapsuleId } = customEvent.detail;
+      console.log(`📥 Loading data for TimeCapsule: ${timeCapsuleId}`);
+      
+      // Reload frames for new TimeCapsule
+      await unifiedStorage.loadAll();
+      
+      // Reload sessions for new TimeCapsule
+      if (flowBuilder.loadSessions) {
+        await flowBuilder.loadSessions();
+      }
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('timecapsule-switch-start', handleSwitchStart);
+      window.addEventListener('timecapsule-switched', handleSwitched);
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('timecapsule-switch-start', handleSwitchStart);
+        window.removeEventListener('timecapsule-switched', handleSwitched);
+      }
+    };
+  }, [unifiedStorage, flowBuilder, triggerGraphReset]);
+
+  // REMOVED: ID-FALLBACK useEffect (caused race condition with stale closures)
+  // ID assignment now happens in handleFramesChange with FRESH data (Sage Cheat Sheet compliance)
 
   const workspaceStats = useMemo(() => {
     const frames = sessionFilteredFrames;
@@ -1726,8 +1809,10 @@ export default function AIFramesPage() {
   const handleGraphStateUpdate = useCallback(
     (graphState: GraphState) => {
       unifiedStorage.updateGraphState(graphState);
+      // Also update session's graph state
+      flowBuilder.setCurrentGraphState(graphState);
     },
-    [unifiedStorage]
+    [unifiedStorage, flowBuilder]
   );
 
   // Frame navigation
@@ -1807,21 +1892,49 @@ export default function AIFramesPage() {
   // Handle frames change
   const handleFramesChange = useCallback(
     (newFrames: any[]) => {
+      // Get existing frames from storage
+      const existingFrames = unifiedStorage.frames;
+      
       // Convert the frames to ensure they have the correct type and order
+      // AND assign timeCapsuleId + sessionId for proper isolation (FRESH data, no stale closures)
       const convertedFrames = newFrames.map((frame) => ({
         ...frame,
         order: frame.order ?? 0,
+        // Assign IDs inline with FRESH data (Sage Cheat Sheet compliance - no stale closures)
+        timeCapsuleId: frame.timeCapsuleId && frame.timeCapsuleId !== 'default'
+          ? frame.timeCapsuleId 
+          : timeCapsule.activeTimeCapsuleId || frame.timeCapsuleId || '',
+        sessionId: frame.sessionId || flowBuilder.activeSessionId || undefined,
       }));
 
-      unifiedStorage.updateFrames(convertedFrames);
+      // Create a map of existing frames by ID
+      const frameMap = new Map(existingFrames.map(f => [f.id, f]));
+      
+      // Merge: update existing frames or add new ones
+      convertedFrames.forEach(newFrame => {
+        frameMap.set(newFrame.id, newFrame);
+      });
+      
+      // Convert back to array
+      const mergedFrames = Array.from(frameMap.values());
+
+      console.log(`🔧 handleFramesChange: Merged ${convertedFrames.length} new frames with ${existingFrames.length} existing frames`, {
+        totalAfterMerge: mergedFrames.length,
+        activeTimeCapsuleId: timeCapsule.activeTimeCapsuleId,
+        activeSessionId: flowBuilder.activeSessionId,
+        framesWithBoth: mergedFrames.filter(f => f.timeCapsuleId && f.sessionId).length,
+      });
+
+      // Update storage with MERGED frames
+      unifiedStorage.updateFrames(mergedFrames);
       
       // Sync deletions to active session
       if (flowBuilder.syncFrameDeletions && flowBuilder.frameDrafts.length > 0) {
-        const currentFrameIds = new Set(convertedFrames.map(f => f.id));
+        const currentFrameIds = new Set(mergedFrames.map(f => f.id));
         flowBuilder.syncFrameDeletions(currentFrameIds);
       }
     },
-    [unifiedStorage, flowBuilder]
+    [unifiedStorage, flowBuilder, timeCapsule.activeTimeCapsuleId]
   );
 
   const handleCreateFrame = useCallback(
@@ -1842,7 +1955,7 @@ export default function AIFramesPage() {
       if (!flowBuilder.activeSessionId || 
           (flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source !== "manual")) {
         console.log("🆕 [PAGE] Auto-creating manual session for manual frame creation");
-        const newSession = flowBuilder.createNewSession("manual", "Manual Session");
+        const newSession = flowBuilder.createNewSession("manual", "Manual Session", triggerGraphReset);
         sessionForFrame = newSession.id;
         console.log(`✅ [PAGE] Created session ${sessionForFrame}`);
         console.log(`📋 [PAGE] Sessions array now:`, flowBuilder.sessions.map(s => ({ id: s.id, name: s.name })));
@@ -1935,14 +2048,17 @@ export default function AIFramesPage() {
       flowBuilder.sessions.find((s) => s.id === flowBuilder.activeSessionId)?.source !== "manual"
     ) {
       console.log("🆕 Auto-creating manual session for frame drop");
-      const newSession = flowBuilder.createNewSession("manual", "Manual Session");
+      const newSession = flowBuilder.createNewSession("manual", "Manual Session", triggerGraphReset, { 
+        skipClear: true, // Don't clear workspace during auto-creation
+        timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
+      });
       console.log("✅ Manual session created:", newSession.id);
       return newSession.id;
     }
 
     console.log("✅ Using existing manual session:", flowBuilder.activeSessionId);
     return flowBuilder.activeSessionId;
-  }, [flowBuilder]);
+  }, [flowBuilder, triggerGraphReset, timeCapsule.activeTimeCapsuleId]);
 
   // ✅ NEW: Event listener for ensuring manual session on frame drop
   useEffect(() => {
@@ -1955,6 +2071,34 @@ export default function AIFramesPage() {
       return () => window.removeEventListener("ensure-manual-session", handleEnsureManualSession);
     }
   }, [ensureManualSession]);
+
+  // ✅ NEW: Auto-assign sessionId to orphaned frames after they're saved
+  useEffect(() => {
+    if (!flowBuilder.activeSessionId) return;
+    
+    const orphanedFrames = unifiedStorage.frames.filter(f => 
+      !f.sessionId && 
+      f.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+    );
+    
+    if (orphanedFrames.length > 0) {
+      console.log(`🔧 Found ${orphanedFrames.length} orphaned frames, assigning to session ${flowBuilder.activeSessionId}`);
+      
+      const fixedFrames = unifiedStorage.frames.map(f => 
+        (!f.sessionId && f.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
+          ? { ...f, sessionId: flowBuilder.activeSessionId || undefined }
+          : f
+      );
+      
+      unifiedStorage.updateFrames(fixedFrames);
+      console.log(`✅ Assigned sessionId to ${orphanedFrames.length} orphaned frames`);
+      
+      // Update session frame count after assignment
+      if (flowBuilder.activeSessionId) {
+        flowBuilder.updateSessionFrameCount(fixedFrames);
+      }
+    }
+  }, [unifiedStorage.frames.length, flowBuilder.activeSessionId, flowBuilder.updateSessionFrameCount, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
 
   // ✅ NEW: Event listener for AI Flow session continuation dialog
   useEffect(() => {
@@ -1990,6 +2134,57 @@ export default function AIFramesPage() {
       return () => window.removeEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
     }
   }, [setSessionDialogConfig, setShowSessionDialog]);
+
+  // ✅ NEW: Event listener for graph state restoration after session switch
+  useEffect(() => {
+    const handleRestoreGraphState = (event: any) => {
+      const { graphState } = event.detail;
+      console.log("📊 Received restore-graph-state event:", {
+        savedNodeCount: graphState.nodes.length,
+        savedEdgeCount: graphState.edges.length,
+        currentNodeCount: unifiedStorage.graphState.nodes.length,
+        currentEdgeCount: unifiedStorage.graphState.edges.length
+      });
+      
+      // CRITICAL FIX: Merge restored graph state with current state
+      // Don't replace - preserve nodes/edges created after session switch
+      const currentState = unifiedStorage.graphState;
+      
+      // Create maps for efficient lookup
+      const restoredNodeIds = new Set(graphState.nodes.map((n: any) => n.id));
+      const restoredEdgeIds = new Set(graphState.edges.map((e: any) => e.id));
+      
+      // Keep current nodes that aren't in restored state (newly created)
+      const newNodes = currentState.nodes.filter((n: any) => !restoredNodeIds.has(n.id));
+      
+      // Keep current edges that aren't in restored state (newly created)
+      const newEdges = currentState.edges.filter((e: any) => !restoredEdgeIds.has(e.id));
+      
+      // Merge: restored state + new nodes/edges
+      const mergedGraphState = {
+        nodes: [...graphState.nodes, ...newNodes],
+        edges: [...graphState.edges, ...newEdges],
+        selectedNodeId: graphState.selectedNodeId
+      };
+      
+      console.log("📊 Merged graph state:", {
+        restoredNodes: graphState.nodes.length,
+        newNodes: newNodes.length,
+        totalNodes: mergedGraphState.nodes.length,
+        restoredEdges: graphState.edges.length,
+        newEdges: newEdges.length,
+        totalEdges: mergedGraphState.edges.length
+      });
+      
+      // Update unified storage with merged state
+      unifiedStorage.updateGraphState(mergedGraphState);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("restore-graph-state", handleRestoreGraphState);
+      return () => window.removeEventListener("restore-graph-state", handleRestoreGraphState);
+    }
+  }, [unifiedStorage]);
 
   const handleAcceptAIFrames = useCallback(
     (frames: AIFrame[], plannerChapters?: PlannerChapter[]) => {
@@ -2052,7 +2247,22 @@ export default function AIFramesPage() {
         const allFrames = [...nonAIFlowFrames, ...normalized];
         graphStateToUse = flowBuilder.generateGraphState(plannerChapters, allFrames);
         console.log(`✅ Regenerated graphState with ${normalized.length} converted frames (proper attachment structure)`);
-        console.log(`✅ Using chapter nodes from graphState (no separate Chapter[] needed)`);
+        
+        // ✅ FIX: Convert plannerChapters to Chapter[] format to replace old chapters
+        const convertedChapters: Chapter[] = plannerChapters.map((pc) => ({
+          id: pc.id,
+          title: pc.title,
+          description: pc.goal,
+          color: pc.color,
+          order: pc.order,
+          frameIds: pc.frames.map(f => f.id),
+          conceptIds: [],
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }));
+        
+        chaptersToUse = [...nonAIFlowChapters, ...convertedChapters];
+        console.log(`🔄 Chapters: removing ${unifiedStorage.chapters.length - nonAIFlowChapters.length} old AI Flow chapters, adding ${convertedChapters.length} new chapters`);
       } else {
         // Fallback: no plannerChapters means manual frames only
         console.warn('⚠️ No plannerChapters provided');
@@ -2812,6 +3022,8 @@ export default function AIFramesPage() {
         conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
         frameIds: orderedSelection,
         order: unifiedStorage.chapters.length,
+        timeCapsuleId: timeCapsule.activeTimeCapsuleId ?? undefined,
+        sessionId: flowBuilder.activeSessionId ?? undefined,
         createdAt: now,
         updatedAt: now,
         linkSequentially: chapterFormData.linkSequentially,
@@ -3264,7 +3476,8 @@ export default function AIFramesPage() {
           event.target.value = "";
         }}
       />
-      <div className="min-h-screen flex flex-col gap-6 pt-20">
+      
+      <div className="min-h-screen flex flex-col gap-6">
         {flowPanelReady ? (
           <AIFlowBuilderPanel
             flowBuilder={flowBuilder}
@@ -3274,6 +3487,9 @@ export default function AIFramesPage() {
             workspaceStats={workspaceStats}
             knowledgeBaseUnavailable={knowledgeBaseUnavailable}
             knowledgeBaseUnavailableMessage={knowledgeBaseErrorMessage}
+            onGraphReset={triggerGraphReset}
+            activeTimeCapsuleId={timeCapsule.activeTimeCapsuleId || undefined}
+            allFrames={unifiedStorage.frames}
           />
         ) : (
           <div className="min-h-[32rem] rounded-3xl border border-slate-200 bg-white/70 flex flex-col items-center justify-center gap-4 text-center text-slate-500">
@@ -3287,10 +3503,10 @@ export default function AIFramesPage() {
           </div>
         )}
         {(localBridgeEnabled || !isFlowPanelOpen) && (
-          <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+          <div className="fixed bottom-6 right-6 z-10 flex flex-col items-end gap-3 pointer-events-none">
             {!isFlowPanelOpen && (
               <button
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2"
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-3 rounded-full shadow-xl flex items-center gap-2 pointer-events-auto"
                 onClick={() => setIsFlowPanelOpen(true)}
               >
                 <Bot className="h-4 w-4" />
@@ -3299,7 +3515,7 @@ export default function AIFramesPage() {
             )}
             {localBridgeEnabled && (
               <button
-                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto"
                 onClick={handlePullFromLocalBridge}
                 disabled={localBridgeButtonDisabled}
               >
@@ -3344,9 +3560,9 @@ export default function AIFramesPage() {
           </div>
         )}
         {/* SIMPLIFIED: Direct FrameGraphIntegration - no duplicate save systems */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden h-screen pt-24">
           {/* FIXED: Dual pane layout like Deep Research - sidebar + main content */}
-          <div className="flex-1 flex min-h-0 relative">
+          <div className="flex h-full relative">
             {/* Left Sidebar - Knowledge Base Section like Deep Research */}
             <div
               className={`relative flex-shrink-0 transition-all duration-300 ${
@@ -3354,7 +3570,9 @@ export default function AIFramesPage() {
               }`}
             >
               {!sidebarCollapsed && (
-                <div className="bg-gray-50 border-r border-gray-200 p-4 space-y-6 overflow-y-auto h-full">
+                <div className="bg-gray-50 border-r border-gray-200 h-full flex flex-col">
+                  {/* Scrollable Content Area */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-6">
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -3376,6 +3594,22 @@ export default function AIFramesPage() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
+                  </div>
+
+                  {/* TimeCapsule Project Selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-700">TimeCapsules (Projects)</label>
+                    <TimeCapsuleSelector
+                      timeCapsules={timeCapsule.timeCapsules}
+                      activeId={timeCapsule.activeTimeCapsuleId}
+                      onSwitch={timeCapsule.switchTimeCapsule}
+                      onCreate={timeCapsule.createTimeCapsule}
+                      sessions={flowBuilder.sessions}
+                      frames={unifiedStorage.frames}
+                    />
+                    <p className="text-xs text-slate-500">
+                      {flowBuilder.sessions.filter(s => s.timeCapsuleId === timeCapsule.activeTimeCapsuleId).length} sessions · {sessionFilteredFrames.length} frames · {timeCapsule.activeTimeCapsule?.documentCount || 0} docs
+                    </p>
                   </div>
 
               {/* Knowledge Base Section - EXACTLY like Deep Research */}
@@ -3557,13 +3791,13 @@ export default function AIFramesPage() {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                {unifiedStorage.chapters.length === 0 ? (
+                {sessionFilteredChapters.length === 0 ? (
                   <p className="text-sm text-gray-500">
                     No chapters defined. Create one to group frames.
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {unifiedStorage.chapters.map((chapter) => {
+                    {sessionFilteredChapters.map((chapter) => {
                       const frameCount = chapter.frameIds?.length || 0;
                       const conceptCount = chapter.conceptIds?.length || 0;
 
@@ -3627,9 +3861,11 @@ export default function AIFramesPage() {
                   </div>
                 )}
               </div>
+                  </div>
+                  {/* End Scrollable Content Area */}
 
-                  {/* Danger Zone */}
-                  <div className="space-y-2 border-t border-gray-200 pt-4">
+                  {/* Danger Zone - Fixed at Bottom */}
+                  <div className="border-t border-gray-200 p-4 space-y-2">
                     <h4 className="text-sm font-medium text-gray-700">
                       Danger Zone
                     </h4>
@@ -3653,7 +3889,7 @@ export default function AIFramesPage() {
             </div>
 
             {/* Main Content Area - Graph Integration */}
-            <div className="flex-1 overflow-y-auto overscroll-y-contain">
+            <div className="flex-1 h-full overflow-hidden">
               {/* FIXED: Enhanced VectorStore readiness check for stability */}
               {vectorStoreInitialized &&
               !vectorStoreInitializing &&
@@ -3674,7 +3910,7 @@ export default function AIFramesPage() {
                     setCurrentFrameIndex(newIndex);
                   }}
                   onCreateFrame={handleCreateFrame}
-                  chapters={unifiedStorage.chapters}
+                  chapters={sessionFilteredChapters}
                   onChaptersChange={unifiedStorage.updateChapters}
                   onGraphChange={handleGraphStateUpdate}
                   initialGraphState={unifiedStorage.graphState}

@@ -115,10 +115,11 @@ export interface PlannerChapter {
   frames: PlannerFrame[];
 }
 
-interface PlannerPlan {
+export interface PlannerPlan {
   id: string;
   summary?: string;
   chapters: PlannerChapter[];
+  frames?: FlowPlannedFrame[];  // Optional frames at root level for graph rendering
   sources: KnowledgeCitation[];
   createdAt: string;
   model?: string;
@@ -170,7 +171,7 @@ interface GeneratedFrameContent {
   visionCue?: string;
 }
 
-interface FrameDraft extends PlannerFrame {
+export interface FrameDraft extends PlannerFrame {
   tempId: string;
   chapterTitle: string;
   status: FrameDraftStatus;
@@ -262,13 +263,22 @@ export interface UseAIFlowBuilderReturn {
   // Session Management
   activeSessionId: string | null;
   sessions: FlowSession[];
-  createNewSession: (source: SessionSource, name?: string) => FlowSession;
+  loadSessions: () => Promise<void>;
+  createNewSession: (
+    source: SessionSource, 
+    name?: string, 
+    onGraphReset?: () => void,
+    options?: { skipClear?: boolean; timeCapsuleId?: string }
+  ) => FlowSession;
   saveCurrentSession: (immediate?: boolean) => Promise<void>;
-  switchSession: (sessionId: string) => Promise<void>;
+  switchSession: (sessionId: string, onGraphReset?: () => void) => Promise<void>;
   renameSession: (sessionId: string, newName: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
+  duplicateSession: (sessionId: string, onGraphReset?: () => void) => Promise<FlowSession | null>;
   syncFrameToSession: (frame: AIFrame) => void;
   syncFrameDeletions: (currentFrameIds: Set<string>) => void;
+  updateSessionFrameCount: (frames: AIFrame[]) => Promise<void>;
+  setCurrentGraphState: (graphState: GraphState) => void;
   generateGraphState: (chapters: PlannerChapter[], frames: AIFrame[]) => GraphState;
 }
 
@@ -476,6 +486,70 @@ const normalizeCitations = (
 };
 
 const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
+  // Priority 1: Use existing chapters if they were generated
+  if (plan.chapters && plan.chapters.length > 0) {
+    console.log('Using generated chapters from FlowPlannerPlan:', plan.chapters);
+
+    // Create a map of frame IDs to frames for easy lookup
+    const frameMap = new Map<string, FlowPlannedFrame>();
+    plan.frames.forEach((frame, index) => {
+      const frameId = frame.id || `flow_frame_${index}`;
+      frameMap.set(frameId, { ...frame, id: frameId });
+    });
+
+    const chapters = plan.chapters.map((chapter) => {
+      // Get frames for this chapter based on frameIds
+      const chapterFrames = (chapter.frameIds || [])
+        .map(frameId => {
+          const frame = frameMap.get(frameId);
+          if (!frame) {
+            console.warn(`Frame ID ${frameId} referenced in chapter ${chapter.id} not found in frames`);
+          }
+          return frame;
+        })
+        .filter((frame): frame is FlowPlannedFrame => frame !== undefined)
+        .map((frame, index) => ({
+          id: frame.id!,
+          title: frame.title,
+          goal: frame.goal,
+          chapterId: chapter.id,
+          order: index,
+          aiConcepts: frame.aiConcepts || [],
+          citations: [],
+          attachmentSuggestions: [],
+          learningPhase: frame.phase,
+          requiresVision: frame.requiresVision,
+        }));
+
+      return {
+        id: chapter.id,
+        title: chapter.title,
+        goal: chapter.description, // Map description to goal for legacy compatibility
+        description: chapter.description, // Also provide as description for ChapterNodeData
+        order: chapter.order,
+        color: chapter.color,
+        citations: [],
+        frames: chapterFrames,
+        frameIds: chapter.frameIds || [], // Include frameIds for graph generation
+        linkSequentially: chapter.linkSequentially ?? true,
+      };
+    });
+
+    return {
+      id: `flow_${Date.now()}`,
+      summary: plan.summary,
+      learningMode: plan.learningMode,
+      chapters,
+      frames: plan.frames,  // Include frames at root level for graph rendering
+      sources: [],
+      createdAt: new Date().toISOString(),
+      model: "FlowFramePlanner",
+    };
+  }
+
+  // Priority 2: Fall back to phase-based grouping if no chapters exist
+  console.log('No chapters found in plan, falling back to phase-based grouping');
+
   const phaseMeta: Record<
     FlowPlannedFrame["phase"],
     { title: string; color: string; description: string; order: number }
@@ -535,6 +609,7 @@ const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
         id: chapterId,
         title: meta.title,
         goal: meta.description,
+        description: meta.description, // Also provide as description for ChapterNodeData
         order: meta.order,
         color: meta.color,
         citations: [],
@@ -550,30 +625,37 @@ const convertFlowPlanToLegacyPlan = (plan: FlowPlannerPlan): PlannerPlan => {
           learningPhase: frame.phase,
           requiresVision: frame.requiresVision,
         })),
+        frameIds: frames.map(f => f.id || `flow_frame_${frames.indexOf(f)}`), // Add frameIds for consistency
+        linkSequentially: true,
       };
     });
 
   // Fallback: ensure at least one chapter
   if (chapters.length === 0) {
+    const fallbackFrames = plan.frames.map((frame, index) => ({
+      id: frame.id || `flow_frame_${index}`,
+      title: frame.title,
+      goal: frame.goal,
+      chapterId: "flow_overview",
+      order: index,
+      aiConcepts: frame.aiConcepts || [],
+      citations: [],
+      attachmentSuggestions: [],
+      learningPhase: frame.phase,
+      requiresVision: frame.requiresVision,
+    }));
+
     chapters.push({
       id: "flow_overview",
       title: "AI Flow",
       goal: plan.summary || "",
+      description: plan.summary || "", // Also provide as description for ChapterNodeData
       order: 0,
       color: "#0284C7",
       citations: [],
-      frames: plan.frames.map((frame, index) => ({
-        id: frame.id || `flow_frame_${index}`,
-        title: frame.title,
-        goal: frame.goal,
-        chapterId: "flow_overview",
-        order: index,
-        aiConcepts: frame.aiConcepts || [],
-        citations: [],
-        attachmentSuggestions: [],
-        learningPhase: frame.phase,
-        requiresVision: frame.requiresVision,
-      })),
+      frames: fallbackFrames,
+      frameIds: plan.frames.map((f, i) => f.id || `flow_frame_${i}`), // Add frameIds for consistency
+      linkSequentially: true,
     });
   }
 
@@ -714,6 +796,7 @@ export function useAIFlowBuilder({
   const [sessions, setSessions] = useState<FlowSession[]>([]);
   const [sessionStore, setSessionStore] = useState<SessionStore | null>(null);
   const sessionSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [currentGraphState, setCurrentGraphState] = useState<GraphState>({ nodes: [], edges: [], selectedNodeId: null });
   
   const researchStepsState = useResearchSteps();
   const currentStepsRef = useRef<ResearchStep[]>([]);
@@ -841,28 +924,49 @@ export function useAIFlowBuilder({
 
   // Session Management Functions
   const createNewSession = useCallback(
-    (source: SessionSource, name?: string): FlowSession => {
+    (source: SessionSource, name?: string, onGraphReset?: () => void, options?: { 
+      skipClear?: boolean;
+      timeCapsuleId?: string;
+    }): FlowSession => {
       if (!sessionStore) {
         throw new Error("SessionStore not initialized");
       }
       console.log(`🎬 [SESSION] Creating new ${source} session...`);
-      const newSession = sessionStore.createNewSession(source, name);
+      const newSession = sessionStore.createNewSession(
+        source, 
+        name,
+        options?.timeCapsuleId // Pass timeCapsuleId to session
+      );
       console.log(`📦 [SESSION] New session object created:`, {
         id: newSession.id,
         name: newSession.name,
-        source: newSession.source
+        source: newSession.source,
+        timeCapsuleId: newSession.timeCapsuleId
       });
-      
+
+      // Clear previous session data
+      setFrameDrafts([]);
+      setPlan(null);
+      setContextPreview(null);
+
       setSessions((prev) => {
         console.log(`📋 [SESSION] Updating sessions array: ${prev.length} -> ${prev.length + 1}`);
         return [newSession, ...prev];
       });
-      
+
       setActiveSessionId((prevId) => {
         console.log(`🎯 [SESSION] Setting active session ID: ${prevId} -> ${newSession.id}`);
         return newSession.id;
       });
-      
+
+      // DON'T clear frames from storage - they belong to other sessions!
+      // The sessionFilteredFrames will handle showing only this session's frames
+      // Just clear the graph display
+      if (onGraphReset) {
+        onGraphReset();
+        console.log(`🧹 [SESSION] Cleared graph display for new session`);
+      }
+
       // Sync Mastery Progress to new session (starts at 0%)
       setSessionState(newSession.sessionState);
       setProgressMetrics({
@@ -898,7 +1002,7 @@ export function useAIFlowBuilder({
       console.log(`✅ [SESSION] Session creation complete. Returning session ID: ${newSession.id}`);
       return newSession;
     },
-    [sessionStore]
+    [sessionStore, onAcceptFrames]
   );
 
   const saveCurrentSession = useCallback(
@@ -924,6 +1028,7 @@ export function useAIFlowBuilder({
             source: draft.source || currentSession.source, // Ensure source is set
           })) as any,
           sessionState: sessionState || currentSession.sessionState,
+          graphState: currentGraphState, // Save current graph state
           frameCount: frameDrafts.length,
           acceptedFrameCount: frameDrafts.filter((d) => d.status === "generated")
             .length,
@@ -967,31 +1072,55 @@ export function useAIFlowBuilder({
         sessionSaveTimeoutRef.current = setTimeout(saveSession, 1000);
       }
     },
-    [activeSessionId, sessionStore, sessions, plan, frameDrafts, sessionState, calculateProgressMetrics]
+    [activeSessionId, sessionStore, sessions, plan, frameDrafts, sessionState, currentGraphState, calculateProgressMetrics]
   );
 
   const switchSession = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, onGraphReset?: () => void) => {
       if (!sessionStore) return;
 
-      // Save current session first if active
+      // 1. Save current session first if active
       if (activeSessionId) {
         await saveCurrentSession(true);
       }
 
-      // Load new session
+      // 2. Load new session data
       const session = await sessionStore.loadSession(sessionId);
       if (!session) {
         console.error(`Session not found: ${sessionId}`);
         return;
       }
 
-      // Update state
+      // 3. Clear graph UI (not storage) BEFORE changing activeSessionId
+      if (onGraphReset) {
+        onGraphReset(); // Reset graph state including edges
+      }
+      console.log(`🧹 Cleared graph UI for session switch`);
+
+      // 4. Update state with new session data
       const loadedDrafts = session.frameDrafts as any as FrameDraft[];
       setPlan(session.plan);
       setFrameDrafts(loadedDrafts);
       setSessionState(session.sessionState);
-      setActiveSessionId(sessionId);
+      setActiveSessionId(sessionId); // This triggers sessionFilteredFrames to update the graph
+
+      // 5. Restore graph state if available
+      if (session.graphState && typeof window !== "undefined") {
+        console.log(`📊 Restoring graph state for session ${sessionId}:`, {
+          nodeCount: session.graphState.nodes.length,
+          edgeCount: session.graphState.edges.length
+        });
+        // Dispatch event to restore graph state
+        window.dispatchEvent(new CustomEvent('restore-graph-state', {
+          detail: { graphState: session.graphState }
+        }));
+        // Update local graph state
+        setCurrentGraphState(session.graphState);
+      } else {
+        console.log(`📊 No graph state to restore for session ${sessionId}`);
+        // Clear graph state
+        setCurrentGraphState({ nodes: [], edges: [], selectedNodeId: null });
+      }
 
       // Sync Mastery Progress with loaded session
       const metrics = calculateProgressMetrics(session.sessionState);
@@ -1004,13 +1133,14 @@ export function useAIFlowBuilder({
             SESSION_STORAGE_KEY,
             JSON.stringify(session.sessionState)
           );
+          // Also persist the active session ID
+          localStorage.setItem('timecapsule_active_session_id', sessionId);
         } catch (error) {
           console.warn("⚠️ Failed to sync session state to localStorage:", error);
         }
       }
 
-      console.log(`🔄 Switched to session: ${session.name} (${loadedDrafts.length} frames loaded)`);
-      console.log(`💡 Click "Accept All Frames" to add them to your workspace`);
+      console.log(`🔄 Switched to session: ${session.name} (ID: ${sessionId})`);
     },
     [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics]
   );
@@ -1025,6 +1155,21 @@ export function useAIFlowBuilder({
     },
     [sessionStore]
   );
+
+  const loadSessions = useCallback(async () => {
+    if (!sessionStore) {
+      console.warn("⚠️ SessionStore not initialized, cannot load sessions");
+      return;
+    }
+
+    try {
+      const loadedSessions = await sessionStore.listSessions();
+      setSessions(loadedSessions);
+      console.log(`📋 Reloaded ${loadedSessions.length} sessions from KB`);
+    } catch (error) {
+      console.error("❌ Failed to load sessions:", error);
+    }
+  }, [sessionStore]);
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -1046,6 +1191,61 @@ export function useAIFlowBuilder({
       }
     },
     [sessionStore, activeSessionId]
+  );
+
+  const duplicateSession = useCallback(
+    async (sessionId: string, onGraphReset?: () => void): Promise<FlowSession | null> => {
+      if (!sessionStore) return null;
+
+      // Load the session to duplicate
+      const originalSession = await sessionStore.loadSession(sessionId);
+      if (!originalSession) {
+        console.error(`Session not found for duplication: ${sessionId}`);
+        return null;
+      }
+
+      // Create a new session with copied data
+      const duplicateName = `${originalSession.name} (Copy)`;
+      const newSession = sessionStore.createNewSession(originalSession.source, duplicateName);
+
+      // Copy all the data from original session
+      const duplicatedSession: FlowSession = {
+        ...newSession,
+        plan: originalSession.plan ? { ...originalSession.plan } : null,
+        frameDrafts: originalSession.frameDrafts ?
+          originalSession.frameDrafts.map((draft: any) => ({ ...draft })) : [],
+        sessionState: originalSession.sessionState ? { ...originalSession.sessionState } : newSession.sessionState,
+        frameCount: originalSession.frameCount,
+        acceptedFrameCount: originalSession.acceptedFrameCount,
+        frameSources: originalSession.frameSources ? { ...originalSession.frameSources } : {
+          manual: 0,
+          "ai-flow": 0,
+          "swe-bridge": 0,
+        },
+      };
+
+      // Save the duplicated session
+      await sessionStore.saveSession(duplicatedSession);
+
+      // Reload sessions list
+      const updatedSessions = await sessionStore.listSessions();
+      setSessions(updatedSessions);
+
+      // Switch to the duplicated session
+      setPlan(duplicatedSession.plan);
+      setFrameDrafts(duplicatedSession.frameDrafts as any as FrameDraft[]);
+      setSessionState(duplicatedSession.sessionState);
+      setActiveSessionId(duplicatedSession.id);
+
+      // Trigger graph reset if callback provided
+      if (onGraphReset) {
+        onGraphReset();
+      }
+
+      console.log(`✨ Duplicated session "${originalSession.name}" as "${duplicateName}"`);
+      return duplicatedSession;
+    },
+    [sessionStore]
   );
 
   const syncFrameToSession = useCallback((frame: AIFrame) => {
@@ -1110,6 +1310,38 @@ export function useAIFlowBuilder({
       return filtered;
     });
   }, [activeSessionId]);
+
+  const updateSessionFrameCount = useCallback(async (frames: AIFrame[]) => {
+    if (!activeSessionId || !sessionStore) return;
+    
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    if (!activeSession) return;
+    
+    // Count frames belonging to this session
+    const sessionFrames = frames.filter(f => f.sessionId === activeSessionId);
+    const frameCount = sessionFrames.length;
+    
+    console.log(`📊 Updating session frame count: ${frameCount} frames for session ${activeSessionId}`);
+    
+    // Update session metadata
+    const updatedSession: FlowSession = {
+      ...activeSession,
+      frameCount,
+      acceptedFrameCount: frameCount, // All manual/dropped frames are "accepted"
+      frameIds: sessionFrames.map(f => f.id),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Save to VectorStore
+    await sessionStore.saveSession(updatedSession);
+    
+    // Update local state
+    setSessions((prev) =>
+      prev.map((s) => (s.id === activeSessionId ? updatedSession : s))
+    );
+    
+    console.log(`✅ Session metadata updated with ${frameCount} frames`);
+  }, [activeSessionId, sessionStore, sessions]);
 
   // ✅ REMOVED: Auto-save on changes useEffect (was causing KB spam)
   // The useEffect that triggered saveCurrentSession on every state change
@@ -2813,6 +3045,46 @@ export function useAIFlowBuilder({
 
   const acceptDrafts = useCallback(
     (frameIds?: string[]): AIFrame[] => {
+          // PRIORITY 1: Check if plan.frames exists and use it (new architecture)
+      if (plan?.frames && plan.frames.length > 0) {
+        console.log(`✅ [ACCEPT] Using plan.frames (${plan.frames.length} frames available)`);
+        
+        const timestamp = new Date().toISOString();
+        const convertedFrames: AIFrame[] = plan.frames.map((frame, index) => {
+          // Map FlowPlannedFrame/FlowGeneratedFrame to AIFrame
+          const aiFrame: AIFrame = {
+            id: frame.id || `frame_${Date.now()}_${index}`,
+            title: frame.title,
+            goal: frame.goal,
+            informationText: (frame as any).informationText || '',
+            afterVideoText: (frame as any).afterVideoText || '',
+            videoUrl: (frame as any).videoUrl || '',
+            startTime: (frame as any).startTime || 0,
+            duration: (frame as any).duration || 0,
+            aiConcepts: frame.aiConcepts || [],
+            type: "frame" as const,
+            order: index,
+            chapterId: frame.chapterId,
+            parentFrameId: frame.chapterId,
+            isGenerated: true,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          };
+          return aiFrame;
+        });
+
+        // Filter by frameIds if provided
+        const filteredFrames = frameIds 
+          ? convertedFrames.filter(f => frameIds.includes(f.id))
+          : convertedFrames;
+
+        console.log(`✅ [ACCEPT] Converted ${filteredFrames.length} frames from plan.frames`);
+        return filteredFrames;
+      }
+
+      // FALLBACK: Use frameDrafts for backward compatibility (old architecture)
+      console.log(`⚠️ [ACCEPT] Falling back to frameDrafts (${frameDrafts.length} drafts)`);
+      
       const targets = frameDrafts.filter((draft) =>
         frameIds ? frameIds.includes(draft.tempId) : draft.status === "generated"
       );
@@ -2856,7 +3128,7 @@ export function useAIFlowBuilder({
 
       return frames;
     },
-    [convertDraftToFrame, frameDrafts, persistSessionState, sessionState]
+    [plan, convertDraftToFrame, frameDrafts, persistSessionState, sessionState]
   );
 
   const discardDrafts = useCallback(
@@ -2944,13 +3216,18 @@ export function useAIFlowBuilder({
     // Session Management
     activeSessionId,
     sessions,
+    loadSessions,
     createNewSession,
     saveCurrentSession,
     switchSession,
     renameSession,
     deleteSession,
+    duplicateSession,
     syncFrameToSession,
     syncFrameDeletions,
+    updateSessionFrameCount,
+    setCurrentGraphState,
     generateGraphState,
   };
 }
+

@@ -1,1894 +1,4293 @@
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useAIFlowBuilder.ts:1888 🚀 TimeCapsule Version 4.8.5_010 - AI Flow Builder Starting
-useAIFlowBuilder.ts:1889 ✅ Fix 1: DataInspector trust LLM decisions (semantic override fix)
-useAIFlowBuilder.ts:1890 ✅ Fix 2: PatternGenerator fail-fast validation (no garbage extraction)
-useAIFlowBuilder.ts:1891 ✅ Fix 3: SelectTrigger infinite re-render fix (stable callbacks + stable values)
-useAIFlowBuilder.ts:1892 ✅ Fix 4: DataInspector parsing improvements (methods, filename, JSON)
-useAIFlowBuilder.ts:1893 ✅ Fix 5: Multi-line list parsing (preserve newlines in methods/concepts)
-useAIFlowBuilder.ts:848 🎬 [SESSION] Creating new ai-flow session...
-useAIFlowBuilder.ts:850 📦 [SESSION] New session object created: {id: 'ai-flow_1763802416315_vij3dcwnm', name: 'AI Flow: using ddp pdf file build a lesson plan for me on d', source: 'ai-flow'}
-useAIFlowBuilder.ts:857 📋 [SESSION] Updating sessions array: 1 -> 2
-useAIFlowBuilder.ts:890 💾 [SESSION] Saving new session to VectorStore...
-useAIFlowBuilder.ts:898 ✅ [SESSION] Session creation complete. Returning session ID: ai-flow_1763802416315_vij3dcwnm
-useAIFlowBuilder.ts:1939 🆕 Created new AI Flow session: AI Flow: using ddp pdf file build a lesson plan for me on d
-Orchestrator.ts:476 🧠 Master LLM Orchestrator starting for: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-Orchestrator.ts:479 🚀 TimeCapsule Version 4.8.5_010 - Master Orchestrator
-Orchestrator.ts:480 ✅ Micro-session architecture enabled (60 iterations, per-agent limits)
-Orchestrator.ts:481 ✅ PatternGenerator validation: Fail-fast if no documents available
-Orchestrator.ts:482 ✅ Plan-aware sequencing with intelligent validation
-Orchestrator.ts:497 🎯 Master Orchestrator: Discovering documents for query "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-Orchestrator.ts:533 🔍 Discovering documents for query: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-VectorStore.ts:1116 🔍 getDocumentMetadata: Filtering for document types [userdocs]
-useAIFlowBuilder.ts:862 🎯 [SESSION] Setting active session ID: null -> ai-flow_1763802416315_vij3dcwnm
-useAIFlowBuilder.ts:862 🎯 [SESSION] Setting active session ID: null -> ai-flow_1763802416315_vij3dcwnm
-useAIFlowBuilder.ts:857 📋 [SESSION] Updating sessions array: 1 -> 2
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+ Fetch failed loading: POST "https://www.google-analytics.com/g/collect?v=2&tid=G-V1B8R98P79&gtm=45je5bi1v898116370za200zd898116370&_p=1764009330055&gcd=13l3l3l3l1l1&npa=0&dma=0&cid=1860015090.1764008661&ul=en-us&sr=2240x1260&uaa=arm&uab=64&uafvl=Chromium%3B142.0.7444.162%7CGoogle%2520Chrome%3B142.0.7444.162%7CNot_A%2520Brand%3B99.0.0.0&uamb=0&uam=&uap=macOS&uapv=26.1.0&uaw=0&are=1&frm=0&pscdl=noapi&_eu=AAAAAAQ&_s=6&tag_exp=102015666~103116026~103200004~104527906~104528501~104684208~104684211~105391252~115583767~115616985~115938465~115938468~116184927~116184929~116217636~116217638&sid=1764054354&sct=2&seg=0&dl=http%3A%2F%2Flocalhost%2Fai-frames&dr=http%3A%2F%2Flocalhost%3A3000%2Fai-frames&dt=TimeCapsule%20-%20AI-Powered%20Learning%20Platform&en=user_engagement&ep.anonymize_ip=false&ep.debug_mode=false&ep.site_name=TimeCapsule-%20SLM&_et=2457&tfd=8769471".
+bd @ js:277
+Cl @ js:443
+SN @ js:970
+(anonymous) @ js:977
+k.flush @ js:993
+(anonymous) @ js:1004
+(anonymous) @ js:942
+(anonymous) @ js:941
+Navigated to http://localhost:3000/ai-frames
+installHook.js:1 -------------- RxDB dev-mode warning -------------------------------
+you are seeing this because you use the RxDB dev-mode plugin https://rxdb.info/dev-mode.html?console=dev-mode 
+This is great in development mode, because it will run many checks to ensure
+that you use RxDB correct. If you see this in production mode,
+you did something wrong because the dev-mode plugin will decrease the performance.
+
+🤗 Hint: To get the most out of RxDB, check out the Premium Plugins
+to get access to faster storages and more professional features: https://rxdb.info/premium/?console=dev-mode 
+
+You can disable this warning by calling disableWarnings() from the dev-mode plugin.
+---------------------------------------------------------------------
+overrideMethod @ installHook.js:1
+init @ index.js:73
+addRxPlugin @ plugin.js:75
+eval @ VectorStore.ts:23
+(app-pages-browser)/./src/components/VectorStore/VectorStore.ts @ layout.js:7215
+options.factory @ webpack.js?v=1764054362449:712
+__webpack_require__ @ webpack.js?v=1764054362449:37
+fn @ webpack.js?v=1764054362449:369
+eval @ VectorStoreProvider.tsx:11
+(app-pages-browser)/./src/components/providers/VectorStoreProvider.tsx @ layout.js:7248
+options.factory @ webpack.js?v=1764054362449:712
+__webpack_require__ @ webpack.js?v=1764054362449:37
+fn @ webpack.js?v=1764054362449:369
+eval @ ClientAppProviders.tsx:8
+(app-pages-browser)/./src/components/providers/ClientAppProviders.tsx @ layout.js:7226
+options.factory @ webpack.js?v=1764054362449:712
+__webpack_require__ @ webpack.js?v=1764054362449:37
+fn @ webpack.js?v=1764054362449:369
+Promise.then
+eval @ next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fnode_modules%2Fnext%2Ffont%2Fgoogle%2Ftarget.css%3F%7B%5C%22path%5C%22%3A%5C%22src%2Fapp%2Flayout.tsx%5C%22%2C%5C%22import%5C%22%3A%5C%22Poppins%5C%22%2C%5C%22arguments%5C%22%3A%5B%7B%5C%22variable%5C%22%3A%5C%22--font-poppins%5C%22%2C%5C%22subsets%5C%22%3A%5B%5C%22latin%5C%22%5D%2C%5C%22weight%5C%22%3A%5B%5C%22400%5C%22%2C%5C%22500%5C%22%2C%5C%22600%5C%22%2C%5C%22700%5C%22%5D%7D%5D%2C%5C%22variableName%5C%22%3A%5C%22poppins%5C%22%7D%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fapp%2Fglobals.css%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FClientAppProviders.tsx%22%2C%22ids%22%3A%5B%22ClientAppProviders%22%5D%7D&server=false!:5
+(app-pages-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-client-entry-loader.js?modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fnode_modules%2Fnext%2Ffont%2Fgoogle%2Ftarget.css%3F%7B%5C%22path%5C%22%3A%5C%22src%2Fapp%2Flayout.tsx%5C%22%2C%5C%22import%5C%22%3A%5C%22Poppins%5C%22%2C%5C%22arguments%5C%22%3A%5B%7B%5C%22variable%5C%22%3A%5C%22--font-poppins%5C%22%2C%5C%22subsets%5C%22%3A%5B%5C%22latin%5C%22%5D%2C%5C%22weight%5C%22%3A%5B%5C%22400%5C%22%2C%5C%22500%5C%22%2C%5C%22600%5C%22%2C%5C%22700%5C%22%5D%7D%5D%2C%5C%22variableName%5C%22%3A%5C%22poppins%5C%22%7D%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fapp%2Fglobals.css%22%2C%22ids%22%3A%5B%5D%7D&modules=%7B%22request%22%3A%22%2FUsers%2Fbooimac%2FAIEDX%2FTemp%2FCode-Temp%2FCanvas3D-LLM%2Fsrc%2Fcomponents%2Fproviders%2FClientAppProviders.tsx%22%2C%22ids%22%3A%5B%22ClientAppProviders%22%5D%7D&server=false! @ layout.js:4591
+options.factory @ webpack.js?v=1764054362449:712
+__webpack_require__ @ webpack.js?v=1764054362449:37
+__webpack_exec__ @ layout.js:7424
+(anonymous) @ layout.js:7425
+__webpack_require__.O @ webpack.js?v=1764054362449:84
+(anonymous) @ layout.js:7426
+webpackJsonpCallback @ webpack.js?v=1764054362449:1388
+(anonymous) @ layout.js:9
+analytics.ts:160 📱 Device Info Collected: {userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Ap…KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', platform: 'MacIntel', vendor: 'Google Inc.', language: 'en-US', languages: Array(4), …}
+analytics.ts:193 🌍 Location Info Collected: {timezone: 'Asia/Calcutta', timezoneOffset: -330, language: 'en-US'}
+analytics.ts:79 📊 GA4 Environment Variables Debug: {measurementId: 'G-V1B8R98P79', anonymizeIp: false, debugMode: false, siteName: 'TimeCapsule- SLM', siteUrl: 'http://localhost:3000', …}
+analytics.ts:183 🌍 Location Info Updated: {timezone: 'Asia/Calcutta', timezoneOffset: -330, language: 'en-US', latitude: 19.16836955638583, longitude: 72.8464444081081, …}
+unifiedStorage.ts:132 📂 Starting unified load...
 useAIProviders.ts:232 🔄 aiProviders object updated
-useAIFlowBuilder.ts:1141 💾 Persisting active session ID to localStorage: ai-flow_1763802416315_vij3dcwnm
-page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
+page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: null, sessionsCount: 0, sessionsList: Array(0)}
+page.tsx:1674 🔄 Loading initial data with unified storage...
+unifiedStorage.ts:132 📂 Starting unified load...
+page.tsx:1775 🔧 AI-Frames unified storage interface updated: {hasVectorStore: false, vectorStoreInitialized: false, frameCount: 0, hasUnifiedMethods: true}
+VectorStoreProvider.tsx:150 🚀 Auto-initializing VectorStore for route: /ai-frames
+VectorStoreProvider.tsx:79 🚀 VectorStoreProvider: Creating new singleton VectorStore...
+RAGTracker.ts:26 🔍 RAG Tracker initialized with config: {enableTracking: true, enableVisualization: true, enablePerformanceMetrics: true, enableQualityMetrics: false, maxQueryHistory: 1000, …}
+VectorStore.ts:226 🗂️ VectorStore constructor called
+VectorStore.ts:227 🔍 RAG Tracker initialized for VectorStore
+VectorStore.ts:339 🗂️ Initializing RxDB Vector Store...
+VectorStore.ts:342 🤖 Loading document processor...
+EmbeddingService.ts:35 🧠 Xenova environment configured for bundled embeddings
+DocumentProcessor.ts:66 🔧 DocumentProcessor constructor called (new architecture)
+VectorStore.ts:349 ⏸️ Skipping automatic embedding download; will initialize when first needed.
+VectorStore.ts:354 📚 Creating RxDB database...
 useAIProviders.ts:232 🔄 aiProviders object updated
-react-dom-client.development.js:16378 [Violation] 'click' handler took 315ms
-VectorStore.ts:1178 🔍 getDocumentMetadata: Retrieved 1 documents (filtered for: userdocs)
-Orchestrator.ts:537 📚 Found 1 user documents
-Orchestrator.ts:564 ✅ Master Orchestrator: Prepared 1 document metadata for DataInspector analysis
-Orchestrator.ts:900 🎯 Master LLM analyzing situation and planning tool calls...
-Orchestrator.ts:3047 ❌ No extracted data found in any location
-Orchestrator.ts:997 🎯 Starting micro-session: "Analyze document structure and relevance"
-Orchestrator.ts:3047 ❌ No extracted data found in any location
-Orchestrator.ts:916 🔄 Master LLM Iteration 1: Analyze document structure and relevance
-VectorStore.ts:1940 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (inserted)
+VectorStoreProvider.tsx:153 ⏭️ Skipping auto-init for /ai-frames: {isInitialized: false, isInitializing: true, attemptedBefore: true, singletonInitialized: false}
+scheduler.development.js:14 [Violation] 'message' handler took 182ms
+installHook.js:1 -------------- RxDB Open Core RxStorage -------------------------------
+You are using the free Dexie.js based RxStorage implementation from RxDB https://rxdb.info/rx-storage-dexie.html?console=dexie 
+While this is a great option, we want to let you know that there are faster storage solutions available in our premium plugins.
+For professional users and production environments, we highly recommend considering these premium options to enhance performance and reliability.
+ https://rxdb.info/premium/?console=dexie 
+If you already purchased premium access you can disable this log by calling the setPremiumFlag() function from rxdb-premium/plugins/shared.
+---------------------------------------------------------------------
+overrideMethod @ installHook.js:1
+bulkWrite @ rx-storage-instance-dexie.js:44
+await in bulkWrite
+instance.bulkWrite @ plugin-helpers.js:90
+eval @ rx-storage-helper.js:478
+wrapCall @ index.js:76
+lockedRun @ rx-database.js:327
+bulkWrite @ rx-storage-helper.js:478
+ensureStorageTokenDocumentExists @ rx-database-internal-store.js:156
+RxDatabaseBase @ rx-database.js:131
+eval @ rx-database.js:548
+await in eval
+createRxDatabase @ rx-database.js:564
+init @ VectorStore.ts:361
+VectorStoreProvider.useCallback[initializeVectorStore] @ VectorStoreProvider.tsx:84
+VectorStoreProvider.useEffect @ VectorStoreProvider.tsx:151
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+flushPendingEffects @ react-dom-client.development.js:15830
+performSyncWorkOnRoot @ react-dom-client.development.js:16362
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<VectorStoreProvider>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+ClientAppProviders @ ClientAppProviders.tsx:22
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+VectorStore.ts:368 📄 Creating documents collection...
+installHook.js:1 Image with src "/Media/TimeCapsule_04.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+overrideMethod @ installHook.js:1
+warnOnce @ warn-once.js:16
+eval @ image-component.js:89
+Promise.then
+handleLoading @ image-component.js:36
+eval @ image-component.js:153
+applyRef @ use-merged-ref.js:49
+eval @ use-merged-ref.js:39
+commitAttachRef @ react-dom-client.development.js:12246
+runWithFiberInDEV @ react-dom-client.development.js:845
+safelyAttachRef @ react-dom-client.development.js:12264
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12805
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12692
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12692
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12692
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12803
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12692
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12692
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12692
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12692
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12687
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12867
+recursivelyTraverseLayoutEffects @ react-dom-client.development.js:13673
+commitLayoutEffectOnFiber @ react-dom-client.development.js:12769
+flushLayoutEffects @ react-dom-client.development.js:15687
+commitRoot @ react-dom-client.development.js:15528
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<img>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ image-component.js:166
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<ForwardRef>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ image-component.js:281
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<ForwardRef>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+Navbar @ navbar.tsx:70
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<Navbar>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+AIFramesLayout @ layout.tsx:12
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<AIFramesLayout>
+exports.jsx @ react-jsx-runtime.development.js:339
+ClientSegmentRoot @ client-segment.js:18
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+AIFramesPage.useEffect @ page.tsx:1657
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+flushPendingEffects @ react-dom-client.development.js:15830
+performSyncWorkOnRoot @ react-dom-client.development.js:16362
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<AIFramesPage>
+exports.jsx @ react-jsx-runtime.development.js:339
+ClientPageRoot @ client-page.js:20
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+unifiedStorage.ts:160 📭 No data found in any storage
+useUnifiedStorage.ts:991 📭 No data found during load
+unifiedStorage.ts:160 📭 No data found in any storage
+useUnifiedStorage.ts:991 📭 No data found during load
+page.tsx:1682 📭 No data found in unified storage
+page.tsx:1685 ✅ Initial data loading complete
+useAIProviders.ts:232 🔄 aiProviders object updated
+useAIProviders.ts:232 🔄 aiProviders object updated
+VectorStore.ts:624 ✅ RxDB Vector Store initialized successfully
+VectorStore.ts:625 🧠 Xenova download running in background...
+VectorStoreProvider.tsx:85 ✅ VectorStoreProvider: Singleton VectorStore initialized successfully
+VectorStoreProvider.tsx:96 🔧 VectorStore exposed globally on window.vectorStore for testing
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":true,"handleEdgesChangeChanged":true,"handleNodesDeleteChanged":true,"onConnectChanged":true,"onEdgesDeleteChanged":true,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 1
+useAIProviders.ts:232 🔄 aiProviders object updated
+sessionStore.ts:32 📦 SessionStore initialized
+useTimeCapsule.ts:36 🎯 TimeCapsuleStore initialized
+GraphStorageManager.ts:84 🗂️ Initializing GraphStorageManager with VectorStore backend...
+GraphStorageManager.ts:86 ✅ GraphStorageManager initialized successfully
+page.tsx:1775 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 0, hasUnifiedMethods: true}
+VectorStoreProvider.tsx:153 ⏭️ Skipping auto-init for /ai-frames: {isInitialized: true, isInitializing: false, attemptedBefore: false, singletonInitialized: true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 2
+MetadataManager.ts:948 🔄 Force syncing metadata to Knowledge Base...
+MetadataManager.ts:611 🔄 Starting enhanced metadata sync to Knowledge Base... {bubblSpacesCount: 1, timeCapslesCount: 0, vectorStoreStatus: {…}}
+MetadataManager.ts:628 📝 Syncing BubblSpace: My BubblSpace (ID: bubblspace-bubbl-1764054367585yf)
+VectorStore.ts:1282 🗑️ Deleting document: bubblspace-bubbl-1764054367585yf (attempt 1/5)
+MetadataManager.ts:948 🔄 Force syncing metadata to Knowledge Base...
+MetadataManager.ts:611 🔄 Starting enhanced metadata sync to Knowledge Base... {bubblSpacesCount: 1, timeCapslesCount: 1, vectorStoreStatus: {…}}
+MetadataManager.ts:628 📝 Syncing BubblSpace: My BubblSpace (ID: bubblspace-bubbl-1764054367585yf)
+MetadataManager.ts:75 ✅ Created default BubblSpace "My BubblSpace" and TimeCapsule "Untitled TimeCapsule"
+MetadataManager.ts:1022 📋 Syncing metadata with vector store...
+MetadataManager.ts:611 🔄 Starting enhanced metadata sync to Knowledge Base... {bubblSpacesCount: 1, timeCapslesCount: 1, vectorStoreStatus: {…}}
+MetadataManager.ts:628 📝 Syncing BubblSpace: My BubblSpace (ID: bubblspace-bubbl-1764054367585yf)
+page.tsx:1496 ✅ Managers initialized successfully
+Analytics.tsx:42 ⏳ Analytics: Skipping page tracking - no consent or not initialized
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 3
+timeCapsuleStore.ts:83 📋 Listed 0 TimeCapsules
+useTimeCapsule.ts:57 🆕 Creating default TimeCapsule...
+useDocuments.ts:78 📊 Document status updated: {documents: 0, totalSize: '0 B', totalChunks: 0, totalVectors: 0, avgChunksPerDoc: 0, …}
+sessionStore.ts:130 📋 Loaded 0 sessions
+useAIFlowBuilder.ts:874 📋 Loaded 0 sessions from KB
+sessionStore.ts:130 📋 Loaded 0 sessions
+installHook.js:1 ⚠️ Document not found: bubblspace-bubbl-1764054367585yf
+overrideMethod @ installHook.js:1
+performDocumentDeletion @ VectorStore.ts:1303
+await in performDocumentDeletion
+eval @ VectorStore.ts:1271
+executeOperation @ VectorStore.ts:324
+queueOperation @ VectorStore.ts:293
+deleteDocument @ VectorStore.ts:1269
+saveMetadataToVectorStore @ MetadataManager.ts:633
+forceSyncToVectorStore @ MetadataManager.ts:949
+createBubblSpace @ MetadataManager.ts:122
+createDefaultBubblSpace @ MetadataManager.ts:57
+initializeStorage @ MetadataManager.ts:43
+await in initializeStorage
+MetadataManager @ MetadataManager.ts:28
+getMetadataManager @ MetadataManager.ts:1308
+AIFramesPage.useEffect.initializeManagers @ page.tsx:1493
+AIFramesPage.useEffect @ page.tsx:1505
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+MetadataManager.ts:634 🗑️ Deleted old BubblSpace document: bubblspace-bubbl-1764054367585yf
+MetadataManager.ts:634 🗑️ Deleted old BubblSpace document: bubblspace-bubbl-1764054367585yf
+MetadataManager.ts:634 🗑️ Deleted old BubblSpace document: bubblspace-bubbl-1764054367585yf
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: null, sessionsCount: 0, sessionsList: Array(0)}
+VectorStore.ts:1940 📊 Synced frame My First Project to Knowledge Base (inserted)
 VectorStore.ts:2679 💾 Database flush completed
-VectorStore.ts:2634 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
+VectorStore.ts:2634 🔍 Verifying document persistence: timecapsule_1764054367615_ah2ez6vjj (attempt 1/3)
 VectorStore.ts:2679 💾 Database flush completed
-VectorStore.ts:2000 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 1-pjszfuytjn
-VectorStore.ts:2647 ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 1-pjszfuytjn)
-sessionStore.ts:75 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
-useAIFlowBuilder.ts:892 ✅ [SESSION] New session saved to VectorStore
-Orchestrator.ts:1378 🧠 Master LLM Decision Response (446 chars): ACTION: CALL_TOOL
-TOOL_NAME: DataInspector
-REASONING: The goal is to analyze document structure and relevance, and no agents have been called yet. DataInspector is the mandatory first step to analyze and filter the 1 pre-loaded document chunk, identifying relevant structure and content for the query without skipping any prerequisites.
-NEXT_GOAL: Obtain filtered and analyzed document insights to enable subsequent planning and extraction steps.
-Orchestrator.ts:1698 🔍 PARSING DEBUG: Full response (446 chars): ACTION: CALL_TOOL
-TOOL_NAME: DataInspector
-REASONING: The goal is to analyze document structure and relevance, and no agents have been called yet. DataInspector is the mandatory first step to analyze and filter the 1 pre-loaded document chunk, identifying relevant structure and content for the query without skipping any prerequisites.
-NEXT_GOAL: Obtain filtered and analyzed document insights to enable subsequent planning and extraction steps.
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-makeMasterLLMDecision @ Orchestrator.ts:1375
-masterLLMOrchestration @ Orchestrator.ts:918
-research @ Orchestrator.ts:510
-Orchestrator.ts:1711 🎯 PARSED ACTION (FIRST): CALL_TOOL
-Orchestrator.ts:1714 🎯 PARSED TOOL_NAME (FIRST): DataInspector
-Orchestrator.ts:1723 ✅ PRIMARY DECISION FOUND - stopping parse to avoid overwriting with future steps
-Orchestrator.ts:1730 ✅ USING STRUCTURED FORMAT: action=CALL_TOOL, toolName=DataInspector
-Orchestrator.ts:1381 🎯 Parsed Decision: {action: 'CALL_TOOL', toolName: 'DataInspector', reasoning: 'Need to call DataInspector to progress toward the goal'}
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "DataInspector"
-Orchestrator.ts:2936 🎯 Mapping DataInspector → DataInspector (contains 'inspector' or 'analyzer')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "DataInspector"
-Orchestrator.ts:2936 🎯 Mapping DataInspector → DataInspector (contains 'inspector' or 'analyzer')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "DataInspector"
-Orchestrator.ts:2936 🎯 Mapping DataInspector → DataInspector (contains 'inspector' or 'analyzer')
-Orchestrator.ts:1855 🔍 PLAN-GUIDED VALIDATION: DataInspector
-Orchestrator.ts:1856 📋 Agent Status: No agents called yet
-Orchestrator.ts:1857 💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps
-Orchestrator.ts:2428 ✅ Agent execution validated: DataInspector always allowed as first agent
-Orchestrator.ts:2552 🔧 Executing tool: DataInspector (original: DataInspector)
-Orchestrator.ts:2563 ⏳ [orch-1763802416330-4sra] Starting DataInspector - waiting for completion...
-DataInspectorAgent.ts:97 🚀 TimeCapsule Version 4.8.5_010 - DataInspector Agent (Root Cause Fixes Applied)
-DataInspectorAgent.ts:98 ✅ Fix 1: Format-agnostic technical terms parsing (newlines + commas)
-DataInspectorAgent.ts:99 ✅ Fix 2: Filename metadata preservation from VectorStore
-DataInspectorAgent.ts:100 ✅ Fix 3: Simplified JSON prompt structure
-DataInspectorAgent.ts:101 ✅ Fix 4: Preserve newlines in multi-line lists (methods/concepts parsing)
-DataInspectorAgent.ts:120 🔎 DataInspector: Received document metadata - performing multi-document sampling and analysis
-DataInspectorAgent.ts:2231 📋 Found 1 documents to analyze: ['thefirehacker-github-io-til-ddp-python-basics-html.pdf']
-DataInspectorAgent.ts:2296 🔍 Sampling real chunks from 1 documents for intelligent analysis
-DataInspectorAgent.ts:2326 🔍 Sampling chunks from document 1/1: thefirehacker-github-io-til-ddp-python-basics-html.pdf
-DataInspectorAgent.ts:2425 ✅ Sampled 9 real chunks from "thefirehacker-github-io-til-ddp-python-basics-html.pdf" (29 total chunks)
-DataInspectorAgent.ts:2487 ✅ Sampled chunks from 1 documents with real content
-DataInspectorAgent.ts:2492 🧠 Analyzing 1 documents with real sampled content for intelligent relevance decisions
-DataInspectorAgent.ts:449 🔍 Multi-document analysis: 1 documents detected
+VectorStore.ts:2000 📋 Retrieved latest revision for timecapsule_1764054367615_ah2ez6vjj: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: My First Project (ID: timecapsule_1764054367615_ah2ez6vjj, Rev: 1-cwyakxjrax)
+timeCapsuleStore.ts:50 ✅ TimeCapsule created: {id: 'timecapsule_1764054367615_ah2ez6vjj', name: 'My First Project'}
+useTimeCapsule.ts:67 ✅ Default TimeCapsule created: timecapsule_1764054367615_ah2ez6vjj
 useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 153ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:507
-performDocumentMetadataAnalysis @ DataInspectorAgent.ts:2495
-await in performDocumentMetadataAnalysis
-processNormally @ DataInspectorAgent.ts:130
-await in processNormally
-process @ FeedbackAwareAgent.ts:211
-executeToolCall @ Orchestrator.ts:2564
-await in executeToolCall
-executeToolCallWithMicroSession @ Orchestrator.ts:1066
-masterLLMOrchestration @ Orchestrator.ts:943
-await in masterLLMOrchestration
-research @ Orchestrator.ts:510
-DataInspectorAgent.ts:508 🤖 Multi-document analysis: # Multi-Document Analysis Report
-
-## 1. DOCUMENT TYPES
-
-**Document 1 (doc_1763734150797_xwygw61y8)**: 
-- **Type**: Technical Tutorial/Educational Blog Post
-- **Format**: Structured teaching document with table of contents
-- **Topic**: Distributed Data Parallel (DDP) training in PyTorch
-
-## 2. PRIMAR
-DataInspectorAgent.ts:770 🧠 DataInspector analyzing 1 documents with pure LLM intelligence
-DataInspectorAgent.ts:980 🔍 DEBUG DataInspector Document 1 Sample Content: {chunksCount: 9, sampleLength: 4780, firstChunkPreview: 'TL;DR\n\n Core Python patterns explained: Core Pyt…ints) into model-ready tensors in one elegant ...', hasActualContent: true, filename: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', …}
-DataInspectorAgent.ts:1043 📤 DEBUG DataInspector Document 1 LLM Prompt: {promptLength: 6353, containsDocumentContent: true, contentSampleInPrompt: 'Analyze this document and determine its relevance …;DR\n\n Core Python patterns explained: Core P...'}
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 200ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-analyzeDocumentIntelligently @ DataInspectorAgent.ts:1053
-parseMultiDocumentAnalysis @ DataInspectorAgent.ts:801
-await in parseMultiDocumentAnalysis
-updateContextFromMultiDocumentInspection @ DataInspectorAgent.ts:671
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:512
-await in performMultiDocumentAnalysis
-performDocumentMetadataAnalysis @ DataInspectorAgent.ts:2495
-await in performDocumentMetadataAnalysis
-processNormally @ DataInspectorAgent.ts:130
-await in processNormally
-process @ FeedbackAwareAgent.ts:211
-executeToolCall @ Orchestrator.ts:2564
-await in executeToolCall
-executeToolCallWithMicroSession @ Orchestrator.ts:1066
-masterLLMOrchestration @ Orchestrator.ts:943
-await in masterLLMOrchestration
-research @ Orchestrator.ts:510
-DataInspectorAgent.ts:1056 🧠 DataInspector Document 1 LLM Response: TYPE: Tutorial/Educational Document
-MAIN_ENTITY: PyTorch Distributed Data Parallel (DDP) Python basics
-RELEVANT: YES
-REASON: Document directly covers DDP distributed training concepts, patterns, and implementation - highly relevant for building a lesson plan on distributed training.
-
-METHODS:
-set_seed()
-all_reduce()
-optimizer.step()
-torch.manual_seed()
-torch.cuda.manual_seed_all()
-average_grads()
-forward()
-AutoModelForSequenceClassification
-dictionary comprehension
-kwargs unpacking (**)
-torch.te...
-responseCompletion.ts:213 🔍 Direct JSON parse failed, trying extraction...
-installHook.js:1 ⚠️ DataInspector: Failed to parse structured JSON response: Error: Invalid JSON after all extraction attempts
-    at parseJsonWithResilience (responseCompletion.ts:262:11)
-    at DataInspectorAgent.parseStructuredAnalysis (DataInspectorAgent.ts:1204:45)
-    at DataInspectorAgent.analyzeDocumentIntelligently (DataInspectorAgent.ts:1061:31)
-    at async DataInspectorAgent.parseMultiDocumentAnalysis (DataInspectorAgent.ts:801:27)
-    at async DataInspectorAgent.updateContextFromMultiDocumentInspection (DataInspectorAgent.ts:671:32)
-    at async DataInspectorAgent.performMultiDocumentAnalysis (DataInspectorAgent.ts:512:9)
-    at async DataInspectorAgent.performDocumentMetadataAnalysis (DataInspectorAgent.ts:2495:5)
-    at async DataInspectorAgent.processNormally (DataInspectorAgent.ts:130:7)
-    at async Orchestrator.executeToolCall (Orchestrator.ts:2564:7)
-    at async Orchestrator.executeToolCallWithMicroSession (Orchestrator.ts:1066:5)
-    at async Orchestrator.masterLLMOrchestration (Orchestrator.ts:943:9)
-    at async Orchestrator.research (Orchestrator.ts:510:5)
-    at async useAIFlowBuilder.useCallback[planFlow] (useAIFlowBuilder.ts:1990:7)
-overrideMethod @ installHook.js:1
-parseStructuredAnalysis @ DataInspectorAgent.ts:1209
-analyzeDocumentIntelligently @ DataInspectorAgent.ts:1061
-await in analyzeDocumentIntelligently
-parseMultiDocumentAnalysis @ DataInspectorAgent.ts:801
-await in parseMultiDocumentAnalysis
-updateContextFromMultiDocumentInspection @ DataInspectorAgent.ts:671
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:512
-await in performMultiDocumentAnalysis
-performDocumentMetadataAnalysis @ DataInspectorAgent.ts:2495
-installHook.js:1 ⚠️ DataInspector: Structured JSON missing or invalid, falling back to regex extraction
-overrideMethod @ installHook.js:1
-analyzeDocumentIntelligently @ DataInspectorAgent.ts:1063
-await in analyzeDocumentIntelligently
-parseMultiDocumentAnalysis @ DataInspectorAgent.ts:801
-await in parseMultiDocumentAnalysis
-updateContextFromMultiDocumentInspection @ DataInspectorAgent.ts:671
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:512
-await in performMultiDocumentAnalysis
-performDocumentMetadataAnalysis @ DataInspectorAgent.ts:2495
-DataInspectorAgent.ts:1263 🎯 DataInspector: Extracted MAIN_ENTITY: "PyTorch Distributed Data Parallel (DDP) Python basics"
-installHook.js:1 ⚠️ DataInspector failed to extract CONCEPT_SYNTHESIS from response: "TYPE: Tutorial/Educational Document
-MAIN_ENTITY: PyTorch Distributed Data Parallel (DDP) Python basics
-RELEVANT: YES
-REASON: Document directly covers DDP distributed training concepts, patterns, and i..."
-overrideMethod @ installHook.js:1
-extractValue @ DataInspectorAgent.ts:1358
-analyzeDocumentIntelligently @ DataInspectorAgent.ts:1081
-await in analyzeDocumentIntelligently
-parseMultiDocumentAnalysis @ DataInspectorAgent.ts:801
-await in parseMultiDocumentAnalysis
-updateContextFromMultiDocumentInspection @ DataInspectorAgent.ts:671
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:512
-await in performMultiDocumentAnalysis
-performDocumentMetadataAnalysis @ DataInspectorAgent.ts:2495
-DataInspectorAgent.ts:1285 🎯 DataInspector: Extracted RELEVANT: "YES"
-DataInspectorAgent.ts:1152 🔍 DataInspector Document 1 Parsed: {docType: 'Tutorial/Educational Document MAINENTITY: PyTorch … hiddenstates SequenceClassifierOutput batch data', mainEntity: 'PyTorch Distributed Data Parallel (DDP) Python basics', relevantText: 'YES', reasoning: 'Document directly covers DDP distributed training …epts, patterns, and implementation - highly re...'}
-DataInspectorAgent.ts:1164 🔍 COMPREHENSIVE ANALYSIS: Query="using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero", Entity="PyTorch Distributed Data Parallel (DDP) Python basics" → Result: true
-DataInspectorAgent.ts:807 🔍 Document 1 intelligent analysis: {docType: 'Tutorial/Educational Document MAINENTITY: PyTorch … hiddenstates SequenceClassifierOutput batch data', primaryEntity: 'PyTorch Distributed Data Parallel (DDP) Python basics', isRelevant: true, reasoning: 'Document directly covers DDP distributed training …epts, patterns, and implementation - highly re...'}
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 159ms
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-discoverContentAreas @ DataInspectorAgent.ts:1606
-parseMultiDocumentAnalysis @ DataInspectorAgent.ts:818
-await in parseMultiDocumentAnalysis
-updateContextFromMultiDocumentInspection @ DataInspectorAgent.ts:671
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:512
-await in performMultiDocumentAnalysis
-performDocumentMetadataAnalysis @ DataInspectorAgent.ts:2495
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 163ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-discoverEntitiesIntelligently @ DataInspectorAgent.ts:1559
-parseMultiDocumentAnalysis @ DataInspectorAgent.ts:821
-await in parseMultiDocumentAnalysis
-updateContextFromMultiDocumentInspection @ DataInspectorAgent.ts:671
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:512
-useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-discoverDocumentRole @ DataInspectorAgent.ts:1680
-parseMultiDocumentAnalysis @ DataInspectorAgent.ts:824
-await in parseMultiDocumentAnalysis
-updateContextFromMultiDocumentInspection @ DataInspectorAgent.ts:671
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:512
-DataInspectorAgent.ts:3446 ✅ LLM classified document as RELEVANT - validating with semantic analysis
-DataInspectorAgent.ts:3479 ✅ LLM decision validated - semantic score acceptable (52%)
-DataInspectorAgent.ts:838 ✅ Including relevant document: Tutorial/Educational Document MAINENTITY: PyTorch Distributed Data Parallel (DDP) Python basics RELEVANT: YES REASON: Document directly covers DDP distributed training concepts, patterns, and implementation - highly relevant for building a lesson plan on distributed training. METHODS: setseed() allreduce() optimizer.step() torch.manualseed() torch.cuda.manualseedall() averagegrads() forward() AutoModelForSequenceClassification dictionary comprehension kwargs unpacking () torch.tensor().to(device) CONCEPTS: Distributed Data Parallel (DDP) gradient averaging model replicas synchronization seeding for reproducibility worldsize rank broadcast initialization tensor operations GPU tensors gradient synchronization learning rate scaling bucketing autograd hooks lock-step training Hugging Face datasets integration PEOPLE: Tyler Romero (implied as instructor based on "instructor's comment" reference) DATATYPES: PyTorch tensors Python dictionaries inputids attentionmask labels gradients logits hiddenstates SequenceClassifierOutput batch data (LLM decision trusted (semantic validation: 52%) - Document directly covers DDP distributed training concepts, patterns, and implementation - highly re)
-DataInspectorAgent.ts:864 🎯 DataInspector: Stored concept synthesis for document doc_1763734150797_xwygw61y8
-DataInspectorAgent.ts:895 📊 Document filtering: 1 total → 1 relevant
-DataInspectorAgent.ts:691 📋 Multi-Document Analysis: 1 documents with 0 relationships
-DataInspectorAgent.ts:747 ✅ DOCUMENT ANALYSIS: All 1 documents deemed relevant - no filtering applied
-DataInspectorAgent.ts:2651 🧠 DataInspector: Extracting intelligence from concept synthesis
-DataInspectorAgent.ts:2675 🔍 Processing concept synthesis for doc_1763734150797_xwygw61y8
-DataInspectorAgent.ts:2689 ✅ Extracted from synthesis: 0 methods, 0 concepts, 0 data points
-DataInspectorAgent.ts:2835 🔍 Additional intelligence from document content: 0 table entries
-DataInspectorAgent.ts:2879 📊 Formatted 0 measurements for PatternGenerator
-DataInspectorAgent.ts:2702 🎯 Intelligence extracted from concept synthesis: {methods: 0, concepts: 0, people: 0, data: 0, measurements: 0}
-installHook.js:1 ⚠️ No actionable intelligence extracted from concept synthesis - PatternGenerator may need to analyze chunks directly
-overrideMethod @ installHook.js:1
-extractIntelligenceFromConceptSynthesis @ DataInspectorAgent.ts:2721
-await in extractIntelligenceFromConceptSynthesis
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:519
-DataInspectorAgent.ts:2579 🔬 DataInspector: Extracting query-relevant terms from 1 document for: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 176ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-analyzeQueryForContentPrioritization @ DataInspectorAgent.ts:3156
-buildQueryAwareContentSample @ DataInspectorAgent.ts:3089
-extractQueryRelevantTerms @ DataInspectorAgent.ts:2584
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:523
-DataInspectorAgent.ts:3102 📊 Document 1: Sampling 5 of 9 chunks (56%)
-DataInspectorAgent.ts:2589 🔍 Content sample for technical extraction (2339 chars): --- DOCUMENT 1: doc_1763734150797_xwygw61y8 ---
-TL;DR
-
- Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions: Transform raw data (lists...
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 164ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-extractQueryRelevantTerms @ DataInspectorAgent.ts:2605
-await in extractQueryRelevantTerms
-performMultiDocumentAnalysis @ DataInspectorAgent.ts:523
-DataInspectorAgent.ts:2606 🎯 Technical terms LLM response: Based on the user's query about building a lesson plan on distributed training using the DDP PDF file and finding information on a speed run by Tyler Romero, here's what I can extract:
-
-**METHODS:** 
-- DDP (Distributed Data Parallel)
-- all_reduce (SUM)
-- Dictionary comprehensions
-- Kwargs unpacking
-- broadcast
-- seeding
-
-**CONCEPTS:**
-- Distributed training
-- Model replicas
-- GPU tensors
-- PyTorch tensor operations
-- world_size
-- forward() method
-- optimizer.step()
-- Hugging Face datasets
-- Auto Model For Sequence Classification
-
-**PEOPLE:** 
-- Tyler Romero (mentioned in document title/context but no specific content about a "speed run" is present in the provided document excerpt)
-
-**DATA_TYPES:**
-- Python dicts with lists and ints
-- PyTorch tensors
-- input_ids
-- attention_mask
-- labels
-
-**NOTE:** The document appears to be a tutorial/guide on DDP (Distributed Data Parallel) training with sections covering:
-1. Visual mental model of distributed training
-2. Seeding
-3. Python idioms
-4. DDP wrapper
-5. Minimal distributed training loop
-6. Common pitfalls & fixes
-7. Exercises and cheatsheet
-
-However, the provided excerpt does **not contain specific information about a "speed run by Tyler Romero"** - only technical content about DDP implementation. More document content would be needed to find that information.
-DataInspectorAgent.ts:2938 🔍 Parsing methods line: ""
-DataInspectorAgent.ts:2967 💾 Saving methods: "DDP (Distributed Data Parallel)
-all_reduce (SUM)
-Dictionary comprehensions
-Kwargs unpacking
-broadcas..."
-DataInspectorAgent.ts:2999 ✅ Parsed methods: 6 items (3) ['DDP (Distributed Data Parallel)', 'all_reduce (SUM)', 'Dictionary comprehensions']
-DataInspectorAgent.ts:2938 🔍 Parsing concepts line: ""
-DataInspectorAgent.ts:2967 💾 Saving concepts: "Distributed training
-Model replicas
-GPU tensors
-PyTorch tensor operations
-world_size
-forward() metho..."
-DataInspectorAgent.ts:2999 ✅ Parsed concepts: 9 items (3) ['Distributed training', 'Model replicas', 'GPU tensors']
-DataInspectorAgent.ts:2938 🔍 Parsing people line: ""
-DataInspectorAgent.ts:2967 💾 Saving people: "Tyler Romero (mentioned in document title/context but no specific content about a "speed run" is pre..."
-DataInspectorAgent.ts:2938 🔍 Parsing data line: ""
-DataInspectorAgent.ts:2967 💾 Saving data: "Python dicts with lists and ints
-PyTorch tensors
-input_ids
-attention_mask
-labels
-*NOTE:** The docume..."
-DataInspectorAgent.ts:2999 ✅ Parsed data: 15 items (3) ['Python dicts with lists and ints', 'PyTorch tensors', 'input_ids']
-DataInspectorAgent.ts:2610 🔍 Parsed technical terms: {methods: Array(6), concepts: Array(9), people: Array(0), data: Array(15)}
-DataInspectorAgent.ts:2620 ✅ Document insights stored in context.sharedKnowledge: {methods: 6, concepts: 9, people: 0, data: 15}
-DataInspectorAgent.ts:2629 📋 Extracted methods: (6) ['DDP (Distributed Data Parallel)', 'all_reduce (SUM)', 'Dictionary comprehensions', 'Kwargs unpacking', 'broadcast', 'seeding']
-DataInspectorAgent.ts:2503 📊 Relevance filtering: 1 relevant out of 1 total documents
-DataInspectorAgent.ts:2514 🔄 Replacing 1 document metadata with 9 relevant chunks from intelligent analysis
-Orchestrator.ts:2565 ✅ [orch-1763802416330-4sra] DataInspector process() completed - agent finished
-Orchestrator.ts:2569 ✅ Tool DataInspector completed in 71618ms
-Orchestrator.ts:3241 🔍 PlanningAgent consuming and validating DataInspector results using Claude Code-style logic
-PlanningAgent.ts:2578 🎯 PlanningAgent: Consuming and validating results from DataInspector
-PlanningAgent.ts:1849 🔍 PlanningAgent: Validating DataInspector results for query: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-PlanningAgent.ts:1877 🔍 VALIDATION DEBUG: Testing query "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero" against entity patterns
-PlanningAgent.ts:1881 🔍 VALIDATION DEBUG: Pattern /\b([A-Z][a-z]+)'s\s+(.+)/ → Match: null
-PlanningAgent.ts:1881 🔍 VALIDATION DEBUG: Pattern /from\s+([A-Z][a-z]+)'s\s+(.+)/ → Match: null
-PlanningAgent.ts:1881 🔍 VALIDATION DEBUG: Pattern /by\s+([A-Z][a-z]+)\b/ → Match: (2) ['by Tyler', 'Tyler', index: 111, input: 'using ddp pdf file build a lesson plan for me on d…ind more information on speed run by Tyler Romero', groups: undefined]
-PlanningAgent.ts:1885 🔍 VALIDATION DEBUG: Extracted entity "Tyler" with context "content"
-PlanningAgent.ts:1895 🔍 VALIDATION DEBUG: Query entity extracted = "Tyler", Query context = "content"
-PlanningAgent.ts:1906 🔍 VALIDATION DEBUG Doc 1: {docText: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', docEntity: 'PyTorch Distributed Data Parallel (DDP) Python basics', docType: 'Tutorial/Educational Document MAINENTITY: PyTorch … hiddenstates SequenceClassifierOutput batch data', isRelevant: false, reasoningPreview: '...'}
-PlanningAgent.ts:2696 🔍 Fallback entity extraction: "Distributed Data Parallel"
-PlanningAgent.ts:1918 🔍 VALIDATION DEBUG Entity extraction: {searchTextPreview: 'thefirehacker-github-io-til-ddp-python-basics-html…Distributed Data Parallel (DDP) Python basics ...', extractedEntityName: 'Distributed Data Parallel', queryEntityExpected: 'Tyler', entityMatch: false, wouldTriggerMismatch: true}
-PlanningAgent.ts:1943 🔍 VALIDATION DEBUG Alternative entity extraction: {alternativeEntity: null, directEntityMatch: 'PyTorch Distributed Data Parallel (DDP) Python basics', finalEntityForComparison: 'Distributed Data Parallel'}
-PlanningAgent.ts:1953 🚨 ENTITY MISMATCH DETECTED: Query asks for "Tyler" but document is about "Distributed Data Parallel"
-PlanningAgent.ts:1954 🚨 DOCUMENT MARKED AS RELEVANT: false - This should be corrected
-PlanningAgent.ts:1962 🚨 VALIDATION FAILURE: Entity mismatch detected, attempting document filtering
-PlanningAgent.ts:1994 🔧 Filtering out document about "Distributed Data Parallel" (query asks for "Tyler")
-PlanningAgent.ts:2002 🔧 Document filtering applied: 1 → 0 documents
-PlanningAgent.ts:2017 🔄 Document filtering insufficient, falling back to replanning
-PlanningAgent.ts:2024 🚨 VALIDATION FAILURE RESULT: {isValid: false, replanAction: 'correct_semantic_alignment', reason: 'Semantic entity-query mismatch detected: Query ask…ector included documents about different entities', specificGuidance: 'Apply strict semantic entity-query alignment: Only…ther people/entities regardless of topic overlap.'}
-PlanningAgent.ts:2587 ❌ DataInspector validation failed: Semantic entity-query mismatch detected: Query asks for "Tyler's content" but DataInspector included documents about different entities
-PlanningAgent.ts:2392 🔄 PlanningAgent: Triggering intelligent replanning - correct_semantic_alignment
-PlanningAgent.ts:2393 📝 Reason: Semantic entity-query mismatch detected: Query asks for "Tyler's content" but DataInspector included documents about different entities
-PlanningAgent.ts:2395 🎯 Specific guidance: Apply strict semantic entity-query alignment: Only include documents authored by or primarily about "Tyler". Reject all documents about other people/entities regardless of topic overlap.
-PlanningAgent.ts:2427 ✅ Replanning request created with session-specific guidance: {target: 'DataInspector', guidance: 'Apply strict semantic entity-query alignment: Only… analysis to prevent entity ownership mismatches.', priority: 'document_filtering', sessionContext: {…}}
-Orchestrator.ts:2573 🔍 Quality assessment for DataInspector: replan_required
-Orchestrator.ts:2576 ⚠️ Result quality insufficient: PlanningAgent identified quality issues requiring replanning
-Orchestrator.ts:2579 🔄 Attempting intelligent retry for DataInspector
-Orchestrator.ts:3430 🔄 Intelligent retry #1 for DataInspector: Use corrective guidance from replanning requests
-Orchestrator.ts:3441 🎯 Using PlanningAgent corrective guidance: Apply strict semantic entity-query alignment: Only include documents authored by or primarily about "the requested entity". Reject all documents about other people/entities regardless of topic overlap. Use enhanced relevance analysis to prevent entity ownership mismatches.
-Orchestrator.ts:3463 🔄 Replanning context: correct_semantic_alignment - Semantic entity-query mismatch detected: Query asks for "Tyler's content" but DataInspector included documents about different entities
-Orchestrator.ts:3464 🎯 Specific corrective guidance: Apply strict semantic entity-query alignment: Only include documents authored by or primarily about "Tyler". Reject all documents about other people/entities regardless of topic overlap.
-Orchestrator.ts:3485 🎯 Executing DataInspector retry with applied corrective guidance
-DataInspectorAgent.ts:97 🚀 TimeCapsule Version 4.8.5_010 - DataInspector Agent (Root Cause Fixes Applied)
-DataInspectorAgent.ts:98 ✅ Fix 1: Format-agnostic technical terms parsing (newlines + commas)
-DataInspectorAgent.ts:99 ✅ Fix 2: Filename metadata preservation from VectorStore
-DataInspectorAgent.ts:100 ✅ Fix 3: Simplified JSON prompt structure
-DataInspectorAgent.ts:101 ✅ Fix 4: Preserve newlines in multi-line lists (methods/concepts parsing)
-DataInspectorAgent.ts:159 🔎 DataInspector: Analyzing 9 sources (9 RAG, 0 Web)
-DataInspectorAgent.ts:244 🔍 Query source analysis: {query: 'using ddp pdf file build a lesson plan for me on d…ind more information on speed run by Tyler Romero', sourceRequired: {…}}
-DataInspectorAgent.ts:323 🔍 DEBUG: About to store 27 measurements in shared context
-DataInspectorAgent.ts:326 🔍 DEBUG: Context structure: {hasSharedKnowledge: true, hasDocumentInsights: true, existingMeasurements: 0}
-DataInspectorAgent.ts:336 🔍 DEBUG: After storage: {storedCount: 27, sampleStored: Array(2)}
-DataInspectorAgent.ts:344 📊 DataInspector: Extracted 27 numeric measurements from document text
-DataInspectorAgent.ts:348 📊 Sample measurements: (3) ['"0" (TL;DR... Visual mental model of distributed training 1 S)', '"1" (DR 0 Visual mental model of distributed train…. Seeding: making model replicas identical 2 Two)', '"2" (ining 1 Seeding: making model replicas identi… Two Python idioms you’ll see everywhere 3 A tin)']
-useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-DataInspectorAgent.ts:595 🤖 Single document analysis: # Intelligent Document Analysis
-
-## 1. **DOCUMENT TYPE**
-**Technical Tutorial/Educational Guide** - Specifically a deep-dive technical document on PyTorch Distributed Data Parallel (DDP) training, likely a blog post or educational resource with code examples and explanations.
-
-## 2. **DOCUMENT STRUC
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-performSingleDocumentAnalysis @ DataInspectorAgent.ts:594
-inspectWithLLM @ DataInspectorAgent.ts:368
-processNormally @ DataInspectorAgent.ts:200
-await in processNormally
-process @ FeedbackAwareAgent.ts:211
-performIntelligentRetry @ Orchestrator.ts:3491
-await in performIntelligentRetry
-executeToolCall @ Orchestrator.ts:2581
-DataInspectorAgent.ts:1980 🔍 DEBUG extractSpecificInsights: reasoning length = 1768
-DataInspectorAgent.ts:1981 🔍 DEBUG extractSpecificInsights: reasoning preview = 🧠 **Enhanced DataInspector: Intelligent Document Analysis**
-
-📋 **Document Discovery**: Found 1 documents in knowledge base
-
-🔍 **Content Sampling**: Sampled 30% of chunks from each document for real...
-DataInspectorAgent.ts:1985 🔍 DEBUG conceptMappings found: 0 items: []
-DataInspectorAgent.ts:1990 🔍 DEBUG domainContext found: 0 items: []
-DataInspectorAgent.ts:1995 🔍 DEBUG measurementContext found: 0 items: []
-DataInspectorAgent.ts:2000 🔍 DEBUG entityConcepts found: 1 items: ['ENTITY_CONCEPT: ENTITY: PyTorch Distributed Data P…r building a lesson plan on distributed training.']
-DataInspectorAgent.ts:2009 🔍 DEBUG extractSpecificInsights FINAL: 1 total insights: ['ENTITY_CONCEPT: ENTITY: PyTorch Distributed Data P…r building a lesson plan on distributed training.']
-DataInspectorAgent.ts:651 📋 Document Analysis: Unknown Document with 1 sections
-DataInspectorAgent.ts:654 🔗 Shared insights with other agents: 11 insights
-DataInspectorAgent.ts:2579 🔬 DataInspector: Extracting query-relevant terms from 1 document for: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-analyzeQueryForContentPrioritization @ DataInspectorAgent.ts:3156
-buildQueryAwareContentSample @ DataInspectorAgent.ts:3089
-extractQueryRelevantTerms @ DataInspectorAgent.ts:2584
-performSingleDocumentAnalysis @ DataInspectorAgent.ts:602
-await in performSingleDocumentAnalysis
-inspectWithLLM @ DataInspectorAgent.ts:368
-processNormally @ DataInspectorAgent.ts:200
-await in processNormally
-process @ FeedbackAwareAgent.ts:211
-performIntelligentRetry @ Orchestrator.ts:3491
-await in performIntelligentRetry
-executeToolCall @ Orchestrator.ts:2581
-DataInspectorAgent.ts:3102 📊 Document 1: Sampling 4 of 4 chunks (100%)
-DataInspectorAgent.ts:2589 🔍 Content sample for technical extraction (2089 chars): --- DOCUMENT 1: thefirehacker-github-io-til-ddp-python-basics-html.pdf ---
-TL;DR
-
- Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions...
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 152ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useAIFlowBuilder.ts:1122 ⏰ Auto-saving session (2-minute interval)...
-VectorStore.ts:2000 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 1-pjszfuytjn
-VectorStore.ts:1936 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (updated)
-VectorStore.ts:2634 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
+VectorStore.ts:2205 🔄 Bypassing duplicate detection for metadata update: BubblSpace: My BubblSpace
+VectorStore.ts:2142 ✅ Document inserted: bubblspace-bubbl-1764054367585yf
+VectorStore.ts:2634 🔍 Verifying document persistence: bubblspace-bubbl-1764054367585yf (attempt 1/3)
 VectorStore.ts:2679 💾 Database flush completed
-VectorStore.ts:2000 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 2-pjszfuytjn
-VectorStore.ts:2647 ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 2-pjszfuytjn)
-sessionStore.ts:75 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
-useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-extractQueryRelevantTerms @ DataInspectorAgent.ts:2605
-await in extractQueryRelevantTerms
-performSingleDocumentAnalysis @ DataInspectorAgent.ts:602
-await in performSingleDocumentAnalysis
-inspectWithLLM @ DataInspectorAgent.ts:368
-processNormally @ DataInspectorAgent.ts:200
-DataInspectorAgent.ts:2606 🎯 Technical terms LLM response: # Analysis of User Query
-
-The user is asking for TWO things:
-1. A lesson plan on distributed training using the DDP PDF file
-2. Information about a "speed run by Tyler Romero"
-
-# Document Analysis
-
-**Document 1** is from: `thefirehacker-github-io-til-ddp-python-basics-html.pdf`
-
-This document contains educational content about DDP (Distributed Data Parallel) training but:
-- No mention of "Tyler Romero" anywhere in the document
-- No mention of any "speed run" 
-- The document appears to be from "thefirehacker" (likely the author/site owner)
-
-# Extraction Results
-
-**METHODS:** 
-- DDP (Distributed Data Parallel)
-- all_reduce
-- Dictionary comprehensions
-- Kwargs unpacking
-- Seeding for model replicas
-
-**CONCEPTS:**
-- Distributed training
-- Model replicas
-- GPU tensors
-- PyTorch tensor operations
-- Hugging Face datasets
-- forward() method
-- world_size
-- gradient synchronization
-
-**PEOPLE:** 
-- None relevant to query (Tyler Romero does not appear in this document)
-
-**DATA_TYPES:**
-- Python dicts
-- PyTorch tensors
-- Hugging Face dataset samples
-
----
-
-**NOTE:** This document can be used to build a lesson plan on distributed training (addresses first part of query), but contains **NO information about Tyler Romero or any speed run** (second part of query cannot be answered from this document).
-DataInspectorAgent.ts:2938 🔍 Parsing methods line: ""
-DataInspectorAgent.ts:2967 💾 Saving methods: "DDP (Distributed Data Parallel)
-all_reduce
-Dictionary comprehensions
-Kwargs unpacking
-Seeding for mo..."
-DataInspectorAgent.ts:2999 ✅ Parsed methods: 5 items (3) ['DDP (Distributed Data Parallel)', 'all_reduce', 'Dictionary comprehensions']
-DataInspectorAgent.ts:2938 🔍 Parsing concepts line: ""
-DataInspectorAgent.ts:2967 💾 Saving concepts: "Distributed training
-Model replicas
-GPU tensors
-PyTorch tensor operations
-Hugging Face datasets
-forw..."
-DataInspectorAgent.ts:2999 ✅ Parsed concepts: 8 items (3) ['Distributed training', 'Model replicas', 'GPU tensors']
-DataInspectorAgent.ts:2938 🔍 Parsing people line: ""
-DataInspectorAgent.ts:2967 💾 Saving people: "None relevant to query (Tyler Romero does not appear in this document)..."
-DataInspectorAgent.ts:2999 ✅ Parsed people: 1 items ['None relevant to query (Tyler Romero does not appear in this document)']
-DataInspectorAgent.ts:2938 🔍 Parsing data line: ""
-DataInspectorAgent.ts:2967 💾 Saving data: "Python dicts
-PyTorch tensors
-Hugging Face dataset samples
---
-*NOTE:** This document can be used to b..."
-DataInspectorAgent.ts:2999 ✅ Parsed data: 5 items (3) ['Python dicts', 'PyTorch tensors', 'Hugging Face dataset samples']
-DataInspectorAgent.ts:2610 🔍 Parsed technical terms: {methods: Array(5), concepts: Array(8), people: Array(1), data: Array(5)}
-DataInspectorAgent.ts:2620 ✅ Document insights stored in context.sharedKnowledge: {methods: 5, concepts: 8, people: 1, data: 5}
-DataInspectorAgent.ts:2629 📋 Extracted methods: (5) ['DDP (Distributed Data Parallel)', 'all_reduce', 'Dictionary comprehensions', 'Kwargs unpacking', 'Seeding for model replicas']
-Orchestrator.ts:3496 ✅ Agent DataInspector retry completed successfully with corrective guidance
-Orchestrator.ts:2616 🎯 Strategic validation checkpoint: DataInspector - running PlanningAgent validation
-Orchestrator.ts:2617 🔍 PlanningAgent consuming DataInspector results for quality analysis...
-PlanningAgent.ts:2578 🎯 PlanningAgent: Consuming and validating results from [object Object]
-PlanningAgent.ts:2625 ℹ️ No specific validation for [object Object] - allowing to continue
-Orchestrator.ts:2672 ✅ DataInspector results validated by PlanningAgent - quality acceptable
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 151ms
-Orchestrator.ts:2694 ⏱️ Validation UI sync delay completed
-Orchestrator.ts:3047 ❌ No extracted data found in any location
-Orchestrator.ts:916 🔄 Master LLM Iteration 2: Analyze document structure and relevance
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-makeMasterLLMDecision @ Orchestrator.ts:1375
-masterLLMOrchestration @ Orchestrator.ts:918
-Orchestrator.ts:1378 🧠 Master LLM Decision Response (560 chars): ACTION: CALL_TOOL
-TOOL_NAME: PlanningAgent
-REASONING: The mandatory execution order requires calling PlanningAgent next after DataInspector to create an intelligent execution strategy, as the execution plan is not yet created and Phase 2 (Planning) is ready. This will define the strategy for analyzing document structure and relevance, enabling subsequent steps like pattern generation without skipping the sequence.
-NEXT_GOAL: Generate a validated execution plan to guide the analysis of document s...
-Orchestrator.ts:1698 🔍 PARSING DEBUG: Full response (560 chars): ACTION: CALL_TOOL
-TOOL_NAME: PlanningAgent
-REASONING: The mandatory execution order requires calling PlanningAgent next after DataInspector to create an intelligent execution strategy, as the execution plan is not yet created and Phase 2 (Planning) is ready. This will define the strategy for analyzing document structure and relevance, enabling subsequent steps like pattern generation without skipping the sequence.
-NEXT_GOAL: Generate a validated execution plan to guide the analysis of document structure and relevance using the pre-loaded document chunks.
-Orchestrator.ts:1711 🎯 PARSED ACTION (FIRST): CALL_TOOL
-Orchestrator.ts:1714 🎯 PARSED TOOL_NAME (FIRST): PlanningAgent
-Orchestrator.ts:1723 ✅ PRIMARY DECISION FOUND - stopping parse to avoid overwriting with future steps
-Orchestrator.ts:1730 ✅ USING STRUCTURED FORMAT: action=CALL_TOOL, toolName=PlanningAgent
-Orchestrator.ts:1381 🎯 Parsed Decision: {action: 'CALL_TOOL', toolName: 'PlanningAgent', reasoning: 'Need to call PlanningAgent to progress toward the goal'}
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PlanningAgent"
-Orchestrator.ts:2948 🎯 Mapping PlanningAgent → PlanningAgent (contains 'planner' or 'planning')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PlanningAgent"
-Orchestrator.ts:2948 🎯 Mapping PlanningAgent → PlanningAgent (contains 'planner' or 'planning')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PlanningAgent"
-Orchestrator.ts:2948 🎯 Mapping PlanningAgent → PlanningAgent (contains 'planner' or 'planning')
-Orchestrator.ts:1855 🔍 PLAN-GUIDED VALIDATION: PlanningAgent
-Orchestrator.ts:1856 📋 Agent Status: ✅ Completed: [DataInspector]
-Orchestrator.ts:1857 💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps
-Orchestrator.ts:2428 ✅ Agent execution validated: PlanningAgent execution is contextually appropriate
-Orchestrator.ts:2552 🔧 Executing tool: PlanningAgent (original: PlanningAgent)
-Orchestrator.ts:2563 ⏳ [orch-1763802416330-4sra] Starting PlanningAgent - waiting for completion...
-PlanningAgent.ts:61 🎯 PlanningAgent: Creating intelligent execution strategy for "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-PlanningAgent.ts:68 📊 Situation Analysis: {hasDocuments: true, documentCount: 9, hasDocumentAnalysis: true, relevantDocuments: 0, documentTypes: Array(0), …}
-PlanningAgent.ts:603 🎯 PlanningAgent: Creating extraction strategy from DataInspector analysis
-PlanningAgent.ts:614 🧠 Document context analysis: {documentType: 'Method Paper', documentPurpose: 'Introduces new method/algorithm', isMethodPaper: true, isSurveyPaper: false, mainContribution: 'DDP (Distributed Data Parallel)', …}
-PlanningAgent.ts:1469 🔍 PlanningAgent: Analyzing query intent directly for "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-PlanningAgent.ts:1492 🎯 Direct intent analysis: PERSON_FOCUSED_QUERY detected
-PlanningAgent.ts:623 🎯 Intelligent expectations: {shouldFindSpecificMethod: true, shouldFindComparisons: false, shouldInferFromContribution: true, expectedAnswerType: 'method_from_paper_contribution', contextualReasoning: "This appears to be a method paper introducing DDP … should reference this paper's main contribution."}
-PlanningAgent.ts:889 🎯 PlanningAgent: Assessing document-section relevance to query: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-PlanningAgent.ts:1360 🧠 Method paper detected: Focusing on main contribution "DDP (Distributed Data Parallel)"
-PlanningAgent.ts:1071 🎯 Dynamic extraction targets based on analysis: (9) ['content', 'methods', 'concepts', 'people', 'data', 'primary_focus', 'methodpaper', 'findspecificmethod', 'inferfromcontribution']
-PlanningAgent.ts:645 ✅ Created extraction strategy: {documentType: 'Method Paper', queryIntent: 'method_from_paper_contribution', contentAreas: 1, patternCategories: 4, extractionTargets: 9, …}
-PlanningAgent.ts:83 ✅ Created extraction strategy with 4 pattern categories
-PlanningAgent.ts:1506 🔍 PlanningAgent: Validating DataInspector classifications against query
-PlanningAgent.ts:1592 🔍 PlanningAgent: Validating DataInspector document selections against query
-PlanningAgent.ts:1596 ⚠️ No documents to validate
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 171ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-createExecutionPlan @ PlanningAgent.ts:224
-await in createExecutionPlan
-process @ PlanningAgent.ts:104
-await in process
-executeToolCall @ Orchestrator.ts:2564
-await in executeToolCall
-executeToolCallWithMicroSession @ Orchestrator.ts:1066
-masterLLMOrchestration @ Orchestrator.ts:943
-PlanningAgent.ts:369 🔄 PlanningAgent parsing attempt 1/4
-PlanningAgent.ts:389 ✅ Successfully parsed execution plan on attempt 1
-PlanningAgent.ts:231 🎯 Generated execution plan: {strategy: 'Multi-phase approach combining document extraction…ating both the PDF content and speedrun insights.', stepCount: 5, confidence: 0.85}
-PlanningAgent.ts:122 ✅ Execution plan created: Multi-phase approach combining document extraction and web search. First, use PatternGenerator to create regex patterns for extracting DDP (Distributed Data Parallel) concepts from the PDF. Then conduct web search for Tyler Romero's speedrun information since it's not in available documents. Extract structured content from both sources, then synthesize into a comprehensive lesson plan on distributed training incorporating both the PDF content and speedrun insights.
-Orchestrator.ts:2565 ✅ [orch-1763802416330-4sra] PlanningAgent process() completed - agent finished
-Orchestrator.ts:2569 ✅ Tool PlanningAgent completed in 17294ms
-Orchestrator.ts:2573 🔍 Quality assessment for PlanningAgent: acceptable
-Orchestrator.ts:3047 ❌ No extracted data found in any location
-Orchestrator.ts:916 🔄 Master LLM Iteration 3: Analyze document structure and relevance
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "ResponseFormatter"
-Orchestrator.ts:2966 🎯 Mapping ResponseFormatter → ResponseFormatter (semantic similarity)
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 158ms
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-makeMasterLLMDecision @ Orchestrator.ts:1375
-masterLLMOrchestration @ Orchestrator.ts:918
-Orchestrator.ts:1378 🧠 Master LLM Decision Response (756 chars): ACTION: CALL_TOOL
-TOOL_NAME: PatternGenerator
-REASONING: The execution plan specifies PatternGenerator as the immediate next step after PlanningAgent to generate content-aware patterns for extracting key elements like distributed training concepts, DDP terminology, code examples, architecture diagrams, and technical specifications from the pre-loaded PDF chunks. This is essential for Phase 3 (Extraction) to structure the data for subsequent processing, ensuring the pipeline progresses without sk...
-Orchestrator.ts:1698 🔍 PARSING DEBUG: Full response (756 chars): ACTION: CALL_TOOL
-TOOL_NAME: PatternGenerator
-REASONING: The execution plan specifies PatternGenerator as the immediate next step after PlanningAgent to generate content-aware patterns for extracting key elements like distributed training concepts, DDP terminology, code examples, architecture diagrams, and technical specifications from the pre-loaded PDF chunks. This is essential for Phase 3 (Extraction) to structure the data for subsequent processing, ensuring the pipeline progresses without skipping steps and aligns with the goal of analyzing document structure and relevance.
-NEXT_GOAL: Obtain structured patterns and initial extractions to enable data processing and synthesis for a comprehensive analysis of DDP-related content in the documents.
-Orchestrator.ts:1711 🎯 PARSED ACTION (FIRST): CALL_TOOL
-Orchestrator.ts:1714 🎯 PARSED TOOL_NAME (FIRST): PatternGenerator
-Orchestrator.ts:1723 ✅ PRIMARY DECISION FOUND - stopping parse to avoid overwriting with future steps
-Orchestrator.ts:1730 ✅ USING STRUCTURED FORMAT: action=CALL_TOOL, toolName=PatternGenerator
-Orchestrator.ts:1381 🎯 Parsed Decision: {action: 'CALL_TOOL', toolName: 'PatternGenerator', reasoning: 'Need to call PatternGenerator to progress toward the goal'}
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:1855 🔍 PLAN-GUIDED VALIDATION: PatternGenerator
-Orchestrator.ts:1856 📋 Agent Status: ✅ Completed: [DataInspector, PlanningAgent]
-Orchestrator.ts:1857 💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2284 ✅ PatternGenerator validated against execution plan - prerequisites met
-Orchestrator.ts:2428 ✅ Agent execution validated: PatternGenerator execution follows planned sequence - step 1 of 5
-Orchestrator.ts:2552 🔧 Executing tool: PatternGenerator (original: PatternGenerator)
-Orchestrator.ts:2563 ⏳ [orch-1763802416330-4sra] Starting PatternGenerator - waiting for completion...
-PatternGeneratorAgent.ts:29 🎯 PatternGenerator: Creating extraction strategies
-PatternGeneratorAgent.ts:35 📋 DEBUG - Existing patterns before PatternGenerator: {count: 1, patterns: Array(1), hasSharedKnowledge: true}
-PatternGeneratorAgent.ts:249 🧠 PatternGenerator: Generating dynamic patterns via LLM analysis
-PatternGeneratorAgent.ts:277 ✅ Using PlanningAgent extraction strategy: {documentType: 'Method Paper', queryIntent: 'method_from_paper_contribution', patternCategories: 4, availableStrategies: 1}
-PatternGeneratorAgent.ts:1560 🎯 PatternGenerator: Generating focused patterns (3 regex + 1 semantic)
-PatternGeneratorAgent.ts:1603 ✅ Generated 2 focused patterns: (2) ['Method extraction using DataInspector intelligence', 'Unknown Document extraction pattern']
-PatternGeneratorAgent.ts:2236 🎯 Running focused extraction: 1 regex patterns + 0 semantic patterns
-PatternGeneratorAgent.ts:2242 ✅ Regex extraction: Found 4 items
-PatternGeneratorAgent.ts:2258 🔄 After deduplication: 4 unique items
-PatternGeneratorAgent.ts:1610 ✅ PatternGenerator: Extracted 4 items with focused patterns
-PatternGeneratorAgent.ts:103 🔍 DEBUG PatternGenerator measurements check: {hasSharedKnowledge: true, hasDocumentInsights: true, hasMeasurements: false, measurementsLength: 0, measurementsType: 'undefined'}
-PatternGeneratorAgent.ts:125 🔍 PatternGenerator: No measurements from DataInspector - analyzing ALL chunks with content-grounded approach
-PatternGeneratorAgent.ts:131 📊 Analyzing 9 chunks for comprehensive measurement discovery (Claude Code style)
-PatternGeneratorAgent.ts:165 📊 PatternGenerator: Discovered 29 measurements from complete dataset analysis
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*s)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*a)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*visual)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*seeding)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*two)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*minimal)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*why)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*common)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*from)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*exercises)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*cheatsheet)/gi found 0 matches
-PatternGeneratorAgent.ts:476 🧪 Pattern validation: /((?:\d+(?:\.\d+)?)\s*appendix)/gi found 0 matches
-PatternGeneratorAgent.ts:241 🔍 Pattern validation: 0/12 patterns passed validation
-PatternGeneratorAgent.ts:244 ✅ Induced 0 measurement families from document (style=dot, hits=29)
-PatternGeneratorAgent.ts:58 🎯 PatternGenerator: Running immediate extraction with 2 generated patterns
-PatternGeneratorAgent.ts:2236 🎯 Running focused extraction: 1 regex patterns + 0 semantic patterns
-PatternGeneratorAgent.ts:2242 ✅ Regex extraction: Found 4 items
-PatternGeneratorAgent.ts:2258 🔄 After deduplication: 4 unique items
-PatternGeneratorAgent.ts:63 ✅ PatternGenerator: Extracted 4 items immediately
-Orchestrator.ts:2565 ✅ [orch-1763802416330-4sra] PatternGenerator process() completed - agent finished
-Orchestrator.ts:2569 ✅ Tool PatternGenerator completed in 60ms
-Orchestrator.ts:3241 🔍 PlanningAgent consuming and validating PatternGenerator results using Claude Code-style logic
-PlanningAgent.ts:2578 🎯 PlanningAgent: Consuming and validating results from PatternGenerator
-PlanningAgent.ts:2077 🔍 PlanningAgent: Deep validation of PatternGenerator results for query: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-PlanningAgent.ts:2150 ✅ PatternGenerator results validated: 2 content-grounded patterns for query intent
-PlanningAgent.ts:2601 ✅ PatternGenerator validation passed
-Orchestrator.ts:2573 🔍 Quality assessment for PatternGenerator: acceptable
-Orchestrator.ts:2697 ⚡ Strategic validation: Skipping validation for PatternGenerator (not a strategic checkpoint)
-Orchestrator.ts:3004 ✅ Found 4 items in context.extractedData.raw
-Orchestrator.ts:916 🔄 Master LLM Iteration 4: Analyze document structure and relevance
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "ResponseFormatter"
-Orchestrator.ts:2966 🎯 Mapping ResponseFormatter → ResponseFormatter (semantic similarity)
-useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-makeMasterLLMDecision @ Orchestrator.ts:1375
-masterLLMOrchestration @ Orchestrator.ts:918
-Orchestrator.ts:1378 🧠 Master LLM Decision Response (632 chars): ACTION: CALL_TOOL
-TOOL_NAME: WebSearchAgent
-REASONING: The execution plan from PlanningAgent specifies WebSearchAgent as the immediate next step to gather external information on Tyler Romero's speedrun, including distributed training techniques, optimization strategies, and performance benchmarks, since this is not covered in the pre-loaded documents. This expands the knowledge base for synthesis while following the validated pipeline sequence without skipping steps.
-NEXT_GOAL: Obtain relevant ...
-Orchestrator.ts:1698 🔍 PARSING DEBUG: Full response (632 chars): ACTION: CALL_TOOL
-TOOL_NAME: WebSearchAgent
-REASONING: The execution plan from PlanningAgent specifies WebSearchAgent as the immediate next step to gather external information on Tyler Romero's speedrun, including distributed training techniques, optimization strategies, and performance benchmarks, since this is not covered in the pre-loaded documents. This expands the knowledge base for synthesis while following the validated pipeline sequence without skipping steps.
-NEXT_GOAL: Obtain relevant web-sourced data on Tyler Romero's speedrun to integrate into the lesson plan and enable subsequent extraction and synthesis phases.
-Orchestrator.ts:1711 🎯 PARSED ACTION (FIRST): CALL_TOOL
-Orchestrator.ts:1714 🎯 PARSED TOOL_NAME (FIRST): WebSearchAgent
-Orchestrator.ts:1723 ✅ PRIMARY DECISION FOUND - stopping parse to avoid overwriting with future steps
-Orchestrator.ts:1730 ✅ USING STRUCTURED FORMAT: action=CALL_TOOL, toolName=WebSearchAgent
-Orchestrator.ts:1381 🎯 Parsed Decision: {action: 'CALL_TOOL', toolName: 'WebSearchAgent', reasoning: 'Need to call WebSearchAgent to progress toward the goal'}
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:1855 🔍 PLAN-GUIDED VALIDATION: WebSearchAgent
-Orchestrator.ts:1856 📋 Agent Status: ✅ Completed: [DataInspector, PlanningAgent, PatternGenerator]
-Orchestrator.ts:1857 💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2218 📝 WebSearchAgent has no critical prerequisites
-Orchestrator.ts:2284 ✅ WebSearchAgent validated against execution plan - prerequisites met
-Orchestrator.ts:2428 ✅ Agent execution validated: WebSearchAgent execution follows planned sequence - step 2 of 5
-Orchestrator.ts:2552 🔧 Executing tool: WebSearchAgent (original: WebSearchAgent)
-Orchestrator.ts:2563 ⏳ [orch-1763802416330-4sra] Starting WebSearchAgent - waiting for completion...
-WebSearchAgent.ts:43 🌐 WebSearchAgent: Expanding knowledge base for "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-WebSearchAgent.ts:65 ⏭️ Web search not needed: Sufficient local data available
-Orchestrator.ts:2565 ✅ [orch-1763802416330-4sra] WebSearchAgent process() completed - agent finished
-Orchestrator.ts:2569 ✅ Tool WebSearchAgent completed in 3ms
-Orchestrator.ts:3241 🔍 PlanningAgent consuming and validating WebSearchAgent results using Claude Code-style logic
-PlanningAgent.ts:2578 🎯 PlanningAgent: Consuming and validating results from WebSearchAgent
-PlanningAgent.ts:2625 ℹ️ No specific validation for WebSearchAgent - allowing to continue
-Orchestrator.ts:2573 🔍 Quality assessment for WebSearchAgent: acceptable
-Orchestrator.ts:2697 ⚡ Strategic validation: Skipping validation for WebSearchAgent (not a strategic checkpoint)
-Orchestrator.ts:3004 ✅ Found 4 items in context.extractedData.raw
-Orchestrator.ts:916 🔄 Master LLM Iteration 5: Analyze document structure and relevance
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "ResponseFormatter"
-Orchestrator.ts:2966 🎯 Mapping ResponseFormatter → ResponseFormatter (semantic similarity)
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 178ms
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-makeMasterLLMDecision @ Orchestrator.ts:1375
-masterLLMOrchestration @ Orchestrator.ts:918
-Orchestrator.ts:1378 🧠 Master LLM Decision Response (741 chars): ACTION: CALL_TOOL
-TOOL_NAME: Extractor
-REASONING: The execution plan specifies Extractor as the immediate next step after WebSearchAgent to extract DDP content from the PDF using the generated patterns and compile Tyler Romero speedrun information from the web search results. This gathers all necessary source material before proceeding to synthesis, ensuring complete data for the final analysis of document structure and relevance. PatternGenerator handled initial patterns and integrated extracti...
-Orchestrator.ts:1698 🔍 PARSING DEBUG: Full response (741 chars): ACTION: CALL_TOOL
-TOOL_NAME: Extractor
-REASONING: The execution plan specifies Extractor as the immediate next step after WebSearchAgent to extract DDP content from the PDF using the generated patterns and compile Tyler Romero speedrun information from the web search results. This gathers all necessary source material before proceeding to synthesis, ensuring complete data for the final analysis of document structure and relevance. PatternGenerator handled initial patterns and integrated extraction, but Extractor is required to finalize extraction from both PDF and web sources per the active pipeline.
-NEXT_GOAL: Obtain fully extracted data from PDF and web results to enable synthesis of the document structure and relevance analysis.
-Orchestrator.ts:1711 🎯 PARSED ACTION (FIRST): CALL_TOOL
-Orchestrator.ts:1714 🎯 PARSED TOOL_NAME (FIRST): Extractor
-Orchestrator.ts:1723 ✅ PRIMARY DECISION FOUND - stopping parse to avoid overwriting with future steps
-Orchestrator.ts:1730 ✅ USING STRUCTURED FORMAT: action=CALL_TOOL, toolName=Extractor
-Orchestrator.ts:1381 🎯 Parsed Decision: {action: 'CALL_TOOL', toolName: 'Extractor', reasoning: 'Need to call Extractor to progress toward the goal'}
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:1855 🔍 PLAN-GUIDED VALIDATION: Extractor
-Orchestrator.ts:1856 📋 Agent Status: ✅ Completed: [DataInspector, PlanningAgent, PatternGenerator, WebSearchAgent]
-Orchestrator.ts:1857 💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2079 🎯 Validating Extractor prerequisites - checking PatternGenerator dependency
-Orchestrator.ts:2081 📊 PatternGenerator called: true
-Orchestrator.ts:2284 ✅ Extractor validated against execution plan - prerequisites met
-Orchestrator.ts:2428 ✅ Agent execution validated: Extractor execution follows planned sequence - step 3 of 5
-Orchestrator.ts:2436 🚫 SKIPPING REDUNDANT EXTRACTOR: PatternGenerator already extracted 4 items
-Orchestrator.ts:2437 ✅ Using PatternGenerator's extracted data to prevent overwriting good results
-Orchestrator.ts:3004 ✅ Found 4 items in context.extractedData.raw
-Orchestrator.ts:916 🔄 Master LLM Iteration 6: Analyze document structure and relevance
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "ResponseFormatter"
-Orchestrator.ts:2966 🎯 Mapping ResponseFormatter → ResponseFormatter (semantic similarity)
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 154ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-makeMasterLLMDecision @ Orchestrator.ts:1375
-masterLLMOrchestration @ Orchestrator.ts:918
-Orchestrator.ts:1378 🧠 Master LLM Decision Response (863 chars): ACTION: CALL_TOOL
-TOOL_NAME: SynthesisCoordinator
-REASONING: The pipeline is at Phase 5 (Synthesis), with Phases 1-3 complete and Phase 4 bypassed due to the DataAnalyzer issue. PatternGenerator has already handled pattern identification and integrated extraction, providing raw extracted data from the 9 document chunks (DDP content) and WebSearchAgent results (Tyler Romero speedrun info). The execution plan specifies SynthesisCoordinator as the next step to assemble this data into a coherent fin...
-Orchestrator.ts:1698 🔍 PARSING DEBUG: Full response (863 chars): ACTION: CALL_TOOL
-TOOL_NAME: SynthesisCoordinator
-REASONING: The pipeline is at Phase 5 (Synthesis), with Phases 1-3 complete and Phase 4 bypassed due to the DataAnalyzer issue. PatternGenerator has already handled pattern identification and integrated extraction, providing raw extracted data from the 9 document chunks (DDP content) and WebSearchAgent results (Tyler Romero speedrun info). The execution plan specifies SynthesisCoordinator as the next step to assemble this data into a coherent final output—a comprehensive lesson plan on distributed training—without redundant calls or skipping the mandatory sequence.
-NEXT_GOAL: Synthesize the extracted data into a structured lesson plan with learning objectives, modules, practical examples, and exercises, combining PDF-based DDP foundations w...
-Orchestrator.ts:1711 🎯 PARSED ACTION (FIRST): CALL_TOOL
-Orchestrator.ts:1714 🎯 PARSED TOOL_NAME (FIRST): SynthesisCoordinator
-Orchestrator.ts:1723 ✅ PRIMARY DECISION FOUND - stopping parse to avoid overwriting with future steps
-Orchestrator.ts:1730 ✅ USING STRUCTURED FORMAT: action=CALL_TOOL, toolName=SynthesisCoordinator
-Orchestrator.ts:1381 🎯 Parsed Decision: {action: 'CALL_TOOL', toolName: 'SynthesisCoordinator', reasoning: 'Need to call SynthesisCoordinator to progress toward the goal'}
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:1855 🔍 PLAN-GUIDED VALIDATION: SynthesisCoordinator
-Orchestrator.ts:1856 📋 Agent Status: ✅ Completed: [DataInspector, PlanningAgent, PatternGenerator, WebSearchAgent, Extractor]
-Orchestrator.ts:1857 💡 Philosophy: Plans guide decisions, Master LLM intelligence overrides plan gaps
-Orchestrator.ts:3004 ✅ Found 4 items in context.extractedData.raw
-Orchestrator.ts:1946 ✅ Extraction prerequisite satisfied: 4 items extracted
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "SynthesisCoordinator"
-Orchestrator.ts:2942 🎯 Mapping SynthesisCoordinator → SynthesisCoordinator (contains 'synthesis' or 'coordinator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "PatternGenerator"
-Orchestrator.ts:2926 🎯 Mapping PatternGenerator → PatternGenerator (contains 'pattern' + 'generator')
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "WebSearchAgent"
-Orchestrator.ts:2957 🎯 Mapping WebSearchAgent → WebSearchAgent (removed 'Agent' suffix)
-Orchestrator.ts:2916 🔧 Attempting intelligent fallback for: "Extractor"
-Orchestrator.ts:2920 🎯 Mapping Extractor → Extractor (contains 'extractor' or 'regex extract')
-Orchestrator.ts:2113 🎯 Validating SynthesisCoordinator prerequisites - checking extraction completion
-Orchestrator.ts:2137 📊 Has extracted data: true
-Orchestrator.ts:2146 ✅ SynthesisCoordinator will work directly with 4 extracted items (DataAnalyzer bypassed)
-Orchestrator.ts:2284 ✅ SynthesisCoordinator validated against execution plan - prerequisites met
-Orchestrator.ts:2428 ✅ Agent execution validated: SynthesisCoordinator execution follows planned sequence - step 4 of 5
-Orchestrator.ts:2552 🔧 Executing tool: SynthesisCoordinator (original: SynthesisCoordinator)
-Orchestrator.ts:2563 ⏳ [orch-1763802416330-4sra] Starting SynthesisCoordinator - waiting for completion...
-SynthesisCoordinator.ts:42 🎯 SynthesisCoordinator: Using extracted data (4 items)
-SynthesisCoordinator.ts:45 🔍 DEBUG: First data item structure: {
-  "content": " Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions: Transform raw data (lists, ints) into model-ready tensors in one elegant line — {k: torch.tensor(v).to(device) for k, v in item.items()}",
-  "value": " Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions: Transform raw data (lists, ints) into model-ready tensors in one elegant line — {k: torch.tensor(v).to(device) for k, v in item.items()}",
-  "unit": "",
-  "context": "TL;DR\n\n Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions: Transform raw data (lists, ints) into model-ready tensors in one elegant line — {k: torch.tensor(v).to(device) for k, v in item.items()}\n\nconverts Hugging Face dataset samples to GPU ten",
-  "confidence": 0.9,
-  "sourceChunkId": "chunk_0",
-  "sourceDocument": "thefirehacker-github-io-til-ddp-python-basics-html.pdf",
-  "metadata": {
-    "method": "regex",
-    "type": "pattern_generated",
-    "pattern": "/([^\\n]*(?:DDP \\(Distributed Data Parallel\\)|all_reduce|Dictionary comprehensions|Kwargs unpacking|Seeding for model replicas)[^\\n]*)/gi",
-    "description": "Method extraction using DataInspector intelligence"
-  }
-}
-SynthesisCoordinator.ts:46 🔍 DEBUG: All data items count: 4
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 1: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 2: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 3: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 4: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:65 🎯 SynthesisCoordinator: Assembling final report from 0 sections
-SynthesisCoordinator.ts:116 🎯 SynthesisCoordinator: Generating query-focused report for: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-SynthesisCoordinator.ts:128 🎯 Ranked 4 data items by query relevance
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 1: {content: 's): outputs = self.model(input_ids, attention_mask=attention_mask, **kwargs) pooled = outputs[0][:, ', value: 's): outputs = self.model(input_ids, attention_mask…ram -= (lr / world_size) * param.grad # Scaled LR', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 30}
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 2: {content: ' Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Diction', value: ' Core Python patterns explained: Core Python pat…ch.tensor(v).to(device) for k, v in item.items()}', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 0}
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 3: {content: 'converts Hugging Face dataset samples to GPU tensors with proper shapes. Kwargs unpacking (Kwargs un', value: 'converts Hugging Face dataset samples to GPU tenso… maps dict keys to Hugging Face model’s forward()', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 0}
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 4: {content: 'Why this transformation is essential:Why this transformation is essential: Hugging Face datasets ret', value: 'Why this transformation is essential:Why this tran… grads) │ divide by world_size │ optimizer.step()', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 0}
-useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-generateQueryFocusedReport @ SynthesisCoordinator.ts:134
-assembleReport @ SynthesisCoordinator.ts:109
-process @ SynthesisCoordinator.ts:68
-await in process
-executeToolCall @ Orchestrator.ts:2564
-await in executeToolCall
-executeToolCallWithMicroSession @ Orchestrator.ts:1066
-masterLLMOrchestration @ Orchestrator.ts:943
-Orchestrator.ts:2565 ✅ [orch-1763802416330-4sra] SynthesisCoordinator process() completed - agent finished
-Orchestrator.ts:2569 ✅ Tool SynthesisCoordinator completed in 11379ms
-Orchestrator.ts:3241 🔍 PlanningAgent consuming and validating SynthesisCoordinator results using Claude Code-style logic
-PlanningAgent.ts:2578 🎯 PlanningAgent: Consuming and validating results from SynthesisCoordinator
-PlanningAgent.ts:2315 🔍 PlanningAgent: Validating SynthesisCoordinator results for hallucination detection
-PlanningAgent.ts:2617 ❌ SynthesisCoordinator validation failed: No synthesis result available
-PlanningAgent.ts:2392 🔄 PlanningAgent: Triggering intelligent replanning - rerun_synthesis
-PlanningAgent.ts:2393 📝 Reason: No synthesis result available
-PlanningAgent.ts:2395 🎯 Specific guidance: Ensure SynthesisCoordinator has access to extracted data before synthesis
-PlanningAgent.ts:2427 ✅ Replanning request created with session-specific guidance: {target: 'PatternGenerator', guidance: 'Ensure SynthesisCoordinator has access to extracted data before synthesis', priority: 'general_improvement', sessionContext: {…}}
-Orchestrator.ts:2573 🔍 Quality assessment for SynthesisCoordinator: replan_required
-Orchestrator.ts:2576 ⚠️ Result quality insufficient: PlanningAgent identified quality issues requiring replanning
-Orchestrator.ts:2579 🔄 Attempting intelligent retry for SynthesisCoordinator
-Orchestrator.ts:3430 🔄 Intelligent retry #1 for SynthesisCoordinator: Use corrective guidance from replanning requests
-Orchestrator.ts:3463 🔄 Replanning context: rerun_synthesis - No synthesis result available
-Orchestrator.ts:3464 🎯 Specific corrective guidance: Ensure SynthesisCoordinator has access to extracted data before synthesis
-Orchestrator.ts:3485 🎯 Executing SynthesisCoordinator retry with applied corrective guidance
-SynthesisCoordinator.ts:42 🎯 SynthesisCoordinator: Using extracted data (4 items)
-SynthesisCoordinator.ts:45 🔍 DEBUG: First data item structure: {
-  "content": " Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions: Transform raw data (lists, ints) into model-ready tensors in one elegant line — {k: torch.tensor(v).to(device) for k, v in item.items()}",
-  "value": " Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions: Transform raw data (lists, ints) into model-ready tensors in one elegant line — {k: torch.tensor(v).to(device) for k, v in item.items()}",
-  "unit": "",
-  "context": "TL;DR\n\n Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Dictionary comprehensions: Transform raw data (lists, ints) into model-ready tensors in one elegant line — {k: torch.tensor(v).to(device) for k, v in item.items()}\n\nconverts Hugging Face dataset samples to GPU ten",
-  "confidence": 0.9,
-  "sourceChunkId": "chunk_0",
-  "sourceDocument": "thefirehacker-github-io-til-ddp-python-basics-html.pdf",
-  "metadata": {
-    "method": "regex",
-    "type": "pattern_generated",
-    "pattern": "/([^\\n]*(?:DDP \\(Distributed Data Parallel\\)|all_reduce|Dictionary comprehensions|Kwargs unpacking|Seeding for model replicas)[^\\n]*)/gi",
-    "description": "Method extraction using DataInspector intelligence"
-  }
-}
-SynthesisCoordinator.ts:46 🔍 DEBUG: All data items count: 4
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 1: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 2: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 3: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:48 🔍 DEBUG Item 4: {keys: Array(8), hasContent: true, hasValue: true, hasText: false, hasExtractedText: false, …}
-SynthesisCoordinator.ts:65 🎯 SynthesisCoordinator: Assembling final report from 0 sections
-SynthesisCoordinator.ts:116 🎯 SynthesisCoordinator: Generating query-focused report for: "using ddp pdf file build a lesson plan for me on distributed training. Also find more information on speed run by Tyler Romero"
-SynthesisCoordinator.ts:128 🎯 Ranked 4 data items by query relevance
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 1: {content: 's): outputs = self.model(input_ids, attention_mask=attention_mask, **kwargs) pooled = outputs[0][:, ', value: 's): outputs = self.model(input_ids, attention_mask…ram -= (lr / world_size) * param.grad # Scaled LR', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 30}
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 2: {content: ' Core Python patterns explained: Core Python patterns explained: Dictionary comprehensions Diction', value: ' Core Python patterns explained: Core Python pat…ch.tensor(v).to(device) for k, v in item.items()}', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 0}
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 3: {content: 'converts Hugging Face dataset samples to GPU tensors with proper shapes. Kwargs unpacking (Kwargs un', value: 'converts Hugging Face dataset samples to GPU tenso… maps dict keys to Hugging Face model’s forward()', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 0}
-SynthesisCoordinator.ts:372 🔍 DEBUG Source extraction for item: {sourceDocument: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', bestItem?.sourceDocument: undefined, source: undefined, documentId: undefined, chunkId: undefined, …}
-SynthesisCoordinator.ts:224 🔍 DEBUG Prompt Item 4: {content: 'Why this transformation is essential:Why this transformation is essential: Hugging Face datasets ret', value: 'Why this transformation is essential:Why this tran… grads) │ divide by world_size │ optimizer.step()', source: 'thefirehacker-github-io-til-ddp-python-basics-html.pdf', relevanceScore: 0}
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 188ms
-use-websocket.js:113 [Violation] 'setInterval' handler took 124ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useAIProviders.ts:232 🔄 aiProviders object updated
-react-dom-client.development.js:16378 [Violation] 'click' handler took 242ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-eval @ index.ts:86
-generateQueryFocusedReport @ SynthesisCoordinator.ts:134
-assembleReport @ SynthesisCoordinator.ts:109
-process @ SynthesisCoordinator.ts:68
-await in process
-performIntelligentRetry @ Orchestrator.ts:3491
-await in performIntelligentRetry
-executeToolCall @ Orchestrator.ts:2581
-await in executeToolCall
-executeToolCallWithMicroSession @ Orchestrator.ts:1066
-masterLLMOrchestration @ Orchestrator.ts:943
-Orchestrator.ts:3496 ✅ Agent SynthesisCoordinator retry completed successfully with corrective guidance
-Orchestrator.ts:2616 🎯 Strategic validation checkpoint: SynthesisCoordinator - running PlanningAgent validation
-Orchestrator.ts:2617 🔍 PlanningAgent consuming SynthesisCoordinator results for quality analysis...
-PlanningAgent.ts:2578 🎯 PlanningAgent: Consuming and validating results from [object Object]
-PlanningAgent.ts:2625 ℹ️ No specific validation for [object Object] - allowing to continue
-Orchestrator.ts:2672 ✅ SynthesisCoordinator results validated by PlanningAgent - quality acceptable
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 225ms
-Orchestrator.ts:2694 ⏱️ Validation UI sync delay completed
-Orchestrator.ts:3004 ✅ Found 4 items in context.extractedData.raw
-Orchestrator.ts:910 ✅ All required pipeline stages completed - stopping orchestration
-Orchestrator.ts:1010 🧾 Micro-session "Analyze document structure and relevance" finished with status: completed
-Orchestrator.ts:513 📝 Master Orchestrator final result: {hasAnswer: true, answerLength: 1878, preview: '# Response to Query\n\nBased on the available data from the provided sources, I can offer limited info'}
-useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-process @ FlowFramePlannerAgent.ts:104
-await in process
-useAIFlowBuilder.useCallback[planFlow] @ useAIFlowBuilder.ts:2020
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 220ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-process @ FlowFrameGeneratorAgent.ts:97
-await in process
-useAIFlowBuilder.useCallback[planFlow] @ useAIFlowBuilder.ts:2034
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 222ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-process @ FlowFrameGeneratorAgent.ts:97
-await in process
-useAIFlowBuilder.useCallback[planFlow] @ useAIFlowBuilder.ts:2034
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 228ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-process @ FlowFrameGeneratorAgent.ts:97
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 316ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useAIFlowBuilder.ts:1122 ⏰ Auto-saving session (2-minute interval)...
-VectorStore.ts:2000 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 2-pjszfuytjn
-VectorStore.ts:1936 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (updated)
-VectorStore.ts:2634 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
+VectorStore.ts:2000 📋 Retrieved latest revision for bubblspace-bubbl-1764054367585yf: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: BubblSpace: My BubblSpace (ID: bubblspace-bubbl-1764054367585yf, Rev: 1-cwyakxjrax)
+MetadataManager.ts:681 ✅ BubblSpace synced to Knowledge Base: My BubblSpace
+MetadataManager.ts:681 ✅ BubblSpace synced to Knowledge Base: My BubblSpace
+MetadataManager.ts:681 ✅ BubblSpace synced to Knowledge Base: My BubblSpace
+MetadataManager.ts:686 ✅ BubblSpace persistence verified: My BubblSpace
+MetadataManager.ts:806 ✅ All metadata synced to Knowledge Base successfully {syncedBubblSpaces: 1, syncedTimeCapsules: 0, totalItems: 1}
+MetadataManager.ts:686 ✅ BubblSpace persistence verified: My BubblSpace
+MetadataManager.ts:715 📝 Syncing TimeCapsule: Untitled TimeCapsule (ID: timecapsule-TC-1764054367587pf)
+VectorStore.ts:1282 🗑️ Deleting document: timecapsule-TC-1764054367587pf (attempt 1/5)
+MetadataManager.ts:686 ✅ BubblSpace persistence verified: My BubblSpace
+MetadataManager.ts:715 📝 Syncing TimeCapsule: Untitled TimeCapsule (ID: timecapsule-TC-1764054367587pf)
+MetadataManager.ts:953 ✅ Force metadata sync completed successfully
+MetadataManager.ts:124 ✅ BubblSpace immediately synced to Knowledge Base: My BubblSpace
+installHook.js:1 ⚠️ Document not found: timecapsule-TC-1764054367587pf
+overrideMethod @ installHook.js:1
+performDocumentDeletion @ VectorStore.ts:1303
+await in performDocumentDeletion
+eval @ VectorStore.ts:1271
+executeOperation @ VectorStore.ts:324
+queueOperation @ VectorStore.ts:293
+deleteDocument @ VectorStore.ts:1269
+saveMetadataToVectorStore @ MetadataManager.ts:720
+await in saveMetadataToVectorStore
+forceSyncToVectorStore @ MetadataManager.ts:949
+createTimeCapsule @ MetadataManager.ts:302
+createDefaultBubblSpace @ MetadataManager.ts:65
+initializeStorage @ MetadataManager.ts:43
+await in initializeStorage
+MetadataManager @ MetadataManager.ts:28
+getMetadataManager @ MetadataManager.ts:1308
+AIFramesPage.useEffect.initializeManagers @ page.tsx:1493
+AIFramesPage.useEffect @ page.tsx:1505
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+MetadataManager.ts:721 🗑️ Deleted old TimeCapsule document: timecapsule-TC-1764054367587pf
+MetadataManager.ts:721 🗑️ Deleted old TimeCapsule document: timecapsule-TC-1764054367587pf
+VectorStore.ts:2205 🔄 Bypassing duplicate detection for metadata update: TimeCapsule: Untitled TimeCapsule
+VectorStore.ts:2212 📋 Found 0 existing TimeCapsule documents for timeCapsuleId: TC-1764054367587pf
+VectorStore.ts:2029 📋 TimeCapsule document operation: {id: 'timecapsule-TC-1764054367587pf', title: 'TimeCapsule: Untitled TimeCapsule', source: 'metadata', timeCapsuleId: 'TC-1764054367587pf', name: 'Untitled TimeCapsule', …}
+VectorStore.ts:2142 ✅ Document inserted: timecapsule-TC-1764054367587pf
+VectorStore.ts:2634 🔍 Verifying document persistence: timecapsule-TC-1764054367587pf (attempt 1/3)
 VectorStore.ts:2679 💾 Database flush completed
-VectorStore.ts:2000 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 3-pjszfuytjn
-VectorStore.ts:2647 ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 3-pjszfuytjn)
-sessionStore.ts:75 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
+VectorStore.ts:2000 📋 Retrieved latest revision for timecapsule-TC-1764054367587pf: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: TimeCapsule: Untitled TimeCapsule (ID: timecapsule-TC-1764054367587pf, Rev: 1-cwyakxjrax)
+MetadataManager.ts:772 ✅ TimeCapsule synced to Knowledge Base: Untitled TimeCapsule
+MetadataManager.ts:772 ✅ TimeCapsule synced to Knowledge Base: Untitled TimeCapsule
+MetadataManager.ts:777 ✅ TimeCapsule persistence verified: Untitled TimeCapsule
+MetadataManager.ts:806 ✅ All metadata synced to Knowledge Base successfully {syncedBubblSpaces: 1, syncedTimeCapsules: 1, totalItems: 2}
+MetadataManager.ts:777 ✅ TimeCapsule persistence verified: Untitled TimeCapsule
+MetadataManager.ts:806 ✅ All metadata synced to Knowledge Base successfully {syncedBubblSpaces: 1, syncedTimeCapsules: 1, totalItems: 2}
+MetadataManager.ts:953 ✅ Force metadata sync completed successfully
+MetadataManager.ts:1027 ✅ Metadata synced with vector store
+MetadataManager.ts:304 ✅ TimeCapsule immediately synced to Knowledge Base: Untitled TimeCapsule
+SessionProvider.tsx:11 Fetch finished loading: GET "http://localhost:3000/api/auth/session".
+fetchData @ client.js:44
+getSession @ react.js:123
+SessionProvider.useEffect @ react.js:289
+SessionProvider.useEffect @ react.js:317
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+flushPendingEffects @ react-dom-client.development.js:15830
+performSyncWorkOnRoot @ react-dom-client.development.js:16362
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<SessionProvider>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+SessionProvider @ SessionProvider.tsx:11
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<SessionProvider>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+ClientAppProviders @ ClientAppProviders.tsx:29
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10505
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopConcurrentByScheduler @ react-dom-client.development.js:15252
+renderRootConcurrent @ react-dom-client.development.js:15227
+performWorkOnRoot @ react-dom-client.development.js:14525
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
 useAIProviders.ts:232 🔄 aiProviders object updated
-page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
-scheduler.development.js:14 [Violation] 'message' handler took 474ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-process @ FlowFrameGeneratorAgent.ts:97
+client.js:44 Fetch finished loading: GET "http://localhost:3000/api/auth/session".
+fetchData @ client.js:44
+getSession @ react.js:123
+SessionProvider.useEffect @ react.js:289
+SessionProvider.useEffect.handle @ react.js:332
 useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 315ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-process @ FlowFrameGeneratorAgent.ts:97
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 253ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
-useOpenRouterConnection.ts:438 Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ useOpenRouterConnection.ts:438
-useAIProviders.useCallback[callLLM] @ useAIProviders.ts:163
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ useAIFlowBuilder.ts:1961
-process @ FlowFrameGeneratorAgent.ts:97
-useAIProviders.ts:232 🔄 aiProviders object updated
-scheduler.development.js:14 [Violation] 'message' handler took 222ms
-page.tsx:1518 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ page.tsx:1518
- Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ webpack-internal:///…erConnection.ts:302
-useAIProviders.useCallback[callLLM] @ webpack-internal:///…seAIProviders.ts:80
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ webpack-internal:///…FlowBuilder.ts:1582
-process @ webpack-internal:///…eneratorAgent.ts:26
- 🔄 aiProviders object updated
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 275ms
- 🧹 RAG Tracker cleared 0 old queries
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: POST "https://openrouter.ai/api/v1/chat/completions".
-useOpenRouterConnection.useCallback[sendChatRequest] @ webpack-internal:///…erConnection.ts:302
-useAIProviders.useCallback[callLLM] @ webpack-internal:///…seAIProviders.ts:80
-useAIFlowBuilder.useCallback[planFlow].llmBridge @ webpack-internal:///…FlowBuilder.ts:1582
-process @ webpack-internal:///…eneratorAgent.ts:26
- 🔬 DEBUG CHECKPOINT: Exported 8 frames to debug-frames-flowframegenerator-2025-11-22T09-12-13-442Z.json
- ⚠️ Validation warnings: {undefinedFrames: 0, missingTitle: 0, missingInformationText: 0, missingType: 0, missingOrder: 0}
- ✅ Filtered frames: 8 → 8 valid
- ⚠️ Document processor unavailable - storing virtual document without embeddings
-overrideMethod @ installHook.js:1
-addVirtualDocument @ webpack-internal:///…/VectorStore.ts:717
-useAIFlowBuilder.useCallback[persistSessionToKnowledgeBase] @ webpack-internal:///…IFlowBuilder.ts:797
-useAIFlowBuilder.useCallback[persistSessionState] @ webpack-internal:///…IFlowBuilder.ts:829
-useAIFlowBuilder.useCallback[planFlow] @ webpack-internal:///…FlowBuilder.ts:1725
- 🔄 aiProviders object updated
- 🔄 aiProviders object updated
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 403ms
- 🔄 aiProviders object updated
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 390ms
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- ⏰ Auto-saving session (2-minute interval)...
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 3-pjszfuytjn
- 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (updated)
- 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 4-pjszfuytjn
- ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 4-pjszfuytjn)
- 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
- 🔄 aiProviders object updated
- 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 315ms
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- ⏰ Auto-saving session (2-minute interval)...
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 4-pjszfuytjn
- 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (updated)
- 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 5-pjszfuytjn
- ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 5-pjszfuytjn)
- 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
- 🔄 aiProviders object updated
- 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 293ms
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- ⏰ Auto-saving session (2-minute interval)...
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 5-pjszfuytjn
- 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (updated)
- 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 6-pjszfuytjn
- ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 6-pjszfuytjn)
- 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
- 🔄 aiProviders object updated
- 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 296ms
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- ⏰ Auto-saving session (2-minute interval)...
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 6-pjszfuytjn
- 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (updated)
- 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 7-pjszfuytjn
- ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 7-pjszfuytjn)
- 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
- 🔄 aiProviders object updated
- 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 305ms
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- ⏰ Auto-saving session (2-minute interval)...
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 7-pjszfuytjn
- 📊 Synced frame AI Flow: using ddp pdf file build a lesson plan for me on d to Knowledge Base (updated)
- 🔍 Verifying document persistence: session_ai-flow_1763802416315_vij3dcwnm (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for session_ai-flow_1763802416315_vij3dcwnm: 8-pjszfuytjn
- ✅ Document persistence verified: AI Flow: using ddp pdf file build a lesson plan for me on d (ID: session_ai-flow_1763802416315_vij3dcwnm, Rev: 8-pjszfuytjn)
- 💾 Session saved: AI Flow: using ddp pdf file build a lesson plan for me on d (ai-flow_1763802416315_vij3dcwnm)
- 🔄 aiProviders object updated
- 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'ai-flow_1763802416315_vij3dcwnm', sessionsCount: 2, sessionsList: Array(2)}
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 301ms
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Unknown attachment type: "external_resource", defaulting to text-attachment
-overrideMethod @ installHook.js:1
-normalizeAttachmentType @ webpack-internal:///…FlowBuilder.ts:1958
-useAIFlowBuilder.useCallback[convertDraftToFrame] @ webpack-internal:///…FlowBuilder.ts:1994
-useAIFlowBuilder.useCallback[acceptDrafts] @ webpack-internal:///…FlowBuilder.ts:2295
-handleAcceptAll @ webpack-internal:///…uilderPanel.tsx:333
-executeDispatch @ webpack-internal:///…evelopment.js:16502
-runWithFiberInDEV @ webpack-internal:///….development.js:845
-processDispatchQueue @ webpack-internal:///…evelopment.js:16552
-eval @ webpack-internal:///…evelopment.js:17150
-batchedUpdates$1 @ webpack-internal:///…development.js:3263
-dispatchEventForPluginEventSystem @ webpack-internal:///…evelopment.js:16706
-dispatchEvent @ webpack-internal:///…evelopment.js:20816
-dispatchDiscreteEvent @ webpack-internal:///…evelopment.js:20784
- Unknown attachment type: "external_resource", defaulting to text-attachment
-overrideMethod @ installHook.js:1
-normalizeAttachmentType @ webpack-internal:///…FlowBuilder.ts:1958
-useAIFlowBuilder.useCallback[convertDraftToFrame] @ webpack-internal:///…FlowBuilder.ts:1999
-useAIFlowBuilder.useCallback[acceptDrafts] @ webpack-internal:///…FlowBuilder.ts:2295
-handleAcceptAll @ webpack-internal:///…uilderPanel.tsx:333
-executeDispatch @ webpack-internal:///…evelopment.js:16502
-runWithFiberInDEV @ webpack-internal:///….development.js:845
-processDispatchQueue @ webpack-internal:///…evelopment.js:16552
-eval @ webpack-internal:///…evelopment.js:17150
-batchedUpdates$1 @ webpack-internal:///…development.js:3263
-dispatchEventForPluginEventSystem @ webpack-internal:///…evelopment.js:16706
-dispatchEvent @ webpack-internal:///…evelopment.js:20816
-dispatchDiscreteEvent @ webpack-internal:///…evelopment.js:20784
- Unknown attachment type: "external_resource", defaulting to text-attachment
-overrideMethod @ installHook.js:1
-normalizeAttachmentType @ webpack-internal:///…FlowBuilder.ts:1958
-useAIFlowBuilder.useCallback[convertDraftToFrame] @ webpack-internal:///…FlowBuilder.ts:2005
-useAIFlowBuilder.useCallback[acceptDrafts] @ webpack-internal:///…FlowBuilder.ts:2295
-handleAcceptAll @ webpack-internal:///…uilderPanel.tsx:333
-executeDispatch @ webpack-internal:///…evelopment.js:16502
-runWithFiberInDEV @ webpack-internal:///….development.js:845
-processDispatchQueue @ webpack-internal:///…evelopment.js:16552
-eval @ webpack-internal:///…evelopment.js:17150
-batchedUpdates$1 @ webpack-internal:///…development.js:3263
-dispatchEventForPluginEventSystem @ webpack-internal:///…evelopment.js:16706
-dispatchEvent @ webpack-internal:///…evelopment.js:20816
-dispatchDiscreteEvent @ webpack-internal:///…evelopment.js:20784
- Unknown attachment type: "external_resource", defaulting to text-attachment
-overrideMethod @ installHook.js:1
-normalizeAttachmentType @ webpack-internal:///…FlowBuilder.ts:1958
-useAIFlowBuilder.useCallback[convertDraftToFrame] @ webpack-internal:///…FlowBuilder.ts:2010
-useAIFlowBuilder.useCallback[acceptDrafts] @ webpack-internal:///…FlowBuilder.ts:2295
-handleAcceptAll @ webpack-internal:///…uilderPanel.tsx:333
-executeDispatch @ webpack-internal:///…evelopment.js:16502
-runWithFiberInDEV @ webpack-internal:///….development.js:845
-processDispatchQueue @ webpack-internal:///…evelopment.js:16552
-eval @ webpack-internal:///…evelopment.js:17150
-batchedUpdates$1 @ webpack-internal:///…development.js:3263
-dispatchEventForPluginEventSystem @ webpack-internal:///…evelopment.js:16706
-dispatchEvent @ webpack-internal:///…evelopment.js:20816
-dispatchDiscreteEvent @ webpack-internal:///…evelopment.js:20784
- 📦 Accept All: Pushing 8 frames and 3 chapters
- 📦 Frame IDs: (8) ['frame_ddp_1', 'frame_ddp_2', 'frame_ddp_3', 'frame_ddp_4', 'frame_ddp_5', 'frame_ddp_6', 'frame_ddp_7', 'frame_ddp_8']
- 📦 Chapter frame mappings: (3) [{…}, {…}, {…}]
- 🔄 Replacing AI Flow content: removing 0 old frames, adding 8 new frames
- 🔄 Chapters: removing 0 old, adding 3 new
- ✅ Using atomic batchUpdate with replaced content (prevents duplicate nodes)
- 🔄 Batch update: {hasFrames: true, hasChapters: true, hasGraphState: true, frameCount: 8, chapterCount: 3, …}
- No graph nodes to organize
- 🔄 aiProviders object updated
- 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 8, hasUnifiedMethods: true}
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 1
- 🔄 aiProviders object updated
- 🧪 Graph merge from initialGraphState {existingNodeCount: 15, incomingNodeIds: Array(11), appendedNodeIds: Array(3), skippedFrameIds: Array(0), skippedAttachmentIds: Array(0), …}
-webpack-internal:///…evelopment.js:16378 [Violation] 'click' handler took 429ms
- 📋 SCHEMA CHECK: Session document structure before insertion: {hasId: true, hasTitle: true, hasContent: true, hasMetadata: true, hasChunks: true, …}
- ✅ Session document inserted successfully: {sessionId: 'session_1763803425120', documentId: 'sess-1763803425120-0oeiby'}
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 2
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 3
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 4
- 🔄 aiProviders object updated
- 🧪 Graph merge from initialGraphState {existingNodeCount: 18, incomingNodeIds: Array(3), appendedNodeIds: Array(3), skippedFrameIds: Array(0), skippedAttachmentIds: Array(0), …}
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 5
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 6
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 7
- 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 8, chapterCount: 3, nodeCount: 21, edgeCount: 8, frameIds: Array(8), …}
- 💾 Starting unified save... {skipVectorStore: false}
- 🔄 aiProviders object updated
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 8
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 9
- ✅ IndexedDB save completed
- 📊 Synced frame AI-Frame: This frame provides an overview of PyTorch's Distributed Data Parallel (DDP), highlighting its purpose for scaling multi-GPU training through data parallelism and gradient synchronization via all_reduce. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_1 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_1: 14-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame provides an overview of PyTorch's Distributed Data Parallel (DDP), highlighting its purpose for scaling multi-GPU training through data parallelism and gradient synchronization via all_reduce. (ID: aiframe-frame_ddp_1, Rev: 14-pjszfuytjn)
- 📊 Synced frame AI-Frame: This frame provides a visual mental model of DDP's replica-based training flow and explains seeding's role in ensuring identical, reproducible model states across workers. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_2 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_2: 14-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame provides a visual mental model of DDP's replica-based training flow and explains seeding's role in ensuring identical, reproducible model states across workers. (ID: aiframe-frame_ddp_2, Rev: 14-pjszfuytjn)
- 📊 Synced frame AI-Frame: This frame explores Python dictionary comprehensions and kwargs unpacking to efficiently transform Hugging Face dataset dictionaries into device-ready tensors for PyTorch models in DDP training. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_3 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_3: 14-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame explores Python dictionary comprehensions and kwargs unpacking to efficiently transform Hugging Face dataset dictionaries into device-ready tensors for PyTorch models in DDP training. (ID: aiframe-frame_ddp_3, Rev: 14-pjszfuytjn)
- 📊 Synced frame AI-Frame: This frame teaches seeding across libraries and device placement to achieve reproducible and consistent DDP training environments. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_4 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_4: 14-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame teaches seeding across libraries and device placement to achieve reproducible and consistent DDP training environments. (ID: aiframe-frame_ddp_4, Rev: 14-pjszfuytjn)
- 📊 Synced frame AI-Frame: This frame guides building a simple DDP model wrapper and dissecting the distributed training loop, emphasizing tensor preparation, forward passes, and gradient sync. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_5 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_5: 14-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame guides building a simple DDP model wrapper and dissecting the distributed training loop, emphasizing tensor preparation, forward passes, and gradient sync. (ID: aiframe-frame_ddp_5, Rev: 14-pjszfuytjn)
- 📊 Synced frame AI-Frame: This frame details how DDP uses all-reduce to sum and average gradients across processes, divided by world size, before synchronized optimizer steps to maintain model consistency in distributed training. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_6 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_6: 14-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame details how DDP uses all-reduce to sum and average gradients across processes, divided by world size, before synchronized optimizer steps to maintain model consistency in distributed training. (ID: aiframe-frame_ddp_6, Rev: 14-pjszfuytjn)
- 📊 Synced frame AI-Frame: This frame identifies common DDP pitfalls like device mismatches and unseeded randomness, provides practical fixes, and guides transitioning from toy implementations to full-scale distributed training. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_7 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_7: 1-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame identifies common DDP pitfalls like device mismatches and unseeded randomness, provides practical fixes, and guides transitioning from toy implementations to full-scale distributed training. (ID: aiframe-frame_ddp_7, Rev: 1-pjszfuytjn)
- 📊 Synced frame AI-Frame: This frame provides exercises and a cheatsheet for practicing DDP fundamentals, plus insights from Tyler Romero's Speed Run for advanced distributed training optimizations. to Knowledge Base (inserted)
- 💾 Database flush completed
- 🔍 Verifying document persistence: aiframe-frame_ddp_8 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_8: 1-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame provides exercises and a cheatsheet for practicing DDP fundamentals, plus insights from Tyler Romero's Speed Run for advanced distributed training optimizations. (ID: aiframe-frame_ddp_8, Rev: 1-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-chapters: 82-pjszfuytjn
- 📊 Synced frame AI-Frame Chapters to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-chapters (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-chapters: 83-pjszfuytjn
- ✅ Document persistence verified: AI-Frame Chapters (ID: aiframe-chapters, Rev: 83-pjszfuytjn)
- ✅ Unified save completed successfully
- Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
-syncLocalBridge @ webpack-internal:///…ifiedStorage.ts:591
-saveAll @ webpack-internal:///…nifiedStorage.ts:56
-await in saveAll
-useUnifiedStorage.useCallback[queueBackgroundSave] @ webpack-internal:///…ifiedStorage.ts:805
- 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-22T09:23:45.986Z'}
- 🔄 aiProviders object updated
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 244ms
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- 🔄 aiProviders object updated
- 🎨 Auto-layout: Organizing graph with 21 nodes
- 🔍 Analyzing edges for attachments: {totalEdges: 8, attachmentNodeIds: Array(7), frameNodeIds: Array(8), edgeDetails: Array(8)}
- 📊 Graph structure analysis: {chapters: 6, frames: 8, attachments: 7, concepts: 0, attachmentMapSize: 0, …}
- ✅ Auto-layout: Graph organized successfully
- 🔄 aiProviders object updated
- 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 8, chapterCount: 3, nodeCount: 21, edgeCount: 8, frameIds: Array(8), …}
- 💾 Starting unified save... {skipVectorStore: false}
- 📋 Retrieved latest revision for aiframe-frame_ddp_1: 14-pjszfuytjn
- 🎨 React Flow: Auto-layout event received {reason: 'auto-layout', nodeCount: 21, timestamp: 1763803442707, graphState: {…}, forceFitView: true}
- 🎨 React Flow: Applying auto-layout positions {nodeCount: 21, edgeCount: 8, source: 'event'}
- 📡 Dispatched graph-layout-applied event
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 10
- 🔄 aiProviders object updated
-webpack-internal:///…r.development.js:14 [Violation] 'message' handler took 165ms
- ✅ IndexedDB save completed
- ✅ Auto-layout viewport updated
- 💾 Saving frames to localStorage...
- ⚠️ VectorStore sync failed
-overrideMethod @ installHook.js:1
-handleSaveGraph @ webpack-internal:///…ntegration.tsx:1461
- 📊 Synced frame AI-Frame: This frame provides an overview of PyTorch's Distributed Data Parallel (DDP), highlighting its purpose for scaling multi-GPU training through data parallelism and gradient synchronization via all_reduce. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_1 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_1: 15-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame provides an overview of PyTorch's Distributed Data Parallel (DDP), highlighting its purpose for scaling multi-GPU training through data parallelism and gradient synchronization via all_reduce. (ID: aiframe-frame_ddp_1, Rev: 15-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-frame_ddp_2: 14-pjszfuytjn
- 📊 Synced frame AI-Frame: This frame provides a visual mental model of DDP's replica-based training flow and explains seeding's role in ensuring identical, reproducible model states across workers. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_2 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_2: 15-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame provides a visual mental model of DDP's replica-based training flow and explains seeding's role in ensuring identical, reproducible model states across workers. (ID: aiframe-frame_ddp_2, Rev: 15-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-frame_ddp_3: 14-pjszfuytjn
- 📊 Synced frame AI-Frame: This frame explores Python dictionary comprehensions and kwargs unpacking to efficiently transform Hugging Face dataset dictionaries into device-ready tensors for PyTorch models in DDP training. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_3 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_3: 15-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame explores Python dictionary comprehensions and kwargs unpacking to efficiently transform Hugging Face dataset dictionaries into device-ready tensors for PyTorch models in DDP training. (ID: aiframe-frame_ddp_3, Rev: 15-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-frame_ddp_4: 14-pjszfuytjn
- 📊 Synced frame AI-Frame: This frame teaches seeding across libraries and device placement to achieve reproducible and consistent DDP training environments. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_4 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_4: 15-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame teaches seeding across libraries and device placement to achieve reproducible and consistent DDP training environments. (ID: aiframe-frame_ddp_4, Rev: 15-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-frame_ddp_5: 14-pjszfuytjn
- 📊 Synced frame AI-Frame: This frame guides building a simple DDP model wrapper and dissecting the distributed training loop, emphasizing tensor preparation, forward passes, and gradient sync. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_5 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_5: 15-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame guides building a simple DDP model wrapper and dissecting the distributed training loop, emphasizing tensor preparation, forward passes, and gradient sync. (ID: aiframe-frame_ddp_5, Rev: 15-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-frame_ddp_6: 14-pjszfuytjn
- 📊 Synced frame AI-Frame: This frame details how DDP uses all-reduce to sum and average gradients across processes, divided by world size, before synchronized optimizer steps to maintain model consistency in distributed training. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_6 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_6: 15-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame details how DDP uses all-reduce to sum and average gradients across processes, divided by world size, before synchronized optimizer steps to maintain model consistency in distributed training. (ID: aiframe-frame_ddp_6, Rev: 15-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-frame_ddp_7: 1-pjszfuytjn
- 📊 Synced frame AI-Frame: This frame identifies common DDP pitfalls like device mismatches and unseeded randomness, provides practical fixes, and guides transitioning from toy implementations to full-scale distributed training. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_7 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_7: 2-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame identifies common DDP pitfalls like device mismatches and unseeded randomness, provides practical fixes, and guides transitioning from toy implementations to full-scale distributed training. (ID: aiframe-frame_ddp_7, Rev: 2-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-frame_ddp_8: 1-pjszfuytjn
- 📊 Synced frame AI-Frame: This frame provides exercises and a cheatsheet for practicing DDP fundamentals, plus insights from Tyler Romero's Speed Run for advanced distributed training optimizations. to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-frame_ddp_8 (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-frame_ddp_8: 2-pjszfuytjn
- ✅ Document persistence verified: AI-Frame: This frame provides exercises and a cheatsheet for practicing DDP fundamentals, plus insights from Tyler Romero's Speed Run for advanced distributed training optimizations. (ID: aiframe-frame_ddp_8, Rev: 2-pjszfuytjn)
- 📋 Retrieved latest revision for aiframe-chapters: 83-pjszfuytjn
- 📊 Synced frame AI-Frame Chapters to Knowledge Base (updated)
- 🔍 Verifying document persistence: aiframe-chapters (attempt 1/3)
- 💾 Database flush completed
- 📋 Retrieved latest revision for aiframe-chapters: 84-pjszfuytjn
- ✅ Document persistence verified: AI-Frame Chapters (ID: aiframe-chapters, Rev: 84-pjszfuytjn)
- ✅ Unified save completed successfully
- Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
-syncLocalBridge @ webpack-internal:///…ifiedStorage.ts:591
-saveAll @ webpack-internal:///…nifiedStorage.ts:56
- 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-22T09:24:03.651Z'}
- 🔄 aiProviders object updated
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 11
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 12
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 13
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 14
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 15
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 16
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 17
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 18
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 19
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 20
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 21
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 22
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 23
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 24
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 25
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 26
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 27
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 28
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 29
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 30
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 31
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 32
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 33
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 34
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 35
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 36
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 37
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 38
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 39
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 40
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 41
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 42
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 43
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 44
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 45
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 46
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 47
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 48
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 49
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 50
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 51
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 52
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 53
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 54
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 55
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 56
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 57
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 58
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 59
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 60
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 61
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 62
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 63
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 64
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 65
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 66
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 67
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 68
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 69
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 70
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 71
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 72
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 73
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 74
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 75
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 76
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 77
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 78
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 79
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 80
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 81
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 82
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 83
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 84
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 85
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 86
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 87
- 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
- EnhancedLearningGraph rerender: 88
- 🔄 aiProviders object updated
- 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 8, chapterCount: 3, nodeCount: 21, edgeCount: 8, frameIds: Array(8), …}
- 💾 Starting unified save... {skipVectorStore: true}
- 🔄 aiProviders object updated
- ✅ IndexedDB save completed
- ✅ Unified save completed successfully
- Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
-syncLocalBridge @ webpack-internal:///…ifiedStorage.ts:591
-saveAll @ webpack-internal:///…nifiedStorage.ts:56
-await in saveAll
-useUnifiedStorage.useCallback[queueBackgroundSave] @ webpack-internal:///…ifiedStorage.ts:805
-await in useUnifiedStorage.useCallback[queueBackgroundSave]
-useUnifiedStorage.useEffect.handleGraphElementChangedEvent @ webpack-internal:///…fiedStorage.ts:1553
-EnhancedLearningGraph.useCallback[handleNodesChange] @ webpack-internal:///…arningGraph.tsx:290
+analytics.ts:271 📊 GA4: Initializing Google Analytics 4...
+Analytics.tsx:42 ⏳ Analytics: Skipping page tracking - no consent or not initialized
+analytics.ts:305 ✅ GA4: Successfully initialized with enhanced tracking
+Analytics.tsx:23 ✅ Analytics: GA4 initialized with user consent
+analytics.ts:363 📊 GA4: Page view tracked - AI-Frames
+Analytics.tsx:72 📊 Analytics: Tracked page view - AI-Frames (/ai-frames)
+js?id=G-V1B8R98P79:277 Fetch failed loading: POST "https://www.google-analytics.com/g/collect?v=2&tid=G-V1B8R98P79&gtm=45je5bi1v898116370za200zd898116370&_p=1764054370387&gcd=13l3l3l3l1l1&npa=0&dma=0&cid=11398970.1764054370&ul=en-us&sr=2240x1260&uaa=arm&uab=64&uafvl=Chromium%3B142.0.7444.162%7CGoogle%2520Chrome%3B142.0.7444.162%7CNot_A%2520Brand%3B99.0.0.0&uamb=0&uam=&uap=macOS&uapv=26.1.0&uaw=0&are=1&frm=0&pscdl=noapi&_eu=AAAAAAQ&_s=3&tag_exp=103116026~103200004~104527907~104528500~104684208~104684211~115583767~115938465~115938469~116184927~116184929~116217636~116217638&dt=AI-Frames&dl=http%3A%2F%2Flocalhost%3A3000%2Fai-frames&sid=1764054370&sct=1&seg=1&dr=http%3A%2F%2Flocalhost%3A3000%2Fai-frames&en=page_view&_ee=1&ep.anonymize_ip=false&ep.debug_mode=false&ep.site_name=TimeCapsule-%20SLM&ep.page_category=learning&ep.page_type=interactive&ep.pathname=%2Fai-frames&ep.consent_analytics=true&ep.consent_functional=true&_et=102&tfd=8092".
+bd @ js?id=G-V1B8R98P79:277
+Cl @ js?id=G-V1B8R98P79:443
+SN @ js?id=G-V1B8R98P79:970
+k.flush @ js?id=G-V1B8R98P79:977
+k.Pb @ js?id=G-V1B8R98P79:974
+k.add @ js?id=G-V1B8R98P79:977
+k.Pm @ js?id=G-V1B8R98P79:992
+k.Kr @ js?id=G-V1B8R98P79:992
+(anonymous) @ js?id=G-V1B8R98P79:989
+Wl @ js?id=G-V1B8R98P79:454
+Vn @ js?id=G-V1B8R98P79:473
+(anonymous) @ js?id=G-V1B8R98P79:989
+c @ js?id=G-V1B8R98P79:919
+CJ @ js?id=G-V1B8R98P79:919
+k.Jr @ js?id=G-V1B8R98P79:989
+b @ js?id=G-V1B8R98P79:1003
+v @ js?id=G-V1B8R98P79:497
+em @ js?id=G-V1B8R98P79:456
+Yp @ js?id=G-V1B8R98P79:497
+Xp.flush @ js?id=G-V1B8R98P79:501
+Xp.push @ js?id=G-V1B8R98P79:499
+Pp @ js?id=G-V1B8R98P79:494
+event @ js?id=G-V1B8R98P79:774
+qB @ js?id=G-V1B8R98P79:780
+b.push @ js?id=G-V1B8R98P79:786
+window.gtag @ analytics.ts:279
+trackEvent @ analytics.ts:384
+trackEngagement @ analytics.ts:500
+Analytics.useEffect.trackPageView @ Analytics.tsx:70
 setTimeout
-EnhancedLearningGraph.useCallback[handleNodesChange] @ webpack-internal:///…arningGraph.tsx:287
-triggerNodeChanges @ webpack-internal:///…t/esm/index.js:5054
-updateNodePositions @ webpack-internal:///…t/esm/index.js:5042
-eval @ webpack-internal:///…t/esm/index.js:2246
-call @ webpack-internal:///…/src/dispatch.js:61
-gesture @ webpack-internal:///…rag/src/drag.js:159
-mouseupped @ webpack-internal:///…drag/src/drag.js:89
-eval @ webpack-internal:///…c/selection/on.js:7
- 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-22T09:24:21.857Z'}
- 🔄 aiProviders object updated
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
- Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
-AIFramesPage.useEffect.poll @ webpack-internal:///…frames/page.tsx:852
+Analytics.useEffect @ Analytics.tsx:76
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14019
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13992
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+js?id=G-V1B8R98P79:277 Fetch failed loading: POST "https://www.google-analytics.com/g/collect?v=2&tid=G-V1B8R98P79&gtm=45je5bi1v898116370za200zd898116370&_p=1764054370387&gcd=13l3l3l3l1l1&npa=0&dma=0&cid=11398970.1764054370&ul=en-us&sr=2240x1260&uaa=arm&uab=64&uafvl=Chromium%3B142.0.7444.162%7CGoogle%2520Chrome%3B142.0.7444.162%7CNot_A%2520Brand%3B99.0.0.0&uamb=0&uam=&uap=macOS&uapv=26.1.0&uaw=0&are=1&frm=0&pscdl=noapi&_s=1&tag_exp=103116026~103200004~104527907~104528500~104684208~104684211~115583767~115938465~115938469~116184927~116184929~116217636~116217638&sid=1764054370&sct=1&seg=0&dl=http%3A%2F%2Flocalhost%2Fai-frames&dr=http%3A%2F%2Flocalhost%3A3000%2Fai-frames&dt=TimeCapsule%20-%20AI-Powered%20Learning%20Platform&en=page_view&_fv=1&_nsi=1&_ss=1&_ee=1&ep.anonymize_ip=false&ep.debug_mode=false&ep.site_name=TimeCapsule-%20SLM&up.device_type=desktop&up.operating_system=macOS&up.browser=Chrome&up.timezone=Asia%2FCalcutta&tfd=7983".
+bd @ js?id=G-V1B8R98P79:277
+Cl @ js?id=G-V1B8R98P79:443
+SN @ js?id=G-V1B8R98P79:970
+k.Pb @ js?id=G-V1B8R98P79:974
+k.add @ js?id=G-V1B8R98P79:977
+k.Pm @ js?id=G-V1B8R98P79:992
+k.Kr @ js?id=G-V1B8R98P79:992
+(anonymous) @ js?id=G-V1B8R98P79:989
+Wl @ js?id=G-V1B8R98P79:454
+Vn @ js?id=G-V1B8R98P79:473
+(anonymous) @ js?id=G-V1B8R98P79:989
+c @ js?id=G-V1B8R98P79:919
+(anonymous) @ js?id=G-V1B8R98P79:920
+Promise.then
+CJ @ js?id=G-V1B8R98P79:920
+k.Jr @ js?id=G-V1B8R98P79:989
+b @ js?id=G-V1B8R98P79:1003
+v @ js?id=G-V1B8R98P79:497
+em @ js?id=G-V1B8R98P79:456
+Yp @ js?id=G-V1B8R98P79:497
+Xp.flush @ js?id=G-V1B8R98P79:501
+Xp.push @ js?id=G-V1B8R98P79:499
+config @ js?id=G-V1B8R98P79:771
+qB @ js?id=G-V1B8R98P79:780
+b.push @ js?id=G-V1B8R98P79:786
+window.gtag @ analytics.ts:279
+initializeGA4 @ analytics.ts:284
+await in initializeGA4
+Analytics.useEffect.initializeAnalytics @ Analytics.tsx:21
+Analytics.useEffect @ Analytics.tsx:35
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14019
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13992
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+js?id=G-V1B8R98P79:277 Fetch failed loading: POST "https://www.google-analytics.com/g/collect?v=2&tid=G-V1B8R98P79&gtm=45je5bi1v898116370za200zd898116370&_p=1764054370387&gcd=13l3l3l3l1l1&npa=0&dma=0&sr=2240x1260&cid=11398970.1764054370&ul=en-us&uaa=arm&uab=64&uafvl=Chromium%3B142.0.7444.162%7CGoogle%2520Chrome%3B142.0.7444.162%7CNot_A%2520Brand%3B99.0.0.0&uamb=0&uam=&uap=macOS&uapv=26.1.0&uaw=0&are=1&frm=0&pscdl=noapi&_eu=AAAAAAQ&_s=2&tag_exp=103116026~103200004~104527907~104528500~104684208~104684211~115583767~115938465~115938469~116184927~116184929~116217636~116217638&sid=1764054370&sct=1&seg=0&dl=http%3A%2F%2Flocalhost%2Fai-frames&dr=http%3A%2F%2Flocalhost%3A3000%2Fai-frames&dt=TimeCapsule%20-%20AI-Powered%20Learning%20Platform&en=ga4_initialized&_ee=1&ep.anonymize_ip=false&ep.debug_mode=false&ep.site_name=TimeCapsule-%20SLM&ep.timestamp=2025-11-25T07%3A06%3A10.393Z&epn.page_duration=4&ep.device_type=desktop&ep.operating_system=macOS&ep.browser=Chrome&ep.browser_version=142.0.0.0&ep.viewport_size=2240x880&ep.device_language=en-US&ep.device_timezone=Asia%2FCalcutta&ep.device_online=true&epn.device_pixel_ratio=2&epn.device_memory=8&epn.device_cores=8&epn.device_touch_points=0&ep.connection_type=4g&ep.user_timezone=Asia%2FCalcutta&epn.timezone_offset=-330&ep.user_language=en-US&epn.user_latitude=19.17&epn.user_longitude=72.85&epn.location_accuracy=53&_et=4&tfd=8090".
+bd @ js?id=G-V1B8R98P79:277
+Cl @ js?id=G-V1B8R98P79:443
+SN @ js?id=G-V1B8R98P79:970
+k.flush @ js?id=G-V1B8R98P79:977
+k.Pb @ js?id=G-V1B8R98P79:974
+k.add @ js?id=G-V1B8R98P79:977
+k.Pm @ js?id=G-V1B8R98P79:992
+k.Kr @ js?id=G-V1B8R98P79:992
+(anonymous) @ js?id=G-V1B8R98P79:989
+Wl @ js?id=G-V1B8R98P79:454
+Vn @ js?id=G-V1B8R98P79:473
+(anonymous) @ js?id=G-V1B8R98P79:989
+c @ js?id=G-V1B8R98P79:919
+CJ @ js?id=G-V1B8R98P79:919
+k.Jr @ js?id=G-V1B8R98P79:989
+b @ js?id=G-V1B8R98P79:1003
+v @ js?id=G-V1B8R98P79:497
+em @ js?id=G-V1B8R98P79:456
+Yp @ js?id=G-V1B8R98P79:497
+Xp.flush @ js?id=G-V1B8R98P79:501
+Xp.push @ js?id=G-V1B8R98P79:499
+Pp @ js?id=G-V1B8R98P79:494
+event @ js?id=G-V1B8R98P79:774
+qB @ js?id=G-V1B8R98P79:780
+b.push @ js?id=G-V1B8R98P79:786
+window.gtag @ analytics.ts:279
+trackPageView @ analytics.ts:356
+Analytics.useEffect.trackPageView @ Analytics.tsx:61
+setTimeout
+Analytics.useEffect @ Analytics.tsx:76
+react-stack-bottom-frame @ react-dom-client.development.js:23055
+runWithFiberInDEV @ react-dom-client.development.js:845
+commitHookEffectListMount @ react-dom-client.development.js:11978
+commitHookPassiveMountEffects @ react-dom-client.development.js:12099
+commitPassiveMountOnFiber @ react-dom-client.development.js:13929
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14019
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13992
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13932
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13922
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:14048
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:13902
+commitPassiveMountOnFiber @ react-dom-client.development.js:13941
+flushPassiveEffects @ react-dom-client.development.js:15869
+eval @ react-dom-client.development.js:15505
+performWorkUntilDeadline @ scheduler.development.js:45
+EnhancedLearningGraph.tsx:3184 🎯 Dispatching ensure-manual-session event for frame drop
+page.tsx:2040 🔍 Checking for manual session... {activeSessionId: null, sessionsCount: 0}
+page.tsx:2050 🆕 Auto-creating manual session for frame drop
+useAIFlowBuilder.ts:934 🎬 [SESSION] Creating new manual session...
+useAIFlowBuilder.ts:940 📦 [SESSION] New session object created: {id: 'manual_1764054371722_bja4p7tv0', name: 'Manual Session', source: 'manual', timeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj'}
+page.tsx:883 🧹 Graph reset: cleared nodes and edges
+useAIFlowBuilder.ts:967 🧹 [SESSION] Cleared graph display for new session
+useAIFlowBuilder.ts:994 💾 [SESSION] Saving new session to VectorStore...
+useAIFlowBuilder.ts:1002 ✅ [SESSION] Session creation complete. Returning session ID: manual_1764054371722_bja4p7tv0
+page.tsx:2055 ✅ Manual session created: manual_1764054371722_bja4p7tv0
+DualPaneFrameView.tsx:165 🌀 DualPane invokeFramesChange {reason: 'dual-pane', count: 1}
+page.tsx:1921 🔧 handleFramesChange: Merged 1 new frames with 0 existing frames {totalAfterMerge: 1, activeTimeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj', activeSessionId: null, framesWithBoth: 0}
+useAIFlowBuilder.ts:958 🎯 [SESSION] Setting active session ID: null -> manual_1764054371722_bja4p7tv0
+useAIFlowBuilder.ts:958 🎯 [SESSION] Setting active session ID: null -> manual_1764054371722_bja4p7tv0
+useAIFlowBuilder.ts:953 📋 [SESSION] Updating sessions array: 0 -> 1
+useAIFlowBuilder.ts:953 📋 [SESSION] Updating sessions array: 0 -> 1
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":true,"handleEdgesChangeChanged":true,"handleNodesDeleteChanged":true,"onConnectChanged":true,"onEdgesDeleteChanged":true,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 4
+useAIProviders.ts:232 🔄 aiProviders object updated
+useAIFlowBuilder.ts:1377 💾 Persisting active session ID to localStorage: manual_1764054371722_bja4p7tv0
+page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'manual_1764054371722_bja4p7tv0', sessionsCount: 1, sessionsList: Array(1)}
+page.tsx:1775 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 1, hasUnifiedMethods: true}
+page.tsx:2085 🔧 Found 1 orphaned frames, assigning to session manual_1764054371722_bja4p7tv0
+page.tsx:2094 ✅ Assigned sessionId to 1 orphaned frames
+useAIFlowBuilder.ts:1324 📊 Updating session frame count: 1 frames for session manual_1764054371722_bja4p7tv0
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 5
+useAIProviders.ts:232 🔄 aiProviders object updated
+react-dom-client.development.js:16378 [Violation] 'drop' handler took 182ms
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 6
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<FrameGraphIntegration>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+AIFramesPage @ page.tsx:3865
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<FrameGraphIntegration>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+AIFramesPage @ page.tsx:3865
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<FrameGraphIntegration>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+AIFramesPage @ page.tsx:3865
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<FrameGraphIntegration>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+AIFramesPage @ page.tsx:3865
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 7
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 0, nodeCount: 0, edgeCount: 0, frameIds: Array(1), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: true}
+useUnifiedStorage.ts:1558 ⏸️ Skipping delayed save - background save already in progress
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 8
+useAIProviders.ts:232 🔄 aiProviders object updated
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+useAIProviders.ts:232 🔄 aiProviders object updated
+VectorStore.ts:1940 📊 Synced frame Manual Session to Knowledge Base (inserted)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2634 🔍 Verifying document persistence: session_manual_1764054371722_bja4p7tv0 (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2142 ✅ Document inserted: frames_session_1764054367571_0f47of9zd
+VectorStore.ts:2634 🔍 Verifying document persistence: frames_session_1764054367571_0f47of9zd (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for session_manual_1764054371722_bja4p7tv0: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: Manual Session (ID: session_manual_1764054371722_bja4p7tv0, Rev: 1-cwyakxjrax)
+sessionStore.ts:76 💾 Session saved: Manual Session (manual_1764054371722_bja4p7tv0)
+sessionStore.ts:76 💾 Session saved: Manual Session (manual_1764054371722_bja4p7tv0)
+useAIFlowBuilder.ts:996 ✅ [SESSION] New session saved to VectorStore
+useAIFlowBuilder.ts:1343 ✅ Session metadata updated with 1 frames
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'manual_1764054371722_bja4p7tv0', sessionsCount: 1, sessionsList: Array(1)}
+VectorStore.ts:2000 📋 Retrieved latest revision for frames_session_1764054367571_0f47of9zd: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: Frame Sequence - 1 frames (ID: frames_session_1764054367571_0f47of9zd, Rev: 1-cwyakxjrax)
+FrameGraphIntegration.tsx:1117 📋 SCHEMA CHECK: Session document structure before insertion: {hasId: true, hasTitle: true, hasContent: true, hasMetadata: true, hasChunks: true, …}
+VectorStore.ts:2142 ✅ Document inserted: sess-1764054372352-py6jre
+VectorStore.ts:2634 🔍 Verifying document persistence: sess-1764054372352-py6jre (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for sess-1764054372352-py6jre: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frames Session (ID: sess-1764054372352-py6jre, Rev: 1-cwyakxjrax)
+FrameGraphIntegration.tsx:1129 ✅ Session document inserted successfully: {sessionId: 'session_1764054372352', documentId: 'sess-1764054372352-py6jre'}
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:06:12.414Z'}
+useAIProviders.ts:232 🔄 aiProviders object updated
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+await in useUnifiedStorage.useCallback[queueBackgroundSave]
+useUnifiedStorage.useCallback[updateGraphState] @ useUnifiedStorage.ts:1221
+AIFramesPage.useCallback[triggerGraphReset] @ page.tsx:882
+useAIFlowBuilder.useCallback[createNewSession] @ useAIFlowBuilder.ts:966
+AIFramesPage.useCallback[ensureManualSession] @ page.tsx:2051
+AIFramesPage.useEffect.handleEnsureManualSession @ page.tsx:2066
+EnhancedLearningGraph.useCallback[onDrop] @ EnhancedLearningGraph.tsx:3185
+executeDispatch @ react-dom-client.development.js:16502
+runWithFiberInDEV @ react-dom-client.development.js:845
+processDispatchQueue @ react-dom-client.development.js:16552
+eval @ react-dom-client.development.js:17150
+batchedUpdates$1 @ react-dom-client.development.js:3263
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16706
+dispatchEvent @ react-dom-client.development.js:20816
+dispatchDiscreteEvent @ react-dom-client.development.js:20784
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/3f4596a30b817fdc.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/df331da96e7ba1b0.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleApplyUpdates @ hot-reloader-client.js:123
+eval @ hot-reloader-client.js:143
+Promise.then
+tryApplyUpdatesWebpack @ hot-reloader-client.js:142
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 917ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 9
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 10
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 11
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 12
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 13
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 14
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 15
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 16
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 17
+useAIProviders.ts:232 🔄 aiProviders object updated
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(1), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: true}
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:06:15.377Z'}
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+await in useUnifiedStorage.useCallback[queueBackgroundSave]
+useUnifiedStorage.useEffect.handleGraphElementChangedEvent @ useUnifiedStorage.ts:1476
+EnhancedLearningGraph.useCallback[handleNodesChange] @ EnhancedLearningGraph.tsx:279
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+useAIProviders.ts:232 🔄 aiProviders object updated
+js?id=G-V1B8R98P79:277 Fetch failed loading: POST "https://www.google-analytics.com/g/collect?v=2&tid=G-V1B8R98P79&gtm=45je5bi1v898116370za200zd898116370&_p=1764054370387&gcd=13l3l3l3l1l1&npa=0&dma=0&sr=2240x1260&cid=11398970.1764054370&ul=en-us&uaa=arm&uab=64&uafvl=Chromium%3B142.0.7444.162%7CGoogle%2520Chrome%3B142.0.7444.162%7CNot_A%2520Brand%3B99.0.0.0&uamb=0&uam=&uap=macOS&uapv=26.1.0&uaw=0&are=1&frm=0&pscdl=noapi&_eu=AAAAAAQ&_s=4&tag_exp=103116026~103200004~104527907~104528500~104684208~104684211~115583767~115938465~115938469~116184927~116184929~116217636~116217638&sid=1764054370&sct=1&seg=1&dl=http%3A%2F%2Flocalhost%2Fai-frames&dr=http%3A%2F%2Flocalhost%3A3000%2Fai-frames&dt=TimeCapsule%20-%20AI-Powered%20Learning%20Platform&en=user_engagement&_ee=1&ep.anonymize_ip=false&ep.debug_mode=false&ep.site_name=TimeCapsule-%20SLM&ep.timestamp=2025-11-25T07%3A06%3A10.510Z&epn.page_duration=0&ep.device_type=desktop&ep.operating_system=macOS&ep.browser=Chrome&ep.browser_version=142.0.0.0&ep.viewport_size=2240x880&ep.device_language=en-US&ep.device_timezone=Asia%2FCalcutta&ep.device_online=true&epn.device_pixel_ratio=2&epn.device_memory=8&epn.device_cores=8&epn.device_touch_points=0&ep.connection_type=4g&ep.user_timezone=Asia%2FCalcutta&epn.timezone_offset=-330&ep.user_language=en-US&epn.user_latitude=19.17&epn.user_longitude=72.85&epn.location_accuracy=53&ep.action=page_visited&epn.duration_seconds=0&ep.event_category=engagement&ep.event_label=page_visited&_et=1&tfd=13094".
+bd @ js?id=G-V1B8R98P79:277
+Cl @ js?id=G-V1B8R98P79:443
+SN @ js?id=G-V1B8R98P79:970
+k.flush @ js?id=G-V1B8R98P79:977
+(anonymous) @ js?id=G-V1B8R98P79:974
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/42eb9049ce3b32c9.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 363ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedAIFrameNode.tsx:70 🎯 SAVE ATTEMPT: {frameId: 'frame-1764054371721-i7mam3mp2', hasOnFrameUpdate: true, editData: {…}, willEmitEvent: true}
+useUnifiedStorage.ts:1358 🎯 FRAME EDIT DEBUG: {frameId: 'frame-1764054371721-i7mam3mp2', frameData: {…}, currentFrames: Array(1), eventType: 'graph-frame-edited'}
+DualPaneFrameView.tsx:165 🌀 DualPane invokeFramesChange {reason: 'dual-pane', count: 1}
+page.tsx:1921 🔧 handleFramesChange: Merged 1 new frames with 1 existing frames {totalAfterMerge: 1, activeTimeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj', activeSessionId: 'manual_1764054371722_bja4p7tv0', framesWithBoth: 1}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 18
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 19
+react-dom-client.development.js:16378 [Violation] 'click' handler took 154ms
+EnhancedAIFrameNode.tsx:114 ✏️ Enhanced AI Frame Node: Frame edit event emitted: {frameId: 'frame-1764054371721-i7mam3mp2', title: 'f1'}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 20
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 1, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(1), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: false}
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+VectorStore.ts:1940 📊 Synced frame AI-Frame: f1 to Knowledge Base (inserted)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-frame-1764054371721-i7mam3mp2 (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054371721-i7mam3mp2: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame: f1 (ID: aiframe-frame-1764054371721-i7mam3mp2, Rev: 1-cwyakxjrax)
+VectorStore.ts:1940 📊 Synced frame AI-Frame Chapters to Knowledge Base (inserted)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-chapters (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+useAIProviders.ts:232 🔄 aiProviders object updated
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-chapters: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame Chapters (ID: aiframe-chapters, Rev: 1-cwyakxjrax)
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+await in useUnifiedStorage.useCallback[queueBackgroundSave]
+useUnifiedStorage.useEffect.handleFrameEditedEvent @ useUnifiedStorage.ts:1394
+EnhancedAIFrameNode.useCallback[handleSave] @ EnhancedAIFrameNode.tsx:100
+executeDispatch @ react-dom-client.development.js:16502
+runWithFiberInDEV @ react-dom-client.development.js:845
+processDispatchQueue @ react-dom-client.development.js:16552
+eval @ react-dom-client.development.js:17150
+batchedUpdates$1 @ react-dom-client.development.js:3263
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16706
+dispatchEvent @ react-dom-client.development.js:20816
+dispatchDiscreteEvent @ react-dom-client.development.js:20784
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:06:19.511Z'}
+useAIProviders.ts:232 🔄 aiProviders object updated
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/6e2a18776d5601ae.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 412ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+useAIProviders.ts:232 🔄 aiProviders object updated
+react-dom-client.development.js:16378 [Violation] 'click' handler took 202ms
+ai-frames:1 [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) <input data-slot=​"input" class=​"file:​text-foreground placeholder:​text-muted-foreground selection:​bg-primary selection:​text-primary-foreground dark:​bg-input/​30 flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow]​ outline-none file:​inline-flex file:​h-7 file:​border-0 file:​bg-transparent file:​text-sm file:​font-medium disabled:​pointer-events-none disabled:​cursor-not-allowed disabled:​opacity-50 md:​text-sm focus-visible:​border-ring focus-visible:​ring-ring/​50 focus-visible:​ring-[3px]​ aria-invalid:​ring-destructive/​20 dark:​aria-invalid:​ring-destructive/​40 aria-invalid:​border-destructive bg-white border-slate-300" placeholder=​"sk-or-v1-..." type=​"password" value>​flex
+ai-frames:1 [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) <input data-slot=​"input" class=​"file:​text-foreground placeholder:​text-muted-foreground selection:​bg-primary selection:​text-primary-foreground dark:​bg-input/​30 flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow]​ outline-none file:​inline-flex file:​h-7 file:​border-0 file:​bg-transparent file:​text-sm file:​font-medium disabled:​pointer-events-none disabled:​cursor-not-allowed disabled:​opacity-50 md:​text-sm focus-visible:​border-ring focus-visible:​ring-ring/​50 focus-visible:​ring-[3px]​ aria-invalid:​ring-destructive/​20 dark:​aria-invalid:​ring-destructive/​40 aria-invalid:​border-destructive bg-white border-slate-300" placeholder=​"firecrawl_live_..." type=​"password" value>​flex
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+useAIFlowBuilder.ts:934 🎬 [SESSION] Creating new manual session...
+useAIFlowBuilder.ts:940 📦 [SESSION] New session object created: {id: 'manual_1764054394850_8s7wuxv8a', name: 'Manual Session 25/11/2025, 12:36:34', source: 'manual', timeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj'}
+page.tsx:883 🧹 Graph reset: cleared nodes and edges
+useAIFlowBuilder.ts:967 🧹 [SESSION] Cleared graph display for new session
+useAIFlowBuilder.ts:994 💾 [SESSION] Saving new session to VectorStore...
+useAIFlowBuilder.ts:1002 ✅ [SESSION] Session creation complete. Returning session ID: manual_1764054394850_8s7wuxv8a
+useAIFlowBuilder.ts:958 🎯 [SESSION] Setting active session ID: manual_1764054371722_bja4p7tv0 -> manual_1764054394850_8s7wuxv8a
+useAIFlowBuilder.ts:958 🎯 [SESSION] Setting active session ID: manual_1764054371722_bja4p7tv0 -> manual_1764054394850_8s7wuxv8a
+useAIFlowBuilder.ts:953 📋 [SESSION] Updating sessions array: 1 -> 2
+useAIFlowBuilder.ts:953 📋 [SESSION] Updating sessions array: 1 -> 2
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":true,"handleEdgesChangeChanged":true,"handleNodesDeleteChanged":true,"onConnectChanged":true,"onEdgesDeleteChanged":true,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 21
+useAIProviders.ts:232 🔄 aiProviders object updated
+useAIFlowBuilder.ts:1377 💾 Persisting active session ID to localStorage: manual_1764054394850_8s7wuxv8a
+page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'manual_1764054394850_8s7wuxv8a', sessionsCount: 2, sessionsList: Array(2)}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 22
+useAIProviders.ts:232 🔄 aiProviders object updated
+react-dom-client.development.js:16378 [Violation] 'click' handler took 310ms
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 23
+VectorStore.ts:1940 📊 Synced frame Manual Session 25/11/2025, 12:36:34 to Knowledge Base (inserted)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2634 🔍 Verifying document persistence: session_manual_1764054394850_8s7wuxv8a (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for session_manual_1764054394850_8s7wuxv8a: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: Manual Session 25/11/2025, 12:36:34 (ID: session_manual_1764054394850_8s7wuxv8a, Rev: 1-cwyakxjrax)
+sessionStore.ts:76 💾 Session saved: Manual Session 25/11/2025, 12:36:34 (manual_1764054394850_8s7wuxv8a)
+useAIFlowBuilder.ts:996 ✅ [SESSION] New session saved to VectorStore
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+EnhancedLearningGraph.tsx:3184 🎯 Dispatching ensure-manual-session event for frame drop
+page.tsx:2040 🔍 Checking for manual session... {activeSessionId: 'manual_1764054394850_8s7wuxv8a', sessionsCount: 2}
+page.tsx:2059 ✅ Using existing manual session: manual_1764054394850_8s7wuxv8a
+DualPaneFrameView.tsx:165 🌀 DualPane invokeFramesChange {reason: 'dual-pane', count: 1}
+page.tsx:1921 🔧 handleFramesChange: Merged 1 new frames with 1 existing frames {totalAfterMerge: 2, activeTimeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj', activeSessionId: 'manual_1764054394850_8s7wuxv8a', framesWithBoth: 2}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 24
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1775 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 2, hasUnifiedMethods: true}
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 25
+react-dom-client.development.js:16378 [Violation] 'drop' handler took 178ms
+FrameGraphIntegration.tsx:1117 📋 SCHEMA CHECK: Session document structure before insertion: {hasId: true, hasTitle: true, hasContent: true, hasMetadata: true, hasChunks: true, …}
+FrameGraphIntegration.tsx:1129 ✅ Session document inserted successfully: {sessionId: 'session_1764054399452', documentId: 'sess-1764054399452-bn182c'}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 26
+useAIProviders.ts:232 🔄 aiProviders object updated
+react-dom-client.development.js:16378 [Violation] 'setTimeout' handler took 73ms
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(2), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: false}
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054371721-i7mam3mp2: 1-cwyakxjrax
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+VectorStore.ts:1936 📊 Synced frame AI-Frame: f1 to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-frame-1764054371721-i7mam3mp2 (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054371721-i7mam3mp2: 2-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame: f1 (ID: aiframe-frame-1764054371721-i7mam3mp2, Rev: 2-cwyakxjrax)
+VectorStore.ts:1940 📊 Synced frame AI-Frame: Frame 1 to Knowledge Base (inserted)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-frame-1764054399269-bv93d7alp (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054399269-bv93d7alp: 1-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame: Frame 1 (ID: aiframe-frame-1764054399269-bv93d7alp, Rev: 1-cwyakxjrax)
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-chapters: 1-cwyakxjrax
+VectorStore.ts:1936 📊 Synced frame AI-Frame Chapters to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-chapters (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-chapters: 2-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame Chapters (ID: aiframe-chapters, Rev: 2-cwyakxjrax)
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:06:39.838Z'}
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+await in useUnifiedStorage.useCallback[queueBackgroundSave]
+useUnifiedStorage.useEffect.handleForceSaveEvent @ useUnifiedStorage.ts:1569
+EnhancedLearningGraph.useCallback[onDrop] @ EnhancedLearningGraph.tsx:3236
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+useAIProviders.ts:232 🔄 aiProviders object updated
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/d243734feca89317.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 372ms
+fetch-server-response.js:163 Fetch failed loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 27
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 28
+EnhancedAIFrameNode.tsx:70 🎯 SAVE ATTEMPT: {frameId: 'frame-1764054399269-bv93d7alp', hasOnFrameUpdate: true, editData: {…}, willEmitEvent: true}
+useUnifiedStorage.ts:1358 🎯 FRAME EDIT DEBUG: {frameId: 'frame-1764054399269-bv93d7alp', frameData: {…}, currentFrames: Array(2), eventType: 'graph-frame-edited'}
+DualPaneFrameView.tsx:165 🌀 DualPane invokeFramesChange {reason: 'dual-pane', count: 1}
+page.tsx:1921 🔧 handleFramesChange: Merged 1 new frames with 2 existing frames {totalAfterMerge: 2, activeTimeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj', activeSessionId: 'manual_1764054394850_8s7wuxv8a', framesWithBoth: 2}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 29
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 30
+EnhancedAIFrameNode.tsx:114 ✏️ Enhanced AI Frame Node: Frame edit event emitted: {frameId: 'frame-1764054399269-bv93d7alp', title: 'f2'}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 31
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(2), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: false}
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054371721-i7mam3mp2: 2-cwyakxjrax
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+VectorStore.ts:1936 📊 Synced frame AI-Frame: f1 to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-frame-1764054371721-i7mam3mp2 (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054371721-i7mam3mp2: 3-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame: f1 (ID: aiframe-frame-1764054371721-i7mam3mp2, Rev: 3-cwyakxjrax)
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054399269-bv93d7alp: 1-cwyakxjrax
+VectorStore.ts:1936 📊 Synced frame AI-Frame: f2 to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-frame-1764054399269-bv93d7alp (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+useAIProviders.ts:232 🔄 aiProviders object updated
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054399269-bv93d7alp: 2-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame: f2 (ID: aiframe-frame-1764054399269-bv93d7alp, Rev: 2-cwyakxjrax)
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-chapters: 2-cwyakxjrax
+VectorStore.ts:1936 📊 Synced frame AI-Frame Chapters to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-chapters (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-chapters: 3-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame Chapters (ID: aiframe-chapters, Rev: 3-cwyakxjrax)
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:06:45.143Z'}
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+await in useUnifiedStorage.useCallback[queueBackgroundSave]
+useUnifiedStorage.useEffect.handleFrameEditedEvent @ useUnifiedStorage.ts:1394
+EnhancedAIFrameNode.useCallback[handleSave] @ EnhancedAIFrameNode.tsx:100
+executeDispatch @ react-dom-client.development.js:16502
+runWithFiberInDEV @ react-dom-client.development.js:845
+processDispatchQueue @ react-dom-client.development.js:16552
+eval @ react-dom-client.development.js:17150
+batchedUpdates$1 @ react-dom-client.development.js:3263
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:16706
+dispatchEvent @ react-dom-client.development.js:20816
+dispatchDiscreteEvent @ react-dom-client.development.js:20784
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+useAIProviders.ts:232 🔄 aiProviders object updated
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/e9af6e5d2f3d6525.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 337ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+useAIProviders.ts:232 🔄 aiProviders object updated
+react-dom-client.development.js:16378 [Violation] 'click' handler took 195ms
+ai-frames:1 [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) <input data-slot=​"input" class=​"file:​text-foreground placeholder:​text-muted-foreground selection:​bg-primary selection:​text-primary-foreground dark:​bg-input/​30 flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow]​ outline-none file:​inline-flex file:​h-7 file:​border-0 file:​bg-transparent file:​text-sm file:​font-medium disabled:​pointer-events-none disabled:​cursor-not-allowed disabled:​opacity-50 md:​text-sm focus-visible:​border-ring focus-visible:​ring-ring/​50 focus-visible:​ring-[3px]​ aria-invalid:​ring-destructive/​20 dark:​aria-invalid:​ring-destructive/​40 aria-invalid:​border-destructive bg-white border-slate-300" placeholder=​"sk-or-v1-..." type=​"password" value>​flex
+ai-frames:1 [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) <input data-slot=​"input" class=​"file:​text-foreground placeholder:​text-muted-foreground selection:​bg-primary selection:​text-primary-foreground dark:​bg-input/​30 flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow]​ outline-none file:​inline-flex file:​h-7 file:​border-0 file:​bg-transparent file:​text-sm file:​font-medium disabled:​pointer-events-none disabled:​cursor-not-allowed disabled:​opacity-50 md:​text-sm focus-visible:​border-ring focus-visible:​ring-ring/​50 focus-visible:​ring-[3px]​ aria-invalid:​ring-destructive/​20 dark:​aria-invalid:​ring-destructive/​40 aria-invalid:​border-destructive bg-white border-slate-300" placeholder=​"firecrawl_live_..." type=​"password" value>​flex
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+VectorStore.ts:2000 📋 Retrieved latest revision for session_manual_1764054394850_8s7wuxv8a: 1-cwyakxjrax
+VectorStore.ts:1936 📊 Synced frame Manual Session 25/11/2025, 12:36:34 to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: session_manual_1764054394850_8s7wuxv8a (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for session_manual_1764054394850_8s7wuxv8a: 2-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: Manual Session 25/11/2025, 12:36:34 (ID: session_manual_1764054394850_8s7wuxv8a, Rev: 2-cwyakxjrax)
+sessionStore.ts:76 💾 Session saved: Manual Session 25/11/2025, 12:36:34 (manual_1764054394850_8s7wuxv8a)
+sessionStore.ts:98 📂 Session loaded: Manual Session (manual_1764054371722_bja4p7tv0)
+page.tsx:883 🧹 Graph reset: cleared nodes and edges
+useAIFlowBuilder.ts:1098 🧹 Cleared graph UI for session switch
+useAIFlowBuilder.ts:1120 📊 No graph state to restore for session manual_1764054371722_bja4p7tv0
+useAIFlowBuilder.ts:1143 🔄 Switched to session: Manual Session (ID: manual_1764054371722_bja4p7tv0)
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":true,"handleEdgesChangeChanged":true,"handleNodesDeleteChanged":true,"onConnectChanged":true,"onEdgesDeleteChanged":true,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 32
+useAIProviders.ts:232 🔄 aiProviders object updated
+useAIFlowBuilder.ts:1377 💾 Persisting active session ID to localStorage: manual_1764054371722_bja4p7tv0
+page.tsx:1239 🔍 [PAGE-RENDER] Active session changed: {activeSessionId: 'manual_1764054371722_bja4p7tv0', sessionsCount: 2, sessionsList: Array(2)}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 33
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 34
+useAIProviders.ts:232 🔄 aiProviders object updated
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+flushSpawnedWork @ react-dom-client.development.js:15805
+commitRoot @ react-dom-client.development.js:15529
+commitRootWhenReady @ react-dom-client.development.js:14759
+performWorkOnRoot @ react-dom-client.development.js:14682
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<NodeRenderer>
+exports.jsx @ react-jsx-runtime.development.js:339
+GraphViewComponent @ index.js:4740
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+updateMemoComponent @ react-dom-client.development.js:8719
+beginWork @ react-dom-client.development.js:10984
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<GraphView>
+exports.jsx @ react-jsx-runtime.development.js:339
+ReactFlow @ index.js:5365
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateForwardRef @ react-dom-client.development.js:8679
+beginWork @ react-dom-client.development.js:10895
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<ForwardRef(ReactFlow)>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedLearningGraph @ EnhancedLearningGraph.tsx:3757
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<EnhancedLearningGraph>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+DualPaneFrameView @ DualPaneFrameView.tsx:1292
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+<DualPaneFrameView>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+FrameGraphIntegration @ FrameGraphIntegration.tsx:1907
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16350
+performWorkUntilDeadline @ scheduler.development.js:45
+scheduler.development.js:14 [Violation] 'message' handler took 383ms
+FrameGraphIntegration.tsx:1117 📋 SCHEMA CHECK: Session document structure before insertion: {hasId: true, hasTitle: true, hasContent: true, hasMetadata: true, hasChunks: true, …}
+FrameGraphIntegration.tsx:1129 ✅ Session document inserted successfully: {sessionId: 'session_1764054421350', documentId: 'sess-1764054421350-v57lrv'}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 35
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":true}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 36
+useAIProviders.ts:232 🔄 aiProviders object updated
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 37
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 38
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 39
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 40
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 41
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 42
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 43
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 44
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 45
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 46
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 47
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 48
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 49
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 50
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 51
+useAIProviders.ts:232 🔄 aiProviders object updated
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(2), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: true}
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:07:07.154Z'}
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+await in useUnifiedStorage.useCallback[queueBackgroundSave]
+useUnifiedStorage.useEffect.handleGraphElementChangedEvent @ useUnifiedStorage.ts:1476
+EnhancedLearningGraph.useCallback[handleNodesChange] @ EnhancedLearningGraph.tsx:279
+setTimeout
+EnhancedLearningGraph.useCallback[handleNodesChange] @ EnhancedLearningGraph.tsx:277
+triggerNodeChanges @ index.js:5054
+updateNodePositions @ index.js:5042
+eval @ index.js:2246
+call @ dispatch.js:61
+gesture @ drag.js:159
+mouseupped @ drag.js:89
+eval @ on.js:7
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+useAIProviders.ts:232 🔄 aiProviders object updated
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/7c563d0737e1f969.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 465ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 52
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 53
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 54
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 55
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 56
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 57
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 58
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 59
+EnhancedLearningGraph.tsx:3184 🎯 Dispatching ensure-manual-session event for frame drop
+page.tsx:2040 🔍 Checking for manual session... {activeSessionId: 'manual_1764054371722_bja4p7tv0', sessionsCount: 2}
+page.tsx:2059 ✅ Using existing manual session: manual_1764054371722_bja4p7tv0
+DualPaneFrameView.tsx:165 🌀 DualPane invokeFramesChange {reason: 'dual-pane', count: 2}
+page.tsx:1921 🔧 handleFramesChange: Merged 2 new frames with 2 existing frames {totalAfterMerge: 3, activeTimeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj', activeSessionId: 'manual_1764054371722_bja4p7tv0', framesWithBoth: 3}
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 60
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1775 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 3, hasUnifiedMethods: true}
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:298
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7271
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+installHook.js:1 Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+overrideMethod @ installHook.js:1
+getInitialEditor @ index.js:986
+EditorInstanceManager @ index.js:961
+eval @ index.js:1167
+mountStateImpl @ react-dom-client.development.js:7275
+mountState @ react-dom-client.development.js:7292
+useState @ react-dom-client.development.js:23291
+exports.useState @ react.development.js:1231
+useEditor @ index.js:1167
+RichTextEditor @ rich-text-editor.tsx:115
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooks @ react-dom-client.development.js:6667
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<RichTextEditor>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:346
+EnhancedAIFrameNode @ EnhancedAIFrameNode.tsx:328
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<EnhancedAIFrameNode>
+exports.jsx @ react-jsx-runtime.development.js:339
+NodeWrapper @ index.js:3131
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+beginWork @ react-dom-client.development.js:10556
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+<NodeWrapper>
+exports.jsx @ react-jsx-runtime.development.js:339
+eval @ index.js:3203
+NodeRendererComponent @ index.js:3178
+react-stack-bottom-frame @ react-dom-client.development.js:22974
+renderWithHooksAgain @ react-dom-client.development.js:6767
+renderWithHooks @ react-dom-client.development.js:6679
+updateFunctionComponent @ react-dom-client.development.js:8931
+updateSimpleMemoComponent @ react-dom-client.development.js:8786
+beginWork @ react-dom-client.development.js:10992
+runWithFiberInDEV @ react-dom-client.development.js:845
+performUnitOfWork @ react-dom-client.development.js:15258
+workLoopSync @ react-dom-client.development.js:15078
+renderRootSync @ react-dom-client.development.js:15058
+performWorkOnRoot @ react-dom-client.development.js:14526
+performSyncWorkOnRoot @ react-dom-client.development.js:16365
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:16211
+processRootScheduleInMicrotask @ react-dom-client.development.js:16250
+eval @ react-dom-client.development.js:16384
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 61
+react-dom-client.development.js:16378 [Violation] 'drop' handler took 159ms
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 62
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 0, nodeCount: 1, edgeCount: 0, frameIds: Array(2), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: true}
+useUnifiedStorage.ts:1558 ⏸️ Skipping delayed save - background save already in progress
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1775 🔧 AI-Frames unified storage interface updated: {hasVectorStore: true, vectorStoreInitialized: true, frameCount: 2, hasUnifiedMethods: true}
+useAIProviders.ts:232 🔄 aiProviders object updated
+react-dom-client.development.js:16378 [Violation] 'setTimeout' handler took 78ms
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:07:10.023Z'}
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+useAIProviders.ts:232 🔄 aiProviders object updated
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/f18abe6ba7b7bfdb.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 410ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+EnhancedLearningGraph.tsx:2704 🔗 onConnect triggered: {source: 'node_1764054421146_vh72g5rjc_4', target: 'node_1764054429612_iwipd4fpz_5', sourceHandle: 'frame-sequence-out', targetHandle: 'chapter-frame-in'}
+EnhancedLearningGraph.tsx:2888 📤 Emitting graph-connection-added event: {edgeId: 'edge|node_1764054421146_vh72g5rjc_4|node_1764054429612_iwipd4fpz_5|1764054431316_cbk4kwwwm', source: 'node_1764054421146_vh72g5rjc_4', target: 'node_1764054429612_iwipd4fpz_5'}
+useUnifiedStorage.ts:1574 📥 handleGraphConnectionEvent received: {eventType: 'graph-connection-added', hasConnection: true}
+useUnifiedStorage.ts:1406 📥 handleConnectionChangedEvent received: {connectionType: 'added', hasConnectionData: true}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":false,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 63
+useAIProviders.ts:232 🔄 aiProviders object updated
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 0, nodeCount: 2, edgeCount: 1, frameIds: Array(2), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: true}
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+await in saveAll
+useUnifiedStorage.useCallback[queueBackgroundSave] @ useUnifiedStorage.ts:743
+await in useUnifiedStorage.useCallback[queueBackgroundSave]
+useUnifiedStorage.useEffect.handleGraphConnectionEvent @ useUnifiedStorage.ts:1598
+EnhancedLearningGraph.useCallback[onConnect] @ EnhancedLearningGraph.tsx:2889
+onConnectExtended @ index.js:2385
+onPointerUp @ index.js:2505
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:07:11.509Z'}
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:2933 📤 Emitting graph-state-changed event (edge-added): {edgeId: 'edge|node_1764054421146_vh72g5rjc_4|node_1764054429612_iwipd4fpz_5|1764054431316_cbk4kwwwm', totalEdges: 2}
+useAIProviders.ts:232 🔄 aiProviders object updated
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/637457f20236689f.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 435ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 64
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 65
+EnhancedAIFrameNode.tsx:70 🎯 SAVE ATTEMPT: {frameId: 'frame-1764054429612-u638vntrt', hasOnFrameUpdate: true, editData: {…}, willEmitEvent: true}
+useUnifiedStorage.ts:1358 🎯 FRAME EDIT DEBUG: {frameId: 'frame-1764054429612-u638vntrt', frameData: {…}, currentFrames: Array(2), eventType: 'graph-frame-edited'}
+DualPaneFrameView.tsx:165 🌀 DualPane invokeFramesChange {reason: 'dual-pane', count: 1}
+page.tsx:1921 🔧 handleFramesChange: Merged 1 new frames with 2 existing frames {totalAfterMerge: 2, activeTimeCapsuleId: 'timecapsule_1764054367615_ah2ez6vjj', activeSessionId: 'manual_1764054371722_bja4p7tv0', framesWithBoth: 2}
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":false,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 66
+useAIProviders.ts:232 🔄 aiProviders object updated
+EnhancedLearningGraph.tsx:3738 🐛 EnhancedLearningGraph prop diff {"nodesChanged":true,"edgesChanged":true,"handleNodesChangeChanged":false,"handleEdgesChangeChanged":false,"handleNodesDeleteChanged":false,"onConnectChanged":false,"onEdgesDeleteChanged":false,"onDropChanged":false}
+EnhancedLearningGraph.tsx:3750 EnhancedLearningGraph rerender: 67
+react-dom-client.development.js:16378 [Violation] 'click' handler took 173ms
+EnhancedAIFrameNode.tsx:114 ✏️ Enhanced AI Frame Node: Frame edit event emitted: {frameId: 'frame-1764054429612-u638vntrt', title: 'f44'}
+useUnifiedStorage.ts:714 🔄 BACKGROUND SAVE: Starting with data: {frameCount: 2, chapterCount: 0, nodeCount: 2, edgeCount: 2, frameIds: Array(2), …}
+unifiedStorage.ts:74 💾 Starting unified save... {skipVectorStore: false}
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054371721-i7mam3mp2: 3-cwyakxjrax
+unifiedStorage.ts:553 ✅ IndexedDB save completed
+VectorStore.ts:1936 📊 Synced frame AI-Frame: f1 to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-frame-1764054371721-i7mam3mp2 (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054371721-i7mam3mp2: 4-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame: f1 (ID: aiframe-frame-1764054371721-i7mam3mp2, Rev: 4-cwyakxjrax)
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054399269-bv93d7alp: 2-cwyakxjrax
+VectorStore.ts:1936 📊 Synced frame AI-Frame: f2 to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-frame-1764054399269-bv93d7alp (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+useAIProviders.ts:232 🔄 aiProviders object updated
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-frame-1764054399269-bv93d7alp: 3-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame: f2 (ID: aiframe-frame-1764054399269-bv93d7alp, Rev: 3-cwyakxjrax)
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-chapters: 3-cwyakxjrax
+VectorStore.ts:1936 📊 Synced frame AI-Frame Chapters to Knowledge Base (updated)
+VectorStore.ts:2634 🔍 Verifying document persistence: aiframe-chapters (attempt 1/3)
+VectorStore.ts:2679 💾 Database flush completed
+VectorStore.ts:2000 📋 Retrieved latest revision for aiframe-chapters: 4-cwyakxjrax
+VectorStore.ts:2647 ✅ Document persistence verified: AI-Frame Chapters (ID: aiframe-chapters, Rev: 4-cwyakxjrax)
+unifiedStorage.ts:104 ✅ Unified save completed successfully
+unifiedStorage.ts:720 Fetch finished loading: POST "http://localhost:3000/api/local/aiframes/state".
+syncLocalBridge @ unifiedStorage.ts:720
+saveAll @ unifiedStorage.ts:105
+useUnifiedStorage.ts:747 🔄 BACKGROUND SAVE: Completed with result: {success: true, timestamp: '2025-11-25T07:07:16.857Z'}
+hot-reloader-client.js:197 [Fast Refresh] rebuilding
+useAIProviders.ts:232 🔄 aiProviders object updated
+webpack.js?v=1764054362449:1367 Fetch finished loading: GET "http://localhost:3000/_next/static/webpack/4ac66b65e9bf0333.webpack.hot-update.json".
+__webpack_require__.hmrM @ webpack.js?v=1764054362449:1367
+Promise.then
+hotCheck @ webpack.js?v=1764054362449:553
+tryApplyUpdatesWebpack @ hot-reloader-client.js:132
+handleHotUpdate @ hot-reloader-client.js:170
+processMessage @ hot-reloader-client.js:249
+handler @ hot-reloader-client.js:473
+report-hmr-latency.js:14 [Fast Refresh] done in 604ms
+fetch-server-response.js:163 Fetch finished loading: GET "http://localhost:3000/ai-frames?_rsc=18lmo".
+createFetch @ fetch-server-response.js:163
+fetchServerResponse @ fetch-server-response.js:98
+hmrRefreshReducerImpl @ hmr-refresh-reducer.js:34
+clientReducer @ router-reducer.js:41
+action @ app-router-instance.js:156
+runAction @ app-router-instance.js:66
+dispatchAction @ app-router-instance.js:120
+dispatch @ app-router-instance.js:154
+eval @ use-action-queue.js:55
+startTransition @ react-dom-client.development.js:7843
+dispatch @ use-action-queue.js:54
+dispatchAppRouterAction @ use-action-queue.js:37
+eval @ app-router-instance.js:274
+exports.startTransition @ react.development.js:1129
+hmrRefresh @ app-router-instance.js:273
+eval @ hot-reloader-client.js:296
+exports.startTransition @ react.development.js:1129
+processMessage @ hot-reloader-client.js:295
+handler @ hot-reloader-client.js:473
+useAIProviders.ts:232 🔄 aiProviders object updated
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613
+page.tsx:1613 Fetch finished loading: GET "http://localhost:3000/api/local/aiframes/state".
+AIFramesPage.useEffect.poll @ page.tsx:1613

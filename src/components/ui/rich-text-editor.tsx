@@ -85,6 +85,8 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   format?: 'markdown' | 'html';
+  showExportButtons?: boolean;
+  compact?: boolean;
 }
 
 export function RichTextEditor({
@@ -94,6 +96,8 @@ export function RichTextEditor({
   placeholder = "Start typing...",
   className = "",
   format = 'html',
+  showExportButtons = true,
+  compact = false,
 }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -169,27 +173,69 @@ export function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: `prose prose-slate dark:prose-invert max-w-none min-h-[500px] p-4 focus:outline-none ${className}`,
+        class: compact
+          ? `prose prose-slate dark:prose-invert max-w-none text-xs p-1 focus:outline-none ${className}`
+          : `prose prose-slate dark:prose-invert max-w-none min-h-[500px] p-4 focus:outline-none ${className}`,
       },
     },
   });
 
-  // Focus the editor when it becomes editable
+  // Track transitioning state to prevent race conditions
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Update editable state when prop changes
   useEffect(() => {
-    if (editor && editable) {
-      // Small delay to ensure the editor is ready
+    if (editor) {
+      // Mark as transitioning to block other operations
+      setIsTransitioning(true);
+      editor.setEditable(editable);
+
+      // Wait for transition to complete (increased to 100ms for safety)
       setTimeout(() => {
-        editor.commands.focus();
+        setIsTransitioning(false);
       }, 100);
     }
   }, [editor, editable]);
 
-  // Update content when prop changes
+  // Focus the editor when it becomes editable
   useEffect(() => {
-    if (editor && htmlContent !== editor.getHTML()) {
-      editor.commands.setContent(htmlContent || (editable ? "<p></p>" : ""));
+    if (editor && editable && !isTransitioning) {
+      // Small delay to ensure the editor is ready
+      setTimeout(() => {
+        if (editor && !editor.isDestroyed) {
+          editor.commands.focus();
+        }
+      }, 100);
     }
-  }, [editor, htmlContent, editable]);
+  }, [editor, editable, isTransitioning]);
+
+  // Update content when prop changes (with enhanced race condition prevention)
+  useEffect(() => {
+    if (!editor || isTransitioning) return; // Block during transitions
+
+    // Double-check editor state hasn't been destroyed
+    if (editor.isDestroyed) return;
+
+    // Prevent content updates during editable state transitions
+    const isEditableTransitioning = editor.isEditable !== editable;
+    if (isEditableTransitioning) {
+      // Wait for editable state to stabilize first
+      return;
+    }
+
+    if (htmlContent !== editor.getHTML()) {
+      // Increased delay from 0ms to 50ms for better DOM stability
+      setTimeout(() => {
+        // Enhanced safety checks before content update
+        if (editor && !editor.isDestroyed && !isTransitioning) {
+          // Check if editor view is still valid
+          if (editor.view && !editor.view.isDestroyed) {
+            editor.commands.setContent(htmlContent || (editable ? "<p></p>" : ""));
+          }
+        }
+      }, 50);
+    }
+  }, [editor, htmlContent, editable, isTransitioning]);
 
   const handleImageUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -272,14 +318,23 @@ export function RichTextEditor({
     }
   }, [editor]);
 
+  // Cleanup editor on unmount
+  useEffect(() => {
+    return () => {
+      if (editor && !editor.isDestroyed) {
+        editor.destroy();
+      }
+    };
+  }, [editor]);
+
   if (!editor) {
     return null;
   }
 
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+    <div className={compact ? "compact-rich-text" : "border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden"}>
       {/* Toolbar */}
-      {editable && (
+      {editable && !compact && (
         <div className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Text formatting */}
@@ -624,7 +679,7 @@ export function RichTextEditor({
       )}
 
       {/* Export toolbar for read-only mode */}
-      {!editable && (
+      {!editable && showExportButtons && !compact && (
         <div className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-4">
           <div className="flex items-center gap-3">
             <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm p-1">
@@ -654,11 +709,11 @@ export function RichTextEditor({
       )}
 
       {/* Editor Content */}
-      <div className="relative">
+      <div className={compact ? "line-clamp-3" : "relative"}>
         <EditorContent editor={editor} />
 
         {/* Bubble Menu for text selection */}
-        {editable && (
+        {editable && !compact && (
           <BubbleMenu
             editor={editor}
             tippyOptions={{
@@ -710,7 +765,7 @@ export function RichTextEditor({
         )}
 
         {/* Floating Menu for empty lines */}
-        {editable && (
+        {editable && !compact && (
           <FloatingMenu
             editor={editor}
             tippyOptions={{

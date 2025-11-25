@@ -115,15 +115,15 @@ export default function DualPaneFrameView({
   const NAV_MODE_STORAGE_KEY = "aiFramesNavigationMode";
   const computeInitialNavMode = (): "chapter" | "frame" => {
     if (typeof window === "undefined") {
-      // Smart default: chapter mode if chapters exist, else frame mode
-      return chapters.length > 0 ? "chapter" : "frame";
+      // Default to chapter view in linear mode
+      return "chapter";
     }
     const stored = window.localStorage.getItem(NAV_MODE_STORAGE_KEY);
     if (stored === "chapter" || stored === "frame") {
       return stored;
     }
-    // Smart default: chapter mode if chapters exist, else frame mode
-    return chapters.length > 0 ? "chapter" : "frame";
+    // Default to chapter view in linear mode
+    return "chapter";
   };
   const [navigationMode, setNavigationMode] = useState<"chapter" | "frame">(computeInitialNavMode);
 
@@ -425,14 +425,14 @@ export default function DualPaneFrameView({
   const handleSaveEdit = () => {
     if (editingFrameId && editData) {
       handleFrameUpdate(editingFrameId, editData);
-      setEditingFrameId(null);
-      setEditData({});
+      setEditingFrameId(null);  // This triggers key change and unmount
+      setEditData({});           // Can happen immediately - no conflict
     }
   };
 
   const handleCancelEdit = () => {
-    setEditingFrameId(null);
-    setEditData({});
+    setEditingFrameId(null);  // This triggers key change and unmount
+    setEditData({});           // Can happen immediately - no conflict
   };
 
   // Extract video ID for thumbnail
@@ -1748,7 +1748,14 @@ export default function DualPaneFrameView({
                           className="text-xl font-semibold"
                         />
                       ) : (
-                        currentFrame.title
+                        <div className="text-xl font-semibold">
+                          <RichTextEditor
+                            content={currentFrame.title || ''}
+                            editable={false}
+                            className="border-0 p-0"
+                            format="markdown"
+                          />
+                        </div>
                       )}
                     </CardTitle>
                   </CardHeader>
@@ -1770,9 +1777,13 @@ export default function DualPaneFrameView({
                         className="min-h-16"
                       />
                     ) : (
-                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                        {currentFrame.goal}
-                      </p>
+                      <RichTextEditor
+                        content={currentFrame.goal || ''}
+                        editable={false}
+                        placeholder="No learning goal specified"
+                        className="leading-relaxed"
+                        format="markdown"
+                      />
                     )}
                   </CardContent>
                 </Card>
@@ -1787,6 +1798,7 @@ export default function DualPaneFrameView({
                   </CardHeader>
                   <CardContent>
                     <RichTextEditor
+                      key={editingFrameId || 'view-mode-info'}
                       content={editingFrameId === currentFrame.id ? (editData.informationText || '') : (currentFrame.informationText || '')}
                       onChange={(html) => setEditData(prev => ({ ...prev, informationText: html }))}
                       editable={editingFrameId === currentFrame.id}
@@ -1907,6 +1919,7 @@ export default function DualPaneFrameView({
                   </CardHeader>
                   <CardContent>
                     <RichTextEditor
+                      key={editingFrameId || 'view-mode-takeaways'}
                       content={editingFrameId === currentFrame.id ? (editData.afterVideoText || '') : (currentFrame.afterVideoText || '')}
                       onChange={(html) => setEditData(prev => ({ ...prev, afterVideoText: html }))}
                       editable={editingFrameId === currentFrame.id}
@@ -1917,9 +1930,9 @@ export default function DualPaneFrameView({
                   </CardContent>
                 </Card>
 
-                {/* Edit Controls */}
+                {/* Edit Controls - appears above navigation */}
                 {editingFrameId === currentFrame.id && (
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex gap-3 justify-start mt-4 px-4">
                     <Button variant="outline" onClick={handleCancelEdit}>
                       <X className="h-4 w-4 mr-2" />
                       Cancel

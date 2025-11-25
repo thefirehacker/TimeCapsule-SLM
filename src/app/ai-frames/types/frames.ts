@@ -168,6 +168,7 @@ export interface Chapter {
   conceptIds: string[];
   bubblSpaceId?: string;
   timeCapsuleId?: string;
+  sessionId?: string; // Associate chapter with a specific session
   createdAt: string;
   updatedAt: string;
   isCollapsed?: boolean;

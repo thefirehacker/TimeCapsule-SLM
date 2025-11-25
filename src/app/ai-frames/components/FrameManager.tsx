@@ -329,19 +329,33 @@ export const FrameManager: React.FC<FrameManagerProps> = ({
               </div>
             </div>
           </ScrollArea>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCancelEdit}>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-            <Button onClick={handleSaveFrame}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Frame
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
+    );
+  };
+
+  // Render fixed action buttons at bottom-left when dialog is open
+  const renderFixedDialogActions = () => {
+    if (!showFrameEditor) return null;
+
+    return (
+      <div className="fixed bottom-6 left-6 z-50 flex gap-3 pointer-events-none">
+        <Button 
+          variant="outline" 
+          onClick={handleCancelEdit}
+          className="pointer-events-auto"
+        >
+          <X className="h-4 w-4 mr-2" />
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSaveFrame}
+          className="pointer-events-auto"
+        >
+          <Save className="h-4 w-4 mr-2" />
+          Save Frame
+        </Button>
+      </div>
     );
   };
 
@@ -376,6 +390,7 @@ export const FrameManager: React.FC<FrameManagerProps> = ({
     <div className="w-full">
       {renderFrameDisplay()}
       {renderFrameEditor()}
+      {renderFixedDialogActions()}
     </div>
   );
 }; 

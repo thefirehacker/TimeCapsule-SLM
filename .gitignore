@@ -52,3 +52,9 @@ Delete/AIbuilderLogs_*.json
 
 # #logs
 # logs.md
+
+#AI
+.cluade/*
+.cursor/*
+.vscode/*
+
