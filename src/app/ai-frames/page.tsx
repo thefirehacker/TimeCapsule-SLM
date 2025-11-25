@@ -1949,6 +1949,8 @@ export default function AIFramesPage() {
     (options: CreateFrameOptions = {}): AIFrame => {
       const { title, goal, chapterId, selectFrame = true } = options;
       const now = new Date().toISOString();
+      const currentSessionId = flowBuilder.activeSessionId || undefined;
+      const currentTimeCapsuleId = timeCapsule.activeTimeCapsuleId || undefined;
       const existingOrders = unifiedStorage.frames
         .map((frame) => (typeof frame.order === "number" ? frame.order : null))
         .filter((value): value is number => value !== null);
@@ -2117,15 +2119,19 @@ export default function AIFramesPage() {
     
     const orphanedChapters = unifiedStorage.chapters.filter(c =>
       !c.sessionId &&
-      c.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+      (!c.timeCapsuleId || c.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
     );
     
     if (orphanedChapters.length > 0) {
       console.log(`🔧 Found ${orphanedChapters.length} orphaned chapters, assigning to session ${flowBuilder.activeSessionId}`);
       
       const fixedChapters = unifiedStorage.chapters.map(c =>
-        (!c.sessionId && c.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
-          ? { ...c, sessionId: flowBuilder.activeSessionId || undefined }
+        (!c.sessionId && (!c.timeCapsuleId || c.timeCapsuleId === timeCapsule.activeTimeCapsuleId))
+          ? { 
+              ...c, 
+              sessionId: flowBuilder.activeSessionId || undefined,
+              timeCapsuleId: timeCapsule.activeTimeCapsuleId || c.timeCapsuleId 
+            }
           : c
       );
       
@@ -3040,6 +3046,8 @@ export default function AIFramesPage() {
       const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
       const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const now = new Date().toISOString();
+      const currentSessionId = flowBuilder.activeSessionId || undefined;
+      const currentTimeCapsuleId = timeCapsule.activeTimeCapsuleId || undefined;
 
       const frameSnapshot = getFramesSnapshot();
       const updatedFrames = applyChapterAssignments(
@@ -3056,8 +3064,8 @@ export default function AIFramesPage() {
         conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
         frameIds: orderedSelection,
         order: unifiedStorage.chapters.length,
-        timeCapsuleId: timeCapsule.activeTimeCapsuleId ?? undefined,
-        sessionId: flowBuilder.activeSessionId ?? undefined,
+        timeCapsuleId: currentTimeCapsuleId,
+        sessionId: currentSessionId,
         createdAt: now,
         updatedAt: now,
         linkSequentially: chapterFormData.linkSequentially,
@@ -3066,7 +3074,13 @@ export default function AIFramesPage() {
       const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
       const framesWithAssignments = updatedFrames.map(frame =>
         orderedSelection.includes(frame.id)
-          ? { ...frame, chapterId: chapterId, parentFrameId: chapterId }
+          ? { 
+              ...frame, 
+              chapterId: chapterId, 
+              parentFrameId: chapterId,
+              sessionId: frame.sessionId || currentSessionId,
+              timeCapsuleId: frame.timeCapsuleId || currentTimeCapsuleId
+            }
           : frame
       );
 
@@ -3083,6 +3097,8 @@ export default function AIFramesPage() {
                 order: baseChapter.order,
                 frameIds: orderedSelection,
                 linkSequentially: baseChapter.linkSequentially,
+                sessionId: chapter.sessionId || currentSessionId,
+                timeCapsuleId: chapter.timeCapsuleId || currentTimeCapsuleId
               }
             : chapter
       );

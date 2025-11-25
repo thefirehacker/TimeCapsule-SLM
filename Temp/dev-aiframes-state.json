@@ -1,7 +1,7 @@
 {
   "frames": [
     {
-      "id": "frame-1764100576914-lvlwp0xji",
+      "id": "frame-1764101759175-mkebmfund",
       "title": "New AI Frame",
       "goal": "Enter learning goal here...",
       "informationText": "Provide background context and information...",
@@ -10,213 +10,99 @@
       "duration": 0,
       "afterVideoText": "Key takeaways and next steps...",
       "aiConcepts": [],
-      "sessionId": "manual_1764100576915_v8uyt9ttb",
-      "timeCapsuleId": "timecapsule_1764100551428_dhd6f64kt",
-      "chapterId": "node_1764100574393_nkqznxn7e_0",
+      "sessionId": "manual_1764101759175_543jmttp8",
+      "timeCapsuleId": "timecapsule_1764101680715_lu2ydp9kh",
+      "chapterId": "node_1764101755611_rdht32xjn_3",
       "order": 2,
       "type": "frame",
-      "createdAt": "2025-11-25T19:56:17.319Z",
-      "updatedAt": "2025-11-25T19:56:17.319Z",
+      "createdAt": "2025-11-25T20:15:59.578Z",
+      "updatedAt": "2025-11-25T20:15:59.578Z",
       "isGenerated": false,
-      "parentFrameId": "node_1764100574393_nkqznxn7e_0",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-25T19:56:17.319Z",
-        "updatedAt": "2025-11-25T19:57:10.724Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-25T19:57:10.724Z"
-      },
-      "conceptIds": []
-    },
-    {
-      "id": "frame_1764100598621_r7odecedy",
-      "title": "f4",
-      "goal": "",
-      "informationText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "afterVideoText": "",
-      "aiConcepts": [],
+      "parentFrameId": "node_1764101755611_rdht32xjn_3",
       "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 3,
-      "parentFrameId": "chapter_1764100600439_1uuf0u",
-      "chapterId": "chapter_1764100600439_1uuf0u",
-      "type": "frame",
-      "createdAt": "2025-11-25T19:56:38.619Z",
-      "updatedAt": "2025-11-25T19:56:38.619Z",
-      "sessionId": "manual_1764100576915_v8uyt9ttb",
-      "notes": "",
-      "documents": [],
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-25T19:56:38.619Z",
-        "updatedAt": "2025-11-25T19:57:10.724Z",
+        "createdAt": "2025-11-25T20:15:59.578Z",
+        "updatedAt": "2025-11-25T20:16:21.317Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-25T19:57:10.724Z"
-      }
-    },
-    {
-      "id": "frame_1764100627943_nd8vqmbwr",
-      "title": "f22",
-      "goal": "",
-      "informationText": "",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 0,
-      "afterVideoText": "",
-      "aiConcepts": [],
-      "conceptIds": [],
-      "isGenerated": false,
-      "sourceGoal": "",
-      "sourceUrl": "",
-      "order": 4,
-      "parentFrameId": "chapter_1764100600439_1uuf0u",
-      "chapterId": "chapter_1764100600439_1uuf0u",
-      "type": "frame",
-      "createdAt": "2025-11-25T19:57:07.942Z",
-      "updatedAt": "2025-11-25T19:57:07.942Z",
-      "sessionId": "manual_1764100576915_v8uyt9ttb",
-      "notes": "",
-      "documents": [],
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-25T19:57:07.942Z",
-        "updatedAt": "2025-11-25T19:57:10.724Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-25T19:57:10.724Z"
+        "lastSaved": "2025-11-25T20:16:21.317Z"
       }
     }
   ],
   "chapters": [
     {
-      "id": "node_1764100574393_nkqznxn7e_0",
+      "id": "node_1764101755611_rdht32xjn_3",
       "title": "New Chapter",
       "description": "Chapter description",
       "frameIds": [
-        "frame-1764100576914-lvlwp0xji"
+        "frame-1764101759175-mkebmfund"
       ],
       "conceptIds": [],
       "order": 0,
       "color": "#3B82F6",
       "linkSequentially": false,
-      "createdAt": "2025-11-25T19:56:14.393Z",
-      "updatedAt": "2025-11-25T19:57:10.724Z",
-      "timeCapsuleId": "timecapsule_1764100551428_dhd6f64kt",
-      "sessionId": "manual_1764100576915_v8uyt9ttb"
-    },
-    {
-      "id": "chapter_1764100600439_1uuf0u",
-      "title": "c2",
-      "description": "",
-      "color": "#3B82F6",
-      "conceptIds": [],
-      "frameIds": [
-        "frame_1764100598621_r7odecedy",
-        "frame_1764100627943_nd8vqmbwr"
-      ],
-      "order": 1,
-      "timeCapsuleId": "timecapsule_1764100551428_dhd6f64kt",
-      "sessionId": "manual_1764100576915_v8uyt9ttb",
-      "createdAt": "2025-11-25T19:56:40.439Z",
-      "updatedAt": "2025-11-25T19:57:10.724Z",
-      "linkSequentially": false
+      "createdAt": "2025-11-25T20:15:55.612Z",
+      "updatedAt": "2025-11-25T20:16:21.317Z",
+      "timeCapsuleId": "timecapsule_1764101680715_lu2ydp9kh",
+      "sessionId": "manual_1764101759175_543jmttp8"
     }
   ],
   "graphState": {
     "nodes": [
       {
-        "id": "node_1764100574393_nkqznxn7e_0",
-        "type": "chapter",
-        "position": {
-          "x": 110.44518114777614,
-          "y": -143.99099530702057
-        },
-        "data": {
-          "type": "chapter",
-          "id": "node_1764100574393_nkqznxn7e_0",
-          "title": "New Chapter",
-          "description": "Chapter description",
-          "frameIds": [
-            "frame-1764100576914-lvlwp0xji"
-          ],
-          "conceptIds": [],
-          "order": 0,
-          "color": "#3B82F6",
-          "linkSequentially": false
-        },
-        "measured": {
-          "width": 320,
-          "height": 188
-        },
-        "selected": false,
-        "dragging": false
-      },
-      {
-        "id": "node_1764100576914_le72o5vhv_1",
+        "id": "node_1764101780956_ipyzwkt4u_6",
         "type": "aiframe",
         "position": {
-          "x": 100.02164755208065,
-          "y": 208.78115315449824
+          "x": 0,
+          "y": 100
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame-1764100576914-lvlwp0xji",
+          "frameId": "frame-1764101759175-mkebmfund",
           "title": "New AI Frame",
           "goal": "Enter learning goal here...",
           "informationText": "Provide background context and information...",
           "afterVideoText": "Key takeaways and next steps...",
           "aiConcepts": [],
           "isGenerated": false,
-          "chapterId": "node_1764100574393_nkqznxn7e_0",
-          "parentFrameId": "node_1764100574393_nkqznxn7e_0",
-          "updatedAt": "2025-11-25T19:56:38.749Z"
+          "chapterId": "node_1764101755611_rdht32xjn_3",
+          "parentFrameId": "node_1764101755611_rdht32xjn_3"
         },
         "measured": {
           "width": 480,
           "height": 519
-        },
-        "dragging": false
+        }
       },
       {
-        "id": "chapter_1764100600439_1uuf0u",
+        "id": "node_1764101755611_rdht32xjn_3",
         "type": "chapter",
         "position": {
-          "x": 776.4084080092375,
-          "y": 76.26761193306331
+          "x": 120,
+          "y": 120
         },
         "data": {
           "type": "chapter",
-          "id": "chapter_1764100600439_1uuf0u",
-          "title": "c2",
-          "description": "",
+          "id": "node_1764101755611_rdht32xjn_3",
+          "title": "New Chapter",
+          "description": "Chapter description",
           "frameIds": [
-            "frame_1764100598621_r7odecedy",
-            "frame_1764100627943_nd8vqmbwr"
+            "frame-1764101759175-mkebmfund"
           ],
           "conceptIds": [],
-          "order": 1,
+          "order": 0,
           "color": "#3B82F6",
           "linkSequentially": false
-        },
-        "measured": {
-          "width": 320,
-          "height": 188
-        },
-        "selected": true,
-        "dragging": false
+        }
       }
     ],
     "edges": [
       {
-        "id": "edge|node_1764100574393_nkqznxn7e_0|node_1764100576914_le72o5vhv_1|1764100581209_x4fg80uxk",
-        "source": "node_1764100574393_nkqznxn7e_0",
-        "target": "node_1764100576914_le72o5vhv_1",
+        "id": "edge|chapter|node_1764101755611_rdht32xjn_3|node_1764101780956_ipyzwkt4u_6",
+        "source": "node_1764101755611_rdht32xjn_3",
+        "target": "node_1764101780956_ipyzwkt4u_6",
         "sourceHandle": "chapter-frame-out",
         "targetHandle": "chapter-frame-in",
+        "type": "smoothstep",
         "style": {
           "stroke": "#10b981",
           "strokeWidth": 2.5
@@ -228,18 +114,19 @@
           "height": 16
         },
         "data": {
-          "relationship": "chapter-membership"
+          "relationship": "chapter-membership",
+          "chapterId": "node_1764101755611_rdht32xjn_3"
         }
       }
     ],
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-25T19:57:11.215Z",
+    "lastUpdated": "2025-11-25T20:16:21.634Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-25T19:57:10.724Z",
-    "frameCount": 3,
+    "lastSaved": "2025-11-25T20:16:21.317Z",
+    "frameCount": 1,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
 }
