@@ -5,6 +5,7 @@
 
 import type { PlannerPlan } from "../hooks/useAIFlowBuilder";
 import type { FrameDraft as BaseFrameDraft } from "../hooks/useAIFlowBuilder";
+import type { GraphState } from "./frames";
 
 // Session source tracking
 export type SessionSource = "ai-flow" | "swe-bridge" | "manual";
@@ -52,6 +53,9 @@ export interface FlowSession {
   plan: PlannerPlan | null;
   frameDrafts: FrameDraft[];
   sessionState: LearningSessionState;
+  
+  // Graph state (nodes, edges, positions)
+  graphState?: GraphState; // Optional for backward compatibility
 
   // Mixed-source tracking
   frameSources: {

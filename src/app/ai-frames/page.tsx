@@ -1259,6 +1259,22 @@ export default function AIFramesPage() {
     );
   }, [unifiedStorage.frames, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
 
+  // Session-based chapter filtering
+  const sessionFilteredChapters = useMemo(() => {
+    // No active session: show all chapters from active TimeCapsule
+    if (!flowBuilder.activeSessionId) {
+      return unifiedStorage.chapters.filter(c => 
+        c.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+      );
+    }
+    
+    // Active session: show only chapters from that session in the active TimeCapsule
+    return unifiedStorage.chapters.filter(c => 
+      c.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
+      c.sessionId === flowBuilder.activeSessionId
+    );
+  }, [unifiedStorage.chapters, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
+
   // REMOVED: Infinite loop fix - session frame count is already tracked by session metadata
   // The useEffect here was causing infinite saves by triggering re-renders on every save
 
@@ -1793,8 +1809,10 @@ export default function AIFramesPage() {
   const handleGraphStateUpdate = useCallback(
     (graphState: GraphState) => {
       unifiedStorage.updateGraphState(graphState);
+      // Also update session's graph state
+      flowBuilder.setCurrentGraphState(graphState);
     },
-    [unifiedStorage]
+    [unifiedStorage, flowBuilder]
   );
 
   // Frame navigation
@@ -2116,6 +2134,57 @@ export default function AIFramesPage() {
       return () => window.removeEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
     }
   }, [setSessionDialogConfig, setShowSessionDialog]);
+
+  // ✅ NEW: Event listener for graph state restoration after session switch
+  useEffect(() => {
+    const handleRestoreGraphState = (event: any) => {
+      const { graphState } = event.detail;
+      console.log("📊 Received restore-graph-state event:", {
+        savedNodeCount: graphState.nodes.length,
+        savedEdgeCount: graphState.edges.length,
+        currentNodeCount: unifiedStorage.graphState.nodes.length,
+        currentEdgeCount: unifiedStorage.graphState.edges.length
+      });
+      
+      // CRITICAL FIX: Merge restored graph state with current state
+      // Don't replace - preserve nodes/edges created after session switch
+      const currentState = unifiedStorage.graphState;
+      
+      // Create maps for efficient lookup
+      const restoredNodeIds = new Set(graphState.nodes.map((n: any) => n.id));
+      const restoredEdgeIds = new Set(graphState.edges.map((e: any) => e.id));
+      
+      // Keep current nodes that aren't in restored state (newly created)
+      const newNodes = currentState.nodes.filter((n: any) => !restoredNodeIds.has(n.id));
+      
+      // Keep current edges that aren't in restored state (newly created)
+      const newEdges = currentState.edges.filter((e: any) => !restoredEdgeIds.has(e.id));
+      
+      // Merge: restored state + new nodes/edges
+      const mergedGraphState = {
+        nodes: [...graphState.nodes, ...newNodes],
+        edges: [...graphState.edges, ...newEdges],
+        selectedNodeId: graphState.selectedNodeId
+      };
+      
+      console.log("📊 Merged graph state:", {
+        restoredNodes: graphState.nodes.length,
+        newNodes: newNodes.length,
+        totalNodes: mergedGraphState.nodes.length,
+        restoredEdges: graphState.edges.length,
+        newEdges: newEdges.length,
+        totalEdges: mergedGraphState.edges.length
+      });
+      
+      // Update unified storage with merged state
+      unifiedStorage.updateGraphState(mergedGraphState);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("restore-graph-state", handleRestoreGraphState);
+      return () => window.removeEventListener("restore-graph-state", handleRestoreGraphState);
+    }
+  }, [unifiedStorage]);
 
   const handleAcceptAIFrames = useCallback(
     (frames: AIFrame[], plannerChapters?: PlannerChapter[]) => {
@@ -2953,6 +3022,8 @@ export default function AIFramesPage() {
         conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
         frameIds: orderedSelection,
         order: unifiedStorage.chapters.length,
+        timeCapsuleId: timeCapsule.activeTimeCapsuleId ?? undefined,
+        sessionId: flowBuilder.activeSessionId ?? undefined,
         createdAt: now,
         updatedAt: now,
         linkSequentially: chapterFormData.linkSequentially,
@@ -3720,13 +3791,13 @@ export default function AIFramesPage() {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                {unifiedStorage.chapters.length === 0 ? (
+                {sessionFilteredChapters.length === 0 ? (
                   <p className="text-sm text-gray-500">
                     No chapters defined. Create one to group frames.
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {unifiedStorage.chapters.map((chapter) => {
+                    {sessionFilteredChapters.map((chapter) => {
                       const frameCount = chapter.frameIds?.length || 0;
                       const conceptCount = chapter.conceptIds?.length || 0;
 
@@ -3839,7 +3910,7 @@ export default function AIFramesPage() {
                     setCurrentFrameIndex(newIndex);
                   }}
                   onCreateFrame={handleCreateFrame}
-                  chapters={unifiedStorage.chapters}
+                  chapters={sessionFilteredChapters}
                   onChaptersChange={unifiedStorage.updateChapters}
                   onGraphChange={handleGraphStateUpdate}
                   initialGraphState={unifiedStorage.graphState}

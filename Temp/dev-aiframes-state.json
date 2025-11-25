@@ -1,62 +1,8 @@
 {
   "frames": [
     {
-      "id": "frame-1764008662194-lbrld01lp",
-      "title": "Frame 1",
-      "goal": "Enter learning goal here...",
-      "informationText": "Provide background context and information...",
-      "afterVideoText": "Key takeaways and next steps...",
-      "aiConcepts": [],
-      "isGenerated": false,
-      "order": 1,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764008657977_jhluuqnxu",
-      "type": "frame",
-      "createdAt": "2025-11-24T18:24:22.197Z",
-      "updatedAt": "2025-11-24T18:24:44.821Z",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "sessionId": "manual_1764008662195_vw3e221xu",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-24T18:24:22.197Z",
-        "updatedAt": "2025-11-24T18:25:52.719Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-24T18:25:52.719Z"
-      },
-      "conceptIds": []
-    },
-    {
-      "id": "frame-1764008670292-kf3h1rk97",
-      "title": "Frame 2",
-      "goal": "Enter learning goal here...",
-      "informationText": "Provide background context and information...",
-      "afterVideoText": "Key takeaways and next steps...",
-      "aiConcepts": [],
-      "isGenerated": false,
-      "order": 2,
-      "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764008657977_jhluuqnxu",
-      "type": "frame",
-      "createdAt": "2025-11-24T18:24:30.292Z",
-      "updatedAt": "2025-11-24T18:24:30.292Z",
-      "videoUrl": "",
-      "startTime": 0,
-      "duration": 300,
-      "sessionId": "manual_1764008662195_vw3e221xu",
-      "metadata": {
-        "version": "2.0",
-        "createdAt": "2025-11-24T18:24:30.292Z",
-        "updatedAt": "2025-11-24T18:25:52.719Z",
-        "source": "ai-frames",
-        "lastSaved": "2025-11-24T18:25:52.719Z"
-      },
-      "conceptIds": []
-    },
-    {
-      "id": "frame-1764008711828-pel6l1nw0",
-      "title": "Frame 3",
+      "id": "frame-1764054371721-i7mam3mp2",
+      "title": "f1",
       "goal": "Enter learning goal here...",
       "informationText": "<p>Provide background context and information...</p>",
       "afterVideoText": "Key takeaways and next steps...",
@@ -64,47 +10,47 @@
       "isGenerated": false,
       "order": 1,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764008657977_jhluuqnxu",
+      "timeCapsuleId": "timecapsule_1764054367615_ah2ez6vjj",
       "type": "frame",
-      "createdAt": "2025-11-24T18:25:11.829Z",
-      "updatedAt": "2025-11-24T18:25:17.900Z",
+      "createdAt": "2025-11-25T07:06:11.724Z",
+      "updatedAt": "2025-11-25T07:06:19.040Z",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
-      "sessionId": "manual_1764008702465_8s7f81cu7",
+      "sessionId": "manual_1764054371722_bja4p7tv0",
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-24T18:25:11.829Z",
-        "updatedAt": "2025-11-24T18:25:52.719Z",
+        "createdAt": "2025-11-25T07:06:11.724Z",
+        "updatedAt": "2025-11-25T07:09:51.841Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-24T18:25:52.719Z"
+        "lastSaved": "2025-11-25T07:09:51.841Z"
       },
       "conceptIds": []
     },
     {
-      "id": "frame-1764008720493-ehull4eh3",
-      "title": "Frame 4",
+      "id": "frame-1764054399269-bv93d7alp",
+      "title": "f2",
       "goal": "Enter learning goal here...",
       "informationText": "<p>Provide background context and information...</p>",
       "afterVideoText": "Key takeaways and next steps...",
       "aiConcepts": [],
       "isGenerated": false,
-      "order": 4,
+      "order": 1,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764008657977_jhluuqnxu",
+      "timeCapsuleId": "timecapsule_1764054367615_ah2ez6vjj",
       "type": "frame",
-      "createdAt": "2025-11-24T18:25:20.494Z",
-      "updatedAt": "2025-11-24T18:25:25.786Z",
+      "createdAt": "2025-11-25T07:06:39.269Z",
+      "updatedAt": "2025-11-25T07:06:44.587Z",
       "videoUrl": "",
       "startTime": 0,
       "duration": 300,
-      "sessionId": "manual_1764008702465_8s7f81cu7",
+      "sessionId": "manual_1764054394850_8s7wuxv8a",
       "metadata": {
         "version": "2.0",
-        "createdAt": "2025-11-24T18:25:20.494Z",
-        "updatedAt": "2025-11-24T18:25:52.719Z",
+        "createdAt": "2025-11-25T07:06:39.269Z",
+        "updatedAt": "2025-11-25T07:09:51.841Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-24T18:25:52.719Z"
+        "lastSaved": "2025-11-25T07:09:51.841Z"
       },
       "conceptIds": []
     }
@@ -113,42 +59,18 @@
   "graphState": {
     "nodes": [
       {
-        "id": "node_1764008746884_3o8b9r47n_9",
+        "id": "node_1764054587392_ludacattq_3",
         "type": "aiframe",
         "position": {
-          "x": 10.186612058666242,
-          "y": -113.9188532319914
+          "x": -115.31461953953601,
+          "y": -142.4227797137973
         },
         "data": {
           "type": "aiframe",
-          "frameId": "frame-1764008662194-lbrld01lp",
-          "title": "Frame 1",
+          "frameId": "frame-1764054371721-i7mam3mp2",
+          "title": "f1",
           "goal": "Enter learning goal here...",
-          "informationText": "Provide background context and information...",
-          "afterVideoText": "Key takeaways and next steps...",
-          "aiConcepts": [],
-          "isGenerated": false
-        },
-        "measured": {
-          "width": 480,
-          "height": 519
-        },
-        "selected": false,
-        "dragging": false
-      },
-      {
-        "id": "node_1764008746884_7yw1pm6ue_10",
-        "type": "aiframe",
-        "position": {
-          "x": 299.9058345619128,
-          "y": 325.5606955847528
-        },
-        "data": {
-          "type": "aiframe",
-          "frameId": "frame-1764008670292-kf3h1rk97",
-          "title": "Frame 2",
-          "goal": "Enter learning goal here...",
-          "informationText": "Provide background context and information...",
+          "informationText": "<p>Provide background context and information...</p>",
           "afterVideoText": "Key takeaways and next steps...",
           "aiConcepts": [],
           "isGenerated": false
@@ -165,11 +87,11 @@
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-24T18:25:52.735Z",
+    "lastUpdated": "2025-11-25T07:09:51.874Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-24T18:25:52.719Z",
-    "frameCount": 4,
+    "lastSaved": "2025-11-25T07:09:51.841Z",
+    "frameCount": 2,
     "checksum": "eyJmcmFtZXMiOlt7"
   }
 }

@@ -278,6 +278,7 @@ export interface UseAIFlowBuilderReturn {
   syncFrameToSession: (frame: AIFrame) => void;
   syncFrameDeletions: (currentFrameIds: Set<string>) => void;
   updateSessionFrameCount: (frames: AIFrame[]) => Promise<void>;
+  setCurrentGraphState: (graphState: GraphState) => void;
   generateGraphState: (chapters: PlannerChapter[], frames: AIFrame[]) => GraphState;
 }
 
@@ -795,6 +796,7 @@ export function useAIFlowBuilder({
   const [sessions, setSessions] = useState<FlowSession[]>([]);
   const [sessionStore, setSessionStore] = useState<SessionStore | null>(null);
   const sessionSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [currentGraphState, setCurrentGraphState] = useState<GraphState>({ nodes: [], edges: [], selectedNodeId: null });
   
   const researchStepsState = useResearchSteps();
   const currentStepsRef = useRef<ResearchStep[]>([]);
@@ -1026,6 +1028,7 @@ export function useAIFlowBuilder({
             source: draft.source || currentSession.source, // Ensure source is set
           })) as any,
           sessionState: sessionState || currentSession.sessionState,
+          graphState: currentGraphState, // Save current graph state
           frameCount: frameDrafts.length,
           acceptedFrameCount: frameDrafts.filter((d) => d.status === "generated")
             .length,
@@ -1069,7 +1072,7 @@ export function useAIFlowBuilder({
         sessionSaveTimeoutRef.current = setTimeout(saveSession, 1000);
       }
     },
-    [activeSessionId, sessionStore, sessions, plan, frameDrafts, sessionState, calculateProgressMetrics]
+    [activeSessionId, sessionStore, sessions, plan, frameDrafts, sessionState, currentGraphState, calculateProgressMetrics]
   );
 
   const switchSession = useCallback(
@@ -1100,6 +1103,24 @@ export function useAIFlowBuilder({
       setFrameDrafts(loadedDrafts);
       setSessionState(session.sessionState);
       setActiveSessionId(sessionId); // This triggers sessionFilteredFrames to update the graph
+
+      // 5. Restore graph state if available
+      if (session.graphState && typeof window !== "undefined") {
+        console.log(`📊 Restoring graph state for session ${sessionId}:`, {
+          nodeCount: session.graphState.nodes.length,
+          edgeCount: session.graphState.edges.length
+        });
+        // Dispatch event to restore graph state
+        window.dispatchEvent(new CustomEvent('restore-graph-state', {
+          detail: { graphState: session.graphState }
+        }));
+        // Update local graph state
+        setCurrentGraphState(session.graphState);
+      } else {
+        console.log(`📊 No graph state to restore for session ${sessionId}`);
+        // Clear graph state
+        setCurrentGraphState({ nodes: [], edges: [], selectedNodeId: null });
+      }
 
       // Sync Mastery Progress with loaded session
       const metrics = calculateProgressMetrics(session.sessionState);
@@ -3205,6 +3226,7 @@ export function useAIFlowBuilder({
     syncFrameToSession,
     syncFrameDeletions,
     updateSessionFrameCount,
+    setCurrentGraphState,
     generateGraphState,
   };
 }
