@@ -1110,8 +1110,8 @@ export default function AIFramesPage() {
             },
             onCreateNew: async () => {
               console.log("🆕 Creating new SWE Bridge session");
-              // Create new SWE Bridge session
-              flowBuilder.createNewSessionAsync(
+              // Create new SWE Bridge session (await to ensure session exists before loading data)
+              await flowBuilder.createNewSessionAsync(
                 "swe-bridge",
                 `SWE Sync ${new Date().toLocaleString()}`,
                 triggerGraphReset
@@ -1124,7 +1124,23 @@ export default function AIFramesPage() {
               if (Array.isArray(data.chapters)) {
                 unifiedStorage.updateChapters(data.chapters);
               }
-              if (data.graphState) {
+              
+              // Generate complete graph state from frames and chapters
+              if (Array.isArray(data.chapters) && Array.isArray(data.frames)) {
+                const completeGraphState = flowBuilder.generateGraphState(
+                  data.chapters, 
+                  data.frames
+                );
+                console.log("📊 Generated graph state from SWE data:", {
+                  nodeCount: completeGraphState.nodes.length,
+                  edgeCount: completeGraphState.edges.length,
+                  frameNodes: completeGraphState.nodes.filter(n => n.type === 'aiframe').length,
+                  chapterNodes: completeGraphState.nodes.filter(n => n.type === 'chapter').length
+                });
+                unifiedStorage.updateGraphState(completeGraphState);
+              } else if (data.graphState) {
+                // Fallback to provided graphState if generation fails
+                console.log("⚠️ Using fallback graphState from SWE Bridge");
                 unifiedStorage.updateGraphState(data.graphState);
               }
               const latestStamp =

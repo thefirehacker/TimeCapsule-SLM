@@ -959,12 +959,15 @@ export function useAIFlowBuilder({
     (source: SessionSource, name?: string, onGraphReset?: () => void, options?: { 
       skipClear?: boolean;
       timeCapsuleId?: string;
+      _store?: SessionStore; // Optional store parameter to avoid race conditions
     }): FlowSession => {
-      if (!sessionStore) {
+      // Use passed store or state store (allows callers to pass resolved store)
+      const store = options?._store || sessionStore;
+      if (!store) {
         throw new Error("SessionStore not initialized");
       }
       console.log(`🎬 [SESSION] Creating new ${source} session...`);
-      const newSession = sessionStore.createNewSession(
+      const newSession = store.createNewSession(
         source, 
         name,
         options?.timeCapsuleId // Pass timeCapsuleId to session
@@ -1025,9 +1028,9 @@ export function useAIFlowBuilder({
       }
       
       // Immediately save the new session to VectorStore for persistence
-      if (sessionStore) {
+      if (store) {
         console.log(`💾 [SESSION] Saving new session to VectorStore...`);
-        sessionStore.saveSession(newSession).then(() => {
+        store.saveSession(newSession).then(() => {
           console.log(`✅ [SESSION] New session saved to VectorStore`);
         }).catch((error) => {
           console.error(`❌ [SESSION] Failed to save new session:`, error);
@@ -1047,8 +1050,12 @@ export function useAIFlowBuilder({
     onGraphReset?: () => void,
     options?: { skipClear?: boolean; timeCapsuleId?: string }
   ): Promise<FlowSession> => {
-    await ensureSessionStore();
-    return createNewSession(source, name, onGraphReset, options);
+    const store = await ensureSessionStore();
+    // Pass resolved store to avoid race condition with React state updates
+    return createNewSession(source, name, onGraphReset, {
+      ...options,
+      _store: store,
+    });
   }, [ensureSessionStore, createNewSession]);
 
   const saveCurrentSession = useCallback(
