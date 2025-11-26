@@ -150,6 +150,7 @@ Before committing any feature that touches frames/chapters/connections:
 10. **Linear View Sync Test**: Connect entities → Linear view shows connection ✓
 11. **Session Count Test**: Drop entities → Session shows correct "X frames, Y chapters" ✓
 12. **TimeCapsule Isolation Test**: Create entities in TC1 → Switch to TC2 → Entities not visible in TC2 ✓
+13. **Graph State Persistence Test**: Create edges in S1 → Switch to S2 → Back to S1 → Edges present (no refresh needed) ✓
 
 ### 1.5 Red Flags (Stop and Review)
 
@@ -413,6 +414,149 @@ const handleGraphConnectionEvent = (event: CustomEvent) => {
 - Graph edge: Visual connection on graph ✅
 - Structured data: Linear view, filters, counts ✅
 
+#### Pattern 5: Graph State Session Persistence (useEffect Watcher)
+
+**When to Use**: When child hook methods need to be triggered by parent state changes but circular dependencies prevent direct calling
+
+**Problem**: Graph edges persist in `unifiedStorage` but not in `session.graphState`, causing edges to disappear on session switch (but return on full refresh).
+
+**Timeline of Issue**:
+1. User adds edge f1 → f2
+2. `unifiedStorage.updateGraphState()` updates localStorage ✅
+3. Session saved **without** calling `getGraphState()` ❌
+4. Session switch loads empty `session.graphState`
+5. Edges cleared (but still in localStorage)
+6. Full refresh loads from localStorage → edges reappear
+
+**Why Direct Calling Fails**:
+```typescript
+// ❌ WRONG - Circular dependency
+const flowBuilder = useAIFlowBuilder({
+  setGraphState: (state) => {
+    unifiedStorage.updateGraphState(state);
+    flowBuilder.saveCurrentSession(false); // flowBuilder doesn't exist yet!
+  }
+});
+```
+
+**Solution** (Copy-paste ready):
+
+```typescript
+// Step 1: Add ref to track last saved state (prevents infinite loops)
+const lastSavedGraphHashRef = useRef<string>('');
+
+// Step 2: Create child hook (flowBuilder)
+const flowBuilder = useAIFlowBuilder({
+  getGraphState: () => unifiedStorage.graphState,
+  setGraphState: (state) => unifiedStorage.updateGraphState(state),
+  // ... other props
+});
+
+// Step 3: Add useEffect watcher AFTER hook initialization
+useEffect(() => {
+  // Create hash of current graph state
+  const currentHash = JSON.stringify({
+    nodes: unifiedStorage.graphState.nodes.map(n => n.id),
+    edges: unifiedStorage.graphState.edges.map(e => e.id),
+  });
+  
+  // Only trigger save if:
+  // 1. Hash changed (actual state change, not just re-render)
+  // 2. Session is active
+  // 3. Method is available
+  if (currentHash !== lastSavedGraphHashRef.current && 
+      flowBuilder.activeSessionId && 
+      flowBuilder.saveCurrentSession) {
+    
+    lastSavedGraphHashRef.current = currentHash;
+    
+    // Trigger debounced save (respects existing 1s debounce in saveCurrentSession)
+    flowBuilder.saveCurrentSession(false);
+    
+    console.log('🔄 Graph state changed, triggering session save', {
+      sessionId: flowBuilder.activeSessionId,
+      nodeCount: unifiedStorage.graphState.nodes.length,
+      edgeCount: unifiedStorage.graphState.edges.length,
+    });
+  }
+}, [
+  unifiedStorage.graphState.nodes,        // Trigger on node changes
+  unifiedStorage.graphState.edges,        // Trigger on edge changes
+  flowBuilder.activeSessionId,            // Only when session active
+  flowBuilder.saveCurrentSession          // Only when method available
+]);
+```
+
+**Why This Works**:
+1. ✅ **No Circular Dependency**: `useEffect` runs **after** `flowBuilder` is created
+2. ✅ **Hash-Based Detection**: Only triggers on actual changes, not every re-render
+3. ✅ **Leverages Existing Debounce**: `saveCurrentSession(false)` already has 1s debounce
+4. ✅ **Performance**: Only compares IDs, not full objects
+5. ✅ **React Lifecycle**: `useEffect` runs after render when all refs are stable
+
+**Flow Diagram**:
+```
+Edge Added → unifiedStorage.updateGraphState()
+           ↓
+     useEffect detects change (hash comparison)
+           ↓
+     flowBuilder.saveCurrentSession(false)
+           ↓
+     getGraphState() returns current edges
+           ↓
+     Session saved with edges to session store
+           ↓
+     Session switch → setGraphState() restores
+           ↓
+     Edges preserved ✅
+```
+
+**Critical Requirements**:
+- Child hook must accept `getGraphState` and `setGraphState` props
+- Child hook's save method must call `getGraphState()` for authoritative state
+- Child hook's restore method must call `setGraphState()` to update parent
+- Hash must only include IDs (not full objects) for performance
+
+**Example Files**:
+- `src/app/ai-frames/page.tsx` (lines 1200, 1244+): useEffect watcher implementation
+- `src/app/ai-frames/hooks/useAIFlowBuilder.ts`: DI pattern for graph state
+
+**General Template** (for any parent-child hook trigger scenario):
+```typescript
+// In parent component
+const lastProcessedHashRef = useRef<string>('');
+
+const childHook = useChildHook({ /* props */ });
+
+useEffect(() => {
+  const currentHash = JSON.stringify(stateToWatch);
+  
+  if (currentHash !== lastProcessedHashRef.current && 
+      childHook.condition && 
+      childHook.methodToTrigger) {
+    
+    lastProcessedHashRef.current = currentHash;
+    childHook.methodToTrigger(args);
+    console.log('Triggered due to state change');
+  }
+}, [stateToWatch, childHook.condition, childHook.methodToTrigger]);
+```
+
+**When to Use This Pattern**:
+- Graph state needs to persist per session
+- Child hook method needs triggering based on parent state
+- Circular dependencies prevent direct calling
+- State changes should trigger cross-component side effects
+
+**Testing Checklist**:
+- [ ] Create edges in S1 → Switch to S2 → Back to S1 → Edges present (no refresh) ✅
+- [ ] Console shows "🔄 Graph state changed" only when edges/nodes change ✅
+- [ ] No infinite loops (hash prevents re-triggers) ✅
+- [ ] Full refresh → Edges still present ✅
+- [ ] Multiple sessions → Each session has own graph state ✅
+
+---
+
 #### When to Use Which Pattern (Decision Tree)
 
 **Creating a new entity type?**
@@ -429,6 +573,12 @@ const handleGraphConnectionEvent = (event: CustomEvent) => {
 
 **Entity not visible despite being saved?**
 → Check **Pattern 1** (Orphaned Assignment) is implemented
+
+**Graph edges lost on session switch (but return on refresh)?**
+→ Implement **Pattern 5** (useEffect Watcher for session graph state)
+
+**Child hook method needs triggering from parent state changes?**
+→ Use **Pattern 5** (useEffect Watcher with hash-based detection)
 
 ---
 
@@ -714,11 +864,12 @@ The unified save system with session isolation is robust when these principles a
 7. **Refs Over Props**: Use refs for session IDs in delayed callbacks - props propagate too slowly (Pattern 2)
 8. **Filter Safety**: Handle `undefined` sessionId, use loading checks during async updates (Pattern 3)
 9. **Both Data Models**: When connecting entities, update graph edges AND structured data (Pattern 4)
+10. **Graph State Persistence**: Use useEffect watcher to trigger session saves when graph state changes (Pattern 5)
 
 ### Testing Requirements
 
-10. **Testing**: All 12 tests must pass (6 basic + 6 session) before merging
-11. **Red Flags**: Review carefully when modifying core save logic
+11. **Testing**: All 13 tests must pass (6 basic + 7 session) before merging
+12. **Red Flags**: Review carefully when modifying core save logic
 
 ### Reference Patterns
 
@@ -728,6 +879,7 @@ When in doubt, refer to existing patterns:
 - **Orphaned Assignment**: `useEffect` for chapters/frames in `page.tsx` (lines 2096-2139)
 - **Refs Pattern**: `activeSessionIdRef` in `EnhancedLearningGraph.tsx` (lines 178-238)
 - **Connection Updates**: `handleGraphConnectionEvent` in `useUnifiedStorage.ts` (lines 1597-1670)
+- **Graph State Watcher**: `useEffect` for session graph saves in `page.tsx` (after line 1244)
 
 ### Quick Reference Card
 
@@ -736,5 +888,7 @@ When in doubt, refer to existing patterns:
 **Connecting entities?** → Implement Pattern 4 (both data models)  
 **Using setTimeout?** → Use refs, not props  
 **Entity not visible?** → Check orphaned assignment is implemented  
+**Edges lost on session switch?** → Implement Pattern 5 (useEffect watcher)  
+**Child hook needs triggering from parent?** → Use Pattern 5 (hash-based useEffect)  
 
 For detailed issue history and technical deep-dives, see `Features_Doc/Features/021-SWELikeAgents/021E-FrameSession-Unified.md`

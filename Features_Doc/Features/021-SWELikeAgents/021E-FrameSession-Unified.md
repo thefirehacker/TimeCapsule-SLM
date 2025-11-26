@@ -2099,6 +2099,282 @@ After all fixes:
 
 ---
 
+## Issue 23: Graph Edges Lost on Session Switch (useEffect-Based Sync Solution)
+
+**Date**: 2024-11-26  
+**Status**: RESOLVED  
+**Reported**: After creating edges in S1, switching to S2, then back to S1 loses edges (but they return after full refresh)
+
+### Symptoms
+
+1. Create S1, drop f1 and f2, connect them (f1 → f2) ✅
+2. Save logs show `persistedEdgeCount: 1` ✅
+3. Create new session S2 ✅
+4. Switch back to S1 → **Edges missing** ❌ (nodes present)
+5. Full browser refresh → Edges reappear ✅
+
+**Key Log Message**:
+```
+📊 No graph state to restore for session session_xxx... clearing graph
+```
+
+### Root Cause Analysis (Three Converging Analyses)
+
+**Problem**: Two separate storage systems with missing synchronization:
+
+1. **unifiedStorage.graphState** (localStorage) - Has edges ✅
+2. **session.graphState** (session store/KB) - Empty ❌
+
+**Timeline**:
+1. User connects f1 → f2 on graph
+2. `unifiedStorage.updateGraphState()` called ✅ (graph state updated in localStorage)
+3. **BUT** `flowBuilder.saveCurrentSession()` never triggered ❌
+4. Session saved without `graphState` field
+5. User switches session → `switchSession` loads from session store
+6. Session has no saved `graphState` → graph cleared
+7. User refreshes → `unifiedStorage.loadAll()` loads from localStorage → edges appear
+
+**The Missing Trigger**: No connection between graph state changes and session saves!
+
+### Why Previous Attempts Failed
+
+**Attempt 1: Option A-C (Callback Patterns)**
+- Problem: Circular dependencies, `flowBuilder` doesn't exist during initialization
+
+**Attempt 2: Option D (Direct Call in setGraphState)**
+```typescript
+setGraphState: (state) => {
+  unifiedStorage.updateGraphState(state);
+  flowBuilder?.saveCurrentSession?.(false); // ❌ Circular reference!
+}
+```
+- Problem: `flowBuilder` undefined during component creation
+- Result: Save never triggered
+
+**Attempt 3: Codex's Approach (DI Pattern + Direct Calls)**
+- Modified `saveCurrentSession` to use `getGraphState()` ✅
+- Modified `switchSession` to use `setGraphState()` ✅
+- **BUT** still no trigger to save session when graph changes ❌
+
+### Solution: useEffect-Based Graph State Watcher
+
+**Key Insight**: Use a separate `useEffect` in `page.tsx` to watch for graph state changes and trigger session saves **after** `flowBuilder` is initialized.
+
+**Why This Works**:
+- ✅ Runs **after** `flowBuilder` exists (no circular reference)
+- ✅ Only triggers when nodes/edges actually change
+- ✅ Uses hash comparison to avoid infinite loops
+- ✅ Respects existing debounce in `saveCurrentSession`
+- ✅ No new event listeners needed
+
+### Implementation
+
+#### Step 1: Add Graph State Ref Tracking
+
+**File**: `src/app/ai-frames/page.tsx` (around line 1200)
+
+```typescript
+const lastSavedGraphHashRef = useRef<string>('');
+```
+
+#### Step 2: Create useEffect Watcher After flowBuilder Initialization
+
+**File**: `src/app/ai-frames/page.tsx` (after line ~1244, after flowBuilder creation)
+
+```typescript
+// Watch for graph state changes and trigger session save
+useEffect(() => {
+  const currentHash = JSON.stringify({
+    nodes: unifiedStorage.graphState.nodes.map(n => n.id),
+    edges: unifiedStorage.graphState.edges.map(e => e.id),
+  });
+  
+  // Only trigger save if:
+  // 1. Graph state actually changed
+  // 2. There's an active session
+  // 3. Hash is different from last save
+  if (currentHash !== lastSavedGraphHashRef.current && 
+      flowBuilder.activeSessionId && 
+      flowBuilder.saveCurrentSession) {
+    
+    lastSavedGraphHashRef.current = currentHash;
+    
+    // Debounced save (false = use 1-second debounce)
+    flowBuilder.saveCurrentSession(false);
+    
+    console.log('🔄 Graph state changed, triggering session save', {
+      sessionId: flowBuilder.activeSessionId,
+      nodeCount: unifiedStorage.graphState.nodes.length,
+      edgeCount: unifiedStorage.graphState.edges.length,
+    });
+  }
+}, [unifiedStorage.graphState.nodes, unifiedStorage.graphState.edges, flowBuilder.activeSessionId, flowBuilder.saveCurrentSession]);
+```
+
+#### Step 3: Verify saveCurrentSession Uses getGraphState
+
+**File**: `src/app/ai-frames/hooks/useAIFlowBuilder.ts` (line ~1071)
+
+Ensure this line uses `getGraphState()`:
+
+```typescript
+graphState: getGraphState(), // Use authoritative graph state
+```
+
+#### Step 4: Verify switchSession Uses setGraphState
+
+**File**: `src/app/ai-frames/hooks/useAIFlowBuilder.ts` (line ~1147-1163)
+
+Ensure `switchSession` uses `setGraphState()` to restore:
+
+```typescript
+if (session.graphState) {
+  console.log(`📊 Restoring graph state for session ${sessionId}:`, {
+    nodeCount: session.graphState.nodes.length,
+    edgeCount: session.graphState.edges.length
+  });
+  // Update unified storage via injected setter
+  setGraphState(session.graphState);
+  setCurrentGraphState(session.graphState);
+} else {
+  // Only clear if no saved state
+  if (onGraphReset) {
+    onGraphReset();
+  }
+  const emptyState = { nodes: [], edges: [], selectedNodeId: null };
+  setGraphState(emptyState);
+  setCurrentGraphState(emptyState);
+}
+```
+
+#### Step 5: Ensure setGraphState in page.tsx is Clean
+
+**File**: `src/app/ai-frames/page.tsx` (line ~1241-1243)
+
+```typescript
+setGraphState: (state) => {
+  unifiedStorage.updateGraphState(state);
+  // Do NOT call saveCurrentSession here (circular reference)
+},
+```
+
+### Architecture Flow
+
+```
+Graph Change (edge added) → unifiedStorage.updateGraphState()
+                          ↓
+                   useEffect detects change
+                          ↓
+              flowBuilder.saveCurrentSession(false)
+                          ↓
+              getGraphState() returns current state
+                          ↓
+          Session saved with edges to session store
+                          ↓
+      switchSession loads from session.graphState
+                          ↓
+              setGraphState() updates unifiedStorage
+                          ↓
+                  Edges preserved ✅
+```
+
+### Key Benefits
+
+1. ✅ **No Circular Dependencies**: `useEffect` runs after `flowBuilder` is created
+2. ✅ **No New Event Listeners**: Uses React's built-in dependency tracking
+3. ✅ **Single Source of Truth**: `unifiedStorage.graphState` remains authoritative
+4. ✅ **Proper Async Timing**: `useEffect` runs after render, when all refs are stable
+5. ✅ **Debounced Saves**: Leverages existing 1-second debounce in `saveCurrentSession`
+6. ✅ **Hash-Based Change Detection**: Prevents infinite loops, only triggers on actual changes
+7. ✅ **Performance**: Only compares node/edge IDs, not full objects
+
+### Testing Results
+
+**Test 1: Edge Persistence**
+- Drop 2 frames, connect them (f1 → f2) ✅
+- Log shows "🔄 Graph state changed, triggering session save" ✅
+- Create new session S2 ✅
+- Switch back to S1 → **Edges present** (no refresh needed) ✅
+
+**Test 2: Multiple Edges**
+- Create f1 → f2 → f3 connection chain ✅
+- Switch sessions → All edges preserved ✅
+
+**Test 3: Chapter-Frame Connections**
+- Connect chapter c1 to frame f1 ✅
+- Switch sessions → Connection preserved ✅
+- Linear view shows connection ✅
+
+**Test 4: Refresh Persistence**
+- Perform Test 1 flow ✅
+- Refresh page ✅
+- Edges still present ✅
+
+**Test 5: No False Triggers**
+- Watch console for "🔄 Graph state changed" messages
+- Only appears when nodes/edges actually added/removed ✅
+- No infinite loops ✅
+
+### Files Modified
+
+**Modified**:
+1. `src/app/ai-frames/page.tsx`:
+   - Added `lastSavedGraphHashRef` (line ~1200)
+   - Added `useEffect` watcher (after line ~1244)
+
+**Verified (No Changes Needed)**:
+2. `src/app/ai-frames/hooks/useAIFlowBuilder.ts`:
+   - `saveCurrentSession` already uses `getGraphState()` ✅
+   - `switchSession` already uses `setGraphState()` ✅
+
+### Pattern Established
+
+This pattern can be used for any situation where:
+- Parent component needs to trigger child hook method
+- Circular dependency prevents direct calling
+- State changes need to trigger side effects across components
+
+**Copy-Paste Template**:
+```typescript
+// 1. Add ref to track last processed state
+const lastProcessedHashRef = useRef<string>('');
+
+// 2. Add useEffect after child hook initialization
+useEffect(() => {
+  const currentHash = JSON.stringify(stateToWatch);
+  
+  if (currentHash !== lastProcessedHashRef.current && 
+      childHook.someCondition && 
+      childHook.methodToTrigger) {
+    
+    lastProcessedHashRef.current = currentHash;
+    childHook.methodToTrigger(args);
+    console.log('Triggered method due to state change');
+  }
+}, [stateToWatch, childHook.someCondition, childHook.methodToTrigger]);
+```
+
+### Relationship to Other Issues
+
+**Builds On**:
+- Issues 1-2 (Original session graph state sync attempts)
+- Issue 13: Session-based graph state storage architecture
+
+**Completes**:
+- Full session isolation for graph state
+- Edges now persist like frames and chapters
+
+**Architecture Insight**:
+The complete session persistence now includes:
+1. **Frames**: Persisted with `sessionId`/`timeCapsuleId`
+2. **Chapters**: Persisted with `sessionId`/`timeCapsuleId`
+3. **Graph State**: Persisted per session via `session.graphState`
+4. **Connections**: Both edges (graph) and data models (structured)
+
+All four work together to provide complete session isolation.
+
+---
+
 ## Issue 20: Props-Based Approach Failed - Race Condition with React Re-renders
 
 **Date**: 2024-11-25  
@@ -2652,12 +2928,13 @@ useEffect(() => {
 
 ## Complete Issue Resolution Summary
 
-**All 22 Issues Resolved** ✅
+**All 23 Issues Resolved** ✅
 
 **Session & Graph State**:
 - ✅ Issue 10: Graph reset clearing nodes → `skipClear` flag
 - ✅ Issue 13: Connection persistence → Graph state per session
 - ✅ Issue 16: Session switching → `initialGraphState` sync
+- ✅ Issue 23: Edges lost on session switch → useEffect watcher triggers session save
 
 **Frame Persistence**:
 - ✅ Issue 11: Frame pruning → Async load protection
@@ -2694,3 +2971,4 @@ useEffect(() => {
 - [x] Frame count accurate ✅
 - [x] Chapter count accurate ✅
 - [x] Session isolation working ✅
+- [x] Edges persist across session switch (no refresh needed) ✅
