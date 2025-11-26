@@ -1111,7 +1111,7 @@ export default function AIFramesPage() {
             onCreateNew: async () => {
               console.log("🆕 Creating new SWE Bridge session");
               // Create new SWE Bridge session
-              flowBuilder.createNewSession(
+              flowBuilder.createNewSessionAsync(
                 "swe-bridge",
                 `SWE Sync ${new Date().toLocaleString()}`,
                 triggerGraphReset
@@ -1237,7 +1237,14 @@ export default function AIFramesPage() {
       unifiedStorage.updateFrames(frames);
       console.log(`✅ Loaded ${frames.length} frames from session into workspace`);
     },
+    getGraphState: () => unifiedStorage.graphState,
+    setGraphState: (state) => {
+      unifiedStorage.updateGraphState(state);
+    },
   });
+
+  // Track last-saved graph hash to avoid redundant session saves
+  const lastSavedGraphHashRef = useRef<string>("");
 
   // TimeCapsule management hook
   const timeCapsule = useTimeCapsule(providerVectorStore);
@@ -1282,6 +1289,39 @@ export default function AIFramesPage() {
         c.sessionId === flowBuilder.activeSessionId
       );
   }, [unifiedStorage.chapters, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
+
+  // Persist authoritative graph changes into the active session (prevents edge loss on session switch)
+  useEffect(() => {
+    const nodes = unifiedStorage.graphState.nodes || [];
+    const edges = unifiedStorage.graphState.edges || [];
+
+    if (!flowBuilder.activeSessionId || !flowBuilder.saveCurrentSession) {
+      return;
+    }
+
+    // Lightweight hash to detect meaningful graph changes
+    const currentHash = `${nodes.length}:${edges.length}:${nodes
+      .map((n) => n.id)
+      .join(",")}|${edges.map((e) => e.id).join(",")}`;
+
+    if (currentHash === lastSavedGraphHashRef.current) {
+      return;
+    }
+
+    lastSavedGraphHashRef.current = currentHash;
+    flowBuilder.saveCurrentSession(false); // Use existing debounce inside the hook
+
+    console.log("🔄 [SESSION] Graph changed, queued session save", {
+      sessionId: flowBuilder.activeSessionId,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+    });
+  }, [
+    unifiedStorage.graphState.nodes,
+    unifiedStorage.graphState.edges,
+    flowBuilder.activeSessionId,
+    flowBuilder.saveCurrentSession,
+  ]);
 
   // Ensure graph is cleared once when switching to a session with no frames/chapters
   const lastClearedSessionRef = useRef<string | null>(null);
@@ -2202,57 +2242,6 @@ export default function AIFramesPage() {
       return () => window.removeEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
     }
   }, [setSessionDialogConfig, setShowSessionDialog]);
-
-  // ✅ NEW: Event listener for graph state restoration after session switch
-  useEffect(() => {
-    const handleRestoreGraphState = (event: any) => {
-      const { graphState } = event.detail;
-      console.log("📊 Received restore-graph-state event:", {
-        savedNodeCount: graphState.nodes.length,
-        savedEdgeCount: graphState.edges.length,
-        currentNodeCount: unifiedStorage.graphState.nodes.length,
-        currentEdgeCount: unifiedStorage.graphState.edges.length
-      });
-      
-      // CRITICAL FIX: Merge restored graph state with current state
-      // Don't replace - preserve nodes/edges created after session switch
-      const currentState = unifiedStorage.graphState;
-      
-      // Create maps for efficient lookup
-      const restoredNodeIds = new Set(graphState.nodes.map((n: any) => n.id));
-      const restoredEdgeIds = new Set(graphState.edges.map((e: any) => e.id));
-      
-      // Keep current nodes that aren't in restored state (newly created)
-      const newNodes = currentState.nodes.filter((n: any) => !restoredNodeIds.has(n.id));
-      
-      // Keep current edges that aren't in restored state (newly created)
-      const newEdges = currentState.edges.filter((e: any) => !restoredEdgeIds.has(e.id));
-      
-      // Merge: restored state + new nodes/edges
-      const mergedGraphState = {
-        nodes: [...graphState.nodes, ...newNodes],
-        edges: [...graphState.edges, ...newEdges],
-        selectedNodeId: graphState.selectedNodeId
-      };
-      
-      console.log("📊 Merged graph state:", {
-        restoredNodes: graphState.nodes.length,
-        newNodes: newNodes.length,
-        totalNodes: mergedGraphState.nodes.length,
-        restoredEdges: graphState.edges.length,
-        newEdges: newEdges.length,
-        totalEdges: mergedGraphState.edges.length
-      });
-      
-      // Update unified storage with merged state
-      unifiedStorage.updateGraphState(mergedGraphState);
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("restore-graph-state", handleRestoreGraphState);
-      return () => window.removeEventListener("restore-graph-state", handleRestoreGraphState);
-    }
-  }, [unifiedStorage]);
 
   const handleAcceptAIFrames = useCallback(
     (frames: AIFrame[], plannerChapters?: PlannerChapter[]) => {
