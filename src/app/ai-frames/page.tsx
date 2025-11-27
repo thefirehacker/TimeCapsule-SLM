@@ -2460,7 +2460,12 @@ export default function AIFramesPage() {
         order: existingMaxOrder + index + 1,
         createdAt: frame.createdAt || timestamp,
         updatedAt: timestamp,
-        sessionId: frame.sessionId || flowBuilder.activeSessionId || undefined,
+        sessionId:
+          frame.sessionId || flowBuilder.activeSessionId || undefined,
+        timeCapsuleId:
+          frame.timeCapsuleId ||
+          timeCapsule.activeTimeCapsuleId ||
+          undefined,
         metadata: {
           version: "2.0",
           createdAt: frame.createdAt || timestamp,
@@ -2515,6 +2520,8 @@ export default function AIFramesPage() {
           conceptIds: [],
           createdAt: timestamp,
           updatedAt: timestamp,
+          sessionId: flowBuilder.activeSessionId || undefined,
+          timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined,
         }));
         
         chaptersToUse = [...nonAIFlowChapters, ...convertedChapters];
