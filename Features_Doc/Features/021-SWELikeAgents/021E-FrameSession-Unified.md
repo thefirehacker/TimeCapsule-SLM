@@ -2099,6 +2099,39 @@ After all fixes:
 
 ---
 
+## Issue 24: SWE Bridge Sync Blocked by Missing TimeCapsule (Fixed 2025-11-27)
+
+### Problem
+
+After the SWE import stamping work landed, QA still saw the bridge pull fail with:
+
+```
+⚠️ Cannot sync SWE Bridge data without an active TimeCapsule.
+```
+
+The dropdown already showed “My First Project”, but the `useTimeCapsule` hook finishes asynchronously. If the user clicks “Pull from Local SWE” before the default capsule is restored or created, the handler returned early, so none of the import/stamping logic runs and the SWE session still ends up empty.
+
+### Fix
+
+`handlePullFromLocalBridge` now **auto-ensures** an active TimeCapsule ID before touching the SWE payload:
+
+1. Added `ensureActiveTimeCapsuleId()` helper that:
+   - Waits for the hook to finish loading
+   - Reuses the first available capsule if one exists
+   - Creates “My First Project” on demand when nothing exists yet
+   - Retries up to 10 times (≈2s) before surfacing the warning
+2. The SWE import guard calls this helper instead of bailing immediately, so the sync only proceeds once a valid capsule ID is available and all incoming frames/chapters can be stamped correctly.
+
+### Verification
+
+- Hammer “Pull from Local SWE” immediately after page load → helper waits until a capsule is ready, import succeeds.
+- “Create new SWE session” → session metadata instantly shows 8 frames, graph stays populated.
+- Switching to a manual session and back → SWE graph state persists (no accidental resets).
+
+This keeps the workflow seamless while guaranteeing every SWE session now has the proper `sessionId` + `timeCapsuleId` stamped from the very first import.
+
+---
+
 ## Issue 23: Graph Edges Lost on Session Switch (useEffect-Based Sync Solution)
 
 **Date**: 2024-11-26  
