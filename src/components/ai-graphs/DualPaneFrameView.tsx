@@ -84,6 +84,8 @@ interface DualPaneFrameViewProps {
   chapters?: Chapter[];
   onChaptersChange?: (chapters: Chapter[]) => void;
   onViewModeChange?: (mode: "graph" | "split" | "linear") => void;
+  activeSessionId?: string; // CRITICAL FIX (Issue 15): Active session ID for frame/chapter association
+  activeTimeCapsuleId?: string; // CRITICAL FIX (Issue 15): Active TimeCapsule ID for frame/chapter association
 }
 
 export default function DualPaneFrameView({
@@ -100,6 +102,8 @@ export default function DualPaneFrameView({
   chapters = [],
   onChaptersChange,
   onViewModeChange,
+  activeSessionId,
+  activeTimeCapsuleId,
 }: DualPaneFrameViewProps) {
   const [graphState, setGraphState] = useState<GraphState>(
     initialGraphState || {
@@ -1297,6 +1301,8 @@ export default function DualPaneFrameView({
               onChaptersChange={onChaptersChange}
               onGraphChange={handleGraphChange}
               initialGraphState={graphState}
+              activeSessionId={activeSessionId}
+              activeTimeCapsuleId={activeTimeCapsuleId}
             />
           </div>
         </div>

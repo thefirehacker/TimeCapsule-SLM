@@ -39,6 +39,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Plug,
+  Edit,
+  Sparkles,
+  Copy,
+  AlertTriangle,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -859,6 +863,8 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  const timeCapsule = useTimeCapsule(providerVectorStore);
+
   const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [documentManagerTab, setDocumentManagerTab] = useState("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
@@ -898,6 +904,10 @@ export default function AIFramesPage() {
     onContinue: () => void;
     onCreateNew: () => void;
   } | null>(null);
+
+  // Session delete confirmation dialog state
+  const [showDeleteSessionDialog, setShowDeleteSessionDialog] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string; frameCount: number } | null>(null);
 
   const framesByChapter = useMemo(() => {
     const map = new Map<string, UnifiedAIFrame[]>();
@@ -1045,8 +1055,85 @@ export default function AIFramesPage() {
     [unifiedStorage.graphState]
   );
 
+  const delay = useCallback(
+    (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+    []
+  );
+
+  const ensureActiveTimeCapsuleId = useCallback(async (): Promise<string | null> => {
+    const getExistingCapsuleId = () =>
+      timeCapsule.timeCapsules?.[0]?.id || null;
+
+    let attempts = 0;
+    while (attempts < 10) {
+      if (timeCapsule.activeTimeCapsuleId) {
+        return timeCapsule.activeTimeCapsuleId;
+      }
+
+      if (timeCapsule.timeCapsules?.length) {
+        const firstId = getExistingCapsuleId();
+        if (firstId && timeCapsule.switchTimeCapsule) {
+          await timeCapsule.switchTimeCapsule(firstId);
+        }
+        return firstId;
+      }
+
+      if (timeCapsule.isLoading) {
+        attempts += 1;
+        await delay(200);
+        continue;
+      }
+
+      if (timeCapsule.createTimeCapsule) {
+        const created = await timeCapsule.createTimeCapsule(
+          "My First Project",
+          "Auto-created for SWE Bridge sync"
+        );
+        if (created?.id) {
+          if (timeCapsule.switchTimeCapsule) {
+            await timeCapsule.switchTimeCapsule(created.id);
+          }
+          return created.id;
+        }
+      }
+
+      attempts += 1;
+      await delay(200);
+    }
+
+    return null;
+  }, [
+    delay,
+    timeCapsule.activeTimeCapsuleId,
+    timeCapsule.createTimeCapsule,
+    timeCapsule.isLoading,
+    timeCapsule.switchTimeCapsule,
+    timeCapsule.timeCapsules,
+  ]);
+
+  const runWithImportGuard = useCallback(
+    async (action: () => Promise<void>) => {
+      importingFromLocalBridgeRef.current = true;
+      try {
+        await action();
+      } finally {
+        importingFromLocalBridgeRef.current = false;
+      }
+    },
+    []
+  );
+
   const handlePullFromLocalBridge = useCallback(async () => {
     if (!localBridgeEnabled) {
+      return;
+    }
+    const activeTimeCapsuleId = await ensureActiveTimeCapsuleId();
+    if (!activeTimeCapsuleId) {
+      console.warn(
+        "⚠️ Cannot sync SWE Bridge data because no TimeCapsule could be initialized."
+      );
+      setLocalBridgeSyncState("error");
+      setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
       return;
     }
     try {
@@ -1056,6 +1143,90 @@ export default function AIFramesPage() {
         throw new Error(await response.text());
       }
       const data = await response.json();
+
+      const stampSnapshotForSession = async (
+        overrides: { sessionId?: string; timeCapsuleId?: string } = {}
+      ) => {
+        const sessionId = overrides.sessionId || flowBuilder.activeSessionId;
+        if (!sessionId) {
+          console.warn(
+            "⚠️ Unable to stamp SWE Bridge data because no active session is available."
+          );
+          return null;
+        }
+
+        const resolvedTimeCapsuleId =
+          overrides.timeCapsuleId ||
+          flowBuilder.sessions.find((session) => session.id === sessionId)
+            ?.timeCapsuleId ||
+          activeTimeCapsuleId ||
+          undefined;
+
+        if (!resolvedTimeCapsuleId) {
+          console.warn(
+            "⚠️ Unable to resolve TimeCapsule for SWE Bridge payload; falling back to active capsule"
+          );
+        }
+
+        if (Array.isArray(data.frames)) {
+          const stampedFrames = data.frames.map((frame: AIFrame) => ({
+            ...frame,
+            sessionId,
+            timeCapsuleId:
+              (frame.timeCapsuleId && frame.timeCapsuleId !== "default"
+                ? frame.timeCapsuleId
+                : resolvedTimeCapsuleId) || activeTimeCapsuleId,
+          }));
+
+          const mergedFrames = sessionId
+            ? [
+                ...unifiedStorage.frames.filter(
+                  (frame) => frame.sessionId !== sessionId
+                ),
+                ...stampedFrames,
+              ]
+            : [...unifiedStorage.frames, ...stampedFrames];
+
+          unifiedStorage.updateFrames(mergedFrames);
+          if (flowBuilder.updateSessionFrameCount) {
+            await flowBuilder.updateSessionFrameCount(mergedFrames, sessionId);
+          }
+        }
+
+        if (Array.isArray(data.chapters)) {
+          const stampedChapters = data.chapters.map((chapter: Chapter) => ({
+            ...chapter,
+            sessionId,
+            timeCapsuleId:
+              (chapter.timeCapsuleId && chapter.timeCapsuleId !== "default"
+                ? chapter.timeCapsuleId
+                : resolvedTimeCapsuleId) || activeTimeCapsuleId,
+          }));
+
+          const mergedChapters = sessionId
+            ? [
+                ...unifiedStorage.chapters.filter(
+                  (chapter) => chapter.sessionId !== sessionId
+                ),
+                ...stampedChapters,
+              ]
+            : [...unifiedStorage.chapters, ...stampedChapters];
+
+          unifiedStorage.updateChapters(mergedChapters);
+        }
+
+        return { sessionId, timeCapsuleId: resolvedTimeCapsuleId };
+      };
+
+      const applyGraphStateAndSave = async (graphState?: GraphState, sessionId?: string) => {
+        if (graphState) {
+          unifiedStorage.updateGraphState(graphState);
+        }
+        const targetSessionId = sessionId || flowBuilder.activeSessionId;
+        if (flowBuilder.saveCurrentSession && targetSessionId) {
+          await flowBuilder.saveCurrentSession(true);
+        }
+      };
 
       // ✅ NEW: Session dialog logic for SWE Bridge sync
       if (Array.isArray(data.frames) && data.frames.length > 0) {
@@ -1073,16 +1244,13 @@ export default function AIFramesPage() {
             currentSessionName: activeSession?.name,
             onContinue: async () => {
               console.log("✅ Continuing with existing session for SWE Bridge");
-              // Use existing session - sync frames from SWE Bridge
-              if (Array.isArray(data.frames)) {
-                unifiedStorage.updateFrames(data.frames);
-              }
-              if (Array.isArray(data.chapters)) {
-                unifiedStorage.updateChapters(data.chapters);
-              }
-              if (data.graphState) {
-                unifiedStorage.updateGraphState(data.graphState);
-              }
+              await runWithImportGuard(async () => {
+                const stamped = await stampSnapshotForSession();
+                await applyGraphStateAndSave(
+                  data.graphState,
+                  stamped?.sessionId ?? flowBuilder.activeSessionId ?? undefined
+                );
+              });
               const latestStamp =
                 data?.metadata?.lastUpdated || new Date().toISOString();
               localBridgeRemoteStampRef.current = latestStamp;
@@ -1102,23 +1270,49 @@ export default function AIFramesPage() {
             },
             onCreateNew: async () => {
               console.log("🆕 Creating new SWE Bridge session");
-              // Create new SWE Bridge session
-              flowBuilder.createNewSession(
+              // Create new SWE Bridge session (await to ensure session exists before loading data)
+              const newSession = await flowBuilder.createNewSessionAsync(
                 "swe-bridge",
                 `SWE Sync ${new Date().toLocaleString()}`,
-                triggerGraphReset
+                triggerGraphReset,
+                {
+                  timeCapsuleId: activeTimeCapsuleId,
+                }
               );
 
-              // Then sync frames from SWE Bridge
-              if (Array.isArray(data.frames)) {
-                unifiedStorage.updateFrames(data.frames);
-              }
-              if (Array.isArray(data.chapters)) {
-                unifiedStorage.updateChapters(data.chapters);
-              }
-              if (data.graphState) {
-                unifiedStorage.updateGraphState(data.graphState);
-              }
+              await runWithImportGuard(async () => {
+                const stamped = await stampSnapshotForSession({
+                  sessionId: newSession?.id,
+                  timeCapsuleId:
+                    newSession?.timeCapsuleId ||
+                    activeTimeCapsuleId ||
+                    undefined,
+                });
+                
+                // Generate complete graph state from frames and chapters
+                let appliedGraphState: GraphState | undefined = data.graphState;
+                if (Array.isArray(data.chapters) && Array.isArray(data.frames)) {
+                  const completeGraphState = flowBuilder.generateGraphState(
+                    data.chapters, 
+                    data.frames
+                  );
+                  console.log("📊 Generated graph state from SWE data:", {
+                    nodeCount: completeGraphState.nodes.length,
+                    edgeCount: completeGraphState.edges.length,
+                    frameNodes: completeGraphState.nodes.filter(n => n.type === 'aiframe').length,
+                    chapterNodes: completeGraphState.nodes.filter(n => n.type === 'chapter').length
+                  });
+                  appliedGraphState = completeGraphState;
+                } else if (data.graphState) {
+                  // Fallback to provided graphState if generation fails
+                  console.log("⚠️ Using fallback graphState from SWE Bridge");
+                  appliedGraphState = data.graphState;
+                }
+                await applyGraphStateAndSave(
+                  appliedGraphState,
+                  stamped?.sessionId ?? newSession?.id ?? undefined
+                );
+              });
               const latestStamp =
                 data?.metadata?.lastUpdated || new Date().toISOString();
               localBridgeRemoteStampRef.current = latestStamp;
@@ -1143,15 +1337,10 @@ export default function AIFramesPage() {
       }
 
       // Normal sync flow (no frames or already has SWE Bridge session)
-      if (Array.isArray(data.frames)) {
-        unifiedStorage.updateFrames(data.frames);
-      }
-      if (Array.isArray(data.chapters)) {
-        unifiedStorage.updateChapters(data.chapters);
-      }
-      if (data.graphState) {
-        unifiedStorage.updateGraphState(data.graphState);
-      }
+      await runWithImportGuard(async () => {
+        const stamped = await stampSnapshotForSession();
+        await applyGraphStateAndSave(data.graphState, stamped?.sessionId);
+      });
       const latestStamp =
         data?.metadata?.lastUpdated || new Date().toISOString();
       localBridgeRemoteStampRef.current = latestStamp;
@@ -1176,6 +1365,7 @@ export default function AIFramesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     localBridgeEnabled,
+    ensureActiveTimeCapsuleId,
     unifiedStorage.updateFrames,
     unifiedStorage.updateChapters,
     unifiedStorage.updateGraphState,
@@ -1229,10 +1419,21 @@ export default function AIFramesPage() {
       unifiedStorage.updateFrames(frames);
       console.log(`✅ Loaded ${frames.length} frames from session into workspace`);
     },
+    getGraphState: () => unifiedStorage.graphState,
+    setGraphState: (state) => {
+      unifiedStorage.updateGraphState(state);
+    },
+    setIsSwitching: (switching) => {
+      isSwitchingSessionRef.current = switching;
+    },
   });
 
-  // TimeCapsule management hook
-  const timeCapsule = useTimeCapsule(providerVectorStore);
+  // Track last-saved graph hash to avoid redundant session saves
+  const lastSavedGraphHashRef = useRef<string>("");
+  
+  // Track session switching to prevent contamination
+  const isSwitchingSessionRef = useRef(false);
+  const importingFromLocalBridgeRef = useRef(false);
 
   // Debug: Log session state changes
   useEffect(() => {
@@ -1268,12 +1469,82 @@ export default function AIFramesPage() {
       );
     }
     
-    // Active session: show only chapters from that session in the active TimeCapsule
-    return unifiedStorage.chapters.filter(c => 
-      c.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
-      c.sessionId === flowBuilder.activeSessionId
-    );
+      // Active session: show only chapters from that session in the active TimeCapsule
+      return unifiedStorage.chapters.filter(c => 
+        c.timeCapsuleId === timeCapsule.activeTimeCapsuleId &&
+        c.sessionId === flowBuilder.activeSessionId
+      );
   }, [unifiedStorage.chapters, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId]);
+
+  // Persist authoritative graph changes into the active session (prevents edge loss on session switch)
+  useEffect(() => {
+    const nodes = unifiedStorage.graphState.nodes || [];
+    const edges = unifiedStorage.graphState.edges || [];
+
+    // Skip if switching sessions to prevent contamination
+    if (isSwitchingSessionRef.current) {
+      console.log('⏭️ Skipping session save during switch');
+      return;
+    }
+
+    if (!flowBuilder.activeSessionId || !flowBuilder.saveCurrentSession) {
+      return;
+    }
+
+    // Lightweight hash to detect meaningful graph changes
+    const currentHash = `${nodes.length}:${edges.length}:${nodes
+      .map((n) => n.id)
+      .join(",")}|${edges.map((e) => e.id).join(",")}`;
+
+    if (currentHash === lastSavedGraphHashRef.current) {
+      return;
+    }
+
+    lastSavedGraphHashRef.current = currentHash;
+    flowBuilder.saveCurrentSession(false); // Use existing debounce inside the hook
+
+    console.log("🔄 [SESSION] Graph changed, queued session save", {
+      sessionId: flowBuilder.activeSessionId,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+    });
+  }, [
+    unifiedStorage.graphState.nodes,
+    unifiedStorage.graphState.edges,
+    flowBuilder.activeSessionId,
+    flowBuilder.saveCurrentSession,
+  ]);
+
+  // Ensure graph is cleared once when switching to a session with no frames/chapters
+  const lastClearedSessionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!flowBuilder.activeSessionId) return;
+    if (importingFromLocalBridgeRef.current) {
+      return;
+    }
+    const hasGraphContent = (unifiedStorage.graphState.nodes?.length || 0) > 0 || (unifiedStorage.graphState.edges?.length || 0) > 0;
+    const shouldClear =
+      sessionFilteredFrames.length === 0 &&
+      sessionFilteredChapters.length === 0 &&
+      hasGraphContent &&
+      lastClearedSessionRef.current !== flowBuilder.activeSessionId;
+    if (shouldClear) {
+      unifiedStorage.updateGraphState({ nodes: [], edges: [], selectedNodeId: null });
+      triggerGraphReset();
+      lastClearedSessionRef.current = flowBuilder.activeSessionId;
+    }
+    if (sessionFilteredFrames.length > 0 || sessionFilteredChapters.length > 0) {
+      lastClearedSessionRef.current = null;
+    }
+  }, [
+    flowBuilder.activeSessionId,
+    sessionFilteredFrames.length,
+    sessionFilteredChapters.length,
+    unifiedStorage.graphState.nodes?.length,
+    unifiedStorage.graphState.edges?.length,
+    triggerGraphReset,
+    unifiedStorage,
+  ]);
 
   // REMOVED: Infinite loop fix - session frame count is already tracked by session metadata
   // The useEffect here was causing infinite saves by triggering re-renders on every save
@@ -1941,6 +2212,8 @@ export default function AIFramesPage() {
     (options: CreateFrameOptions = {}): AIFrame => {
       const { title, goal, chapterId, selectFrame = true } = options;
       const now = new Date().toISOString();
+      const currentSessionId = flowBuilder.activeSessionId || undefined;
+      const currentTimeCapsuleId = timeCapsule.activeTimeCapsuleId || undefined;
       const existingOrders = unifiedStorage.frames
         .map((frame) => (typeof frame.order === "number" ? frame.order : null))
         .filter((value): value is number => value !== null);
@@ -1955,7 +2228,10 @@ export default function AIFramesPage() {
       if (!flowBuilder.activeSessionId || 
           (flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source !== "manual")) {
         console.log("🆕 [PAGE] Auto-creating manual session for manual frame creation");
-        const newSession = flowBuilder.createNewSession("manual", "Manual Session", triggerGraphReset);
+        const newSession = flowBuilder.createNewSession("manual", "Manual Session", triggerGraphReset, {
+          skipClear: true, // Auto-creation: preserve any existing nodes
+          timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
+        });
         sessionForFrame = newSession.id;
         console.log(`✅ [PAGE] Created session ${sessionForFrame}`);
         console.log(`📋 [PAGE] Sessions array now:`, flowBuilder.sessions.map(s => ({ id: s.id, name: s.name })));
@@ -2078,15 +2354,19 @@ export default function AIFramesPage() {
     
     const orphanedFrames = unifiedStorage.frames.filter(f => 
       !f.sessionId && 
-      f.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+      (!f.timeCapsuleId || f.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
     );
     
     if (orphanedFrames.length > 0) {
       console.log(`🔧 Found ${orphanedFrames.length} orphaned frames, assigning to session ${flowBuilder.activeSessionId}`);
       
       const fixedFrames = unifiedStorage.frames.map(f => 
-        (!f.sessionId && f.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
-          ? { ...f, sessionId: flowBuilder.activeSessionId || undefined }
+        (!f.sessionId && (!f.timeCapsuleId || f.timeCapsuleId === timeCapsule.activeTimeCapsuleId))
+          ? { 
+              ...f, 
+              sessionId: flowBuilder.activeSessionId || undefined,
+              timeCapsuleId: timeCapsule.activeTimeCapsuleId || f.timeCapsuleId
+            }
           : f
       );
       
@@ -2099,6 +2379,33 @@ export default function AIFramesPage() {
       }
     }
   }, [unifiedStorage.frames.length, flowBuilder.activeSessionId, flowBuilder.updateSessionFrameCount, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
+
+  // ✅ NEW: Auto-assign sessionId/timeCapsuleId to orphaned chapters so linear view sees them
+  useEffect(() => {
+    if (!flowBuilder.activeSessionId) return;
+    
+    const orphanedChapters = unifiedStorage.chapters.filter(c =>
+      !c.sessionId &&
+      (!c.timeCapsuleId || c.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
+    );
+    
+    if (orphanedChapters.length > 0) {
+      console.log(`🔧 Found ${orphanedChapters.length} orphaned chapters, assigning to session ${flowBuilder.activeSessionId}`);
+      
+      const fixedChapters = unifiedStorage.chapters.map(c =>
+        (!c.sessionId && (!c.timeCapsuleId || c.timeCapsuleId === timeCapsule.activeTimeCapsuleId))
+          ? { 
+              ...c, 
+              sessionId: flowBuilder.activeSessionId || undefined,
+              timeCapsuleId: timeCapsule.activeTimeCapsuleId || c.timeCapsuleId 
+            }
+          : c
+      );
+      
+      unifiedStorage.updateChapters(fixedChapters);
+      console.log(`✅ Assigned sessionId to ${orphanedChapters.length} orphaned chapters`);
+    }
+  }, [unifiedStorage.chapters.length, flowBuilder.activeSessionId, timeCapsule.activeTimeCapsuleId, unifiedStorage]);
 
   // ✅ NEW: Event listener for AI Flow session continuation dialog
   useEffect(() => {
@@ -2134,57 +2441,6 @@ export default function AIFramesPage() {
       return () => window.removeEventListener("ai-flow-session-check", handleAIFlowSessionCheck);
     }
   }, [setSessionDialogConfig, setShowSessionDialog]);
-
-  // ✅ NEW: Event listener for graph state restoration after session switch
-  useEffect(() => {
-    const handleRestoreGraphState = (event: any) => {
-      const { graphState } = event.detail;
-      console.log("📊 Received restore-graph-state event:", {
-        savedNodeCount: graphState.nodes.length,
-        savedEdgeCount: graphState.edges.length,
-        currentNodeCount: unifiedStorage.graphState.nodes.length,
-        currentEdgeCount: unifiedStorage.graphState.edges.length
-      });
-      
-      // CRITICAL FIX: Merge restored graph state with current state
-      // Don't replace - preserve nodes/edges created after session switch
-      const currentState = unifiedStorage.graphState;
-      
-      // Create maps for efficient lookup
-      const restoredNodeIds = new Set(graphState.nodes.map((n: any) => n.id));
-      const restoredEdgeIds = new Set(graphState.edges.map((e: any) => e.id));
-      
-      // Keep current nodes that aren't in restored state (newly created)
-      const newNodes = currentState.nodes.filter((n: any) => !restoredNodeIds.has(n.id));
-      
-      // Keep current edges that aren't in restored state (newly created)
-      const newEdges = currentState.edges.filter((e: any) => !restoredEdgeIds.has(e.id));
-      
-      // Merge: restored state + new nodes/edges
-      const mergedGraphState = {
-        nodes: [...graphState.nodes, ...newNodes],
-        edges: [...graphState.edges, ...newEdges],
-        selectedNodeId: graphState.selectedNodeId
-      };
-      
-      console.log("📊 Merged graph state:", {
-        restoredNodes: graphState.nodes.length,
-        newNodes: newNodes.length,
-        totalNodes: mergedGraphState.nodes.length,
-        restoredEdges: graphState.edges.length,
-        newEdges: newEdges.length,
-        totalEdges: mergedGraphState.edges.length
-      });
-      
-      // Update unified storage with merged state
-      unifiedStorage.updateGraphState(mergedGraphState);
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("restore-graph-state", handleRestoreGraphState);
-      return () => window.removeEventListener("restore-graph-state", handleRestoreGraphState);
-    }
-  }, [unifiedStorage]);
 
   const handleAcceptAIFrames = useCallback(
     (frames: AIFrame[], plannerChapters?: PlannerChapter[]) => {
@@ -3006,6 +3262,8 @@ export default function AIFramesPage() {
       const orderedSelection = getOrderedFrameIds(selectedChapterFrameIds);
       const chapterId = `chapter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const now = new Date().toISOString();
+      const currentSessionId = flowBuilder.activeSessionId || undefined;
+      const currentTimeCapsuleId = timeCapsule.activeTimeCapsuleId || undefined;
 
       const frameSnapshot = getFramesSnapshot();
       const updatedFrames = applyChapterAssignments(
@@ -3022,8 +3280,8 @@ export default function AIFramesPage() {
         conceptIds: Array.from(new Set(chapterFormData.conceptIds)).filter(Boolean),
         frameIds: orderedSelection,
         order: unifiedStorage.chapters.length,
-        timeCapsuleId: timeCapsule.activeTimeCapsuleId ?? undefined,
-        sessionId: flowBuilder.activeSessionId ?? undefined,
+        timeCapsuleId: currentTimeCapsuleId,
+        sessionId: currentSessionId,
         createdAt: now,
         updatedAt: now,
         linkSequentially: chapterFormData.linkSequentially,
@@ -3032,7 +3290,13 @@ export default function AIFramesPage() {
       const chaptersWithNew = [...unifiedStorage.chapters, baseChapter];
       const framesWithAssignments = updatedFrames.map(frame =>
         orderedSelection.includes(frame.id)
-          ? { ...frame, chapterId: chapterId, parentFrameId: chapterId }
+          ? { 
+              ...frame, 
+              chapterId: chapterId, 
+              parentFrameId: chapterId,
+              sessionId: frame.sessionId || currentSessionId,
+              timeCapsuleId: frame.timeCapsuleId || currentTimeCapsuleId
+            }
           : frame
       );
 
@@ -3049,6 +3313,8 @@ export default function AIFramesPage() {
                 order: baseChapter.order,
                 frameIds: orderedSelection,
                 linkSequentially: baseChapter.linkSequentially,
+                sessionId: chapter.sessionId || currentSessionId,
+                timeCapsuleId: chapter.timeCapsuleId || currentTimeCapsuleId
               }
             : chapter
       );
@@ -3604,6 +3870,9 @@ export default function AIFramesPage() {
                       activeId={timeCapsule.activeTimeCapsuleId}
                       onSwitch={timeCapsule.switchTimeCapsule}
                       onCreate={timeCapsule.createTimeCapsule}
+                      onRename={async (id, newName) => {
+                        await timeCapsule.updateTimeCapsule(id, { name: newName });
+                      }}
                       sessions={flowBuilder.sessions}
                       frames={unifiedStorage.frames}
                     />
@@ -3675,52 +3944,206 @@ export default function AIFramesPage() {
                     )}
                   </div>
                   
-                  {/* Active Session Display */}
+                  {/* Recent Sessions Display (up to 3) */}
                   <div className="pt-3 border-t border-gray-200">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 font-medium">Active Session:</span>
+                        <span className="text-gray-600 font-medium">Recent Sessions:</span>
+                        {flowBuilder.sessions.length > 3 && (
+                          <span className="text-xs text-gray-500">{flowBuilder.sessions.length} total</span>
+                        )}
                       </div>
-                      {flowBuilder.activeSessionId ? (
-                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm">
-                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "ai-flow" ? "🤖" :
-                               flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.source === "swe-bridge" ? "🔌" : "✏️"}
-                            </span>
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.name || "Unknown"}
-                            </span>
+                      {(() => {
+                        // Helper function to get relative time
+                        const getRelativeTime = (date: Date | string) => {
+                          const now = new Date();
+                          const targetDate = typeof date === 'string' ? new Date(date) : date;
+                          const diff = now.getTime() - targetDate.getTime();
+                          const minutes = Math.floor(diff / 60000);
+                          if (minutes < 1) return 'just now';
+                          if (minutes < 60) return `${minutes}m ago`;
+                          const hours = Math.floor(minutes / 60);
+                          if (hours < 24) return `${hours}h ago`;
+                          const days = Math.floor(hours / 24);
+                          if (days < 30) return `${days}d ago`;
+                          return new Date(targetDate).toLocaleDateString();
+                        };
+
+                        // Session type configuration
+                        const sessionTypeConfig = {
+                          "manual": {
+                            icon: Edit,
+                            color: "blue",
+                            borderColor: "border-blue-400",
+                            bgColor: "bg-blue-50",
+                            iconBgColor: "bg-blue-100",
+                            iconColor: "text-blue-600",
+                          },
+                          "ai-flow": {
+                            icon: Bot,
+                            color: "purple",
+                            borderColor: "border-purple-400",
+                            bgColor: "bg-purple-50",
+                            iconBgColor: "bg-purple-100",
+                            iconColor: "text-purple-600",
+                          },
+                          "swe-bridge": {
+                            icon: Plug,
+                            color: "teal",
+                            borderColor: "border-teal-400",
+                            bgColor: "bg-teal-50",
+                            iconBgColor: "bg-teal-100",
+                            iconColor: "text-teal-600",
+                          },
+                        };
+
+                        // Get up to 3 most recent sessions, sorted by updatedAt
+                        const recentSessions = [...flowBuilder.sessions]
+                          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                          .slice(0, 3);
+
+                        if (recentSessions.length === 0) {
+                          return (
+                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                              <p className="text-xs text-gray-500 text-center">No sessions yet</p>
                           </div>
-                          <p className="text-xs text-gray-600">
-                            {flowBuilder.sessions.find(s => s.id === flowBuilder.activeSessionId)?.frameCount || 0} frames
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                          <p className="text-xs text-gray-500 text-center">No active session</p>
-                        </div>
-                      )}
+                          );
+                        }
+
+                        return recentSessions.map((session) => {
+                          const isActive = session.id === flowBuilder.activeSessionId;
+                          const config = sessionTypeConfig[session.source as keyof typeof sessionTypeConfig] || sessionTypeConfig["manual"];
+                          const SessionIcon = config.icon;
+                          const sessionFrameCount = unifiedStorage.frames.filter(f => f.sessionId === session.id).length;
+
+                          return (
+                            <div
+                              key={session.id}
+                              className={`group/card relative rounded-xl border-l-4 p-2.5 cursor-pointer transition-all ${
+                                isActive
+                                  ? `${config.borderColor} ${config.bgColor} border-r border-t border-b ${config.borderColor} shadow-sm`
+                                  : 'border-l-slate-300 border-r border-t border-b border-slate-200 bg-white hover:bg-slate-50 hover:border-l-slate-400'
+                              }`}
+                              onClick={() => {
+                                if (!isActive) {
+                                  flowBuilder.switchSession(session.id, triggerGraphReset);
+                                }
+                              }}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className={`p-1 rounded-lg ${isActive ? config.iconBgColor : 'bg-slate-100'} flex-shrink-0`}>
+                                  <SessionIcon className={`h-3.5 w-3.5 ${isActive ? config.iconColor : 'text-slate-500'}`} />
+                                </div>
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  {isActive ? (
+                                    <div className="group/input relative flex items-center gap-1">
+                                      <input
+                                        type="text"
+                                        value={session.name}
+                                        onChange={(e) => flowBuilder.renameSession(session.id, e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`font-semibold text-sm text-gray-900 bg-transparent border-b border-transparent hover:border-${config.color}-300 focus:border-${config.color}-500 outline-none transition-colors flex-1 min-w-0 pb-0.5`}
+                                        placeholder="Session name..."
+                                      />
+                                      <Edit className="h-3 w-3 text-slate-400 opacity-0 group-hover/input:opacity-100 transition-opacity flex-shrink-0" />
+                                    </div>
+                                  ) : (
+                                    <div className="font-semibold text-sm text-gray-900 truncate">
+                                      {session.name}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      <div className="flex items-center gap-1">
+                                        <Layers className="h-3 w-3" />
+                                        <span className="font-medium">{sessionFrameCount}</span>
+                                      </div>
+                                      <span>•</span>
+                                      <span>{getRelativeTime(session.updatedAt)}</span>
+                                      {isActive && (
+                                        <>
+                                          <span>•</span>
+                                          <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0">Active</Badge>
+                                        </>
+                                      )}
+                                    </div>
+                                    {/* Quick Actions - show on hover */}
+                                    <div className="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          flowBuilder.duplicateSession(session.id, triggerGraphReset);
+                                        }}
+                                        className="h-6 w-6 p-0 hover:bg-purple-100"
+                                        title="Duplicate session"
+                                      >
+                                        <Copy className="h-3 w-3 text-purple-600" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSessionToDelete({
+                                            id: session.id,
+                                            name: session.name,
+                                            frameCount: sessionFrameCount
+                                          });
+                                          setShowDeleteSessionDialog(true);
+                                        }}
+                                        className="h-6 w-6 p-0 hover:bg-red-100"
+                                        title="Delete session"
+                                      >
+                                        <Trash2 className="h-3 w-3 text-red-600" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+                          onClick={() => {
+                            flowBuilder.createNewSession("manual", undefined, triggerGraphReset, {
+                              skipClear: false, // CRITICAL FIX (Issue 13): Clear graph for manual session creation
+                              timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined
+                            });
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4 mr-1.5" />
+                          New Session
+                        </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full"
+                          className="flex-1"
                         onClick={() => {
                           setIsFlowPanelOpen(true);
                           // Scroll to Flow Sessions section after panel opens
                           setTimeout(() => {
-                            const flowSessionsSection = document.getElementById('flow-sessions-section');
+                              const flowSessionsSection = document.getElementById('flow-sessions-section');
                             if (flowSessionsSection) {
                               flowSessionsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            } else {
-                              console.warn('⚠️ Flow sessions section not found');
+                              } else {
+                                console.warn('⚠️ Flow sessions section not found');
                             }
                           }, 300);
                         }}
                       >
-                        <Bot className="h-4 w-4 mr-2" />
-                        Manage Sessions
+                          <Bot className="h-4 w-4 mr-1.5" />
+                          Manage All
                       </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3918,6 +4341,8 @@ export default function AIFramesPage() {
                   onViewModeChange={handleViewModeChange}
                   sidebarCollapsed={sidebarCollapsed}
                   onShowSidebar={handleSidebarShow}
+                  activeSessionId={flowBuilder.activeSessionId || undefined}
+                  activeTimeCapsuleId={timeCapsule.activeTimeCapsuleId || undefined}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
@@ -4067,6 +4492,81 @@ export default function AIFramesPage() {
           }}
         />
       )}
+
+      {/* Session Delete Confirmation Dialog */}
+      <Dialog open={showDeleteSessionDialog} onOpenChange={setShowDeleteSessionDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-lg bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <DialogTitle className="text-xl font-semibold">Delete Session?</DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-slate-600 pt-2">
+              This action cannot be undone. This will permanently delete the session and all associated data.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Session Info */}
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                Session to Delete
+              </p>
+              <p className="text-base font-semibold text-slate-900 break-words mb-2">
+                {sessionToDelete?.name}
+              </p>
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <Layers className="h-4 w-4" />
+                <span className="font-medium">{sessionToDelete?.frameCount || 0} frames</span>
+                <span className="text-slate-400">•</span>
+                <span>will be deleted</span>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            {(sessionToDelete?.frameCount || 0) > 0 && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Warning: Frame Data Loss</p>
+                  <p className="text-xs mt-1">
+                    All {sessionToDelete?.frameCount} frame{sessionToDelete?.frameCount !== 1 ? 's' : ''} in this session will be permanently deleted.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteSessionDialog(false);
+                setSessionToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (sessionToDelete) {
+                  flowBuilder.deleteSession(sessionToDelete.id);
+                }
+                setShowDeleteSessionDialog(false);
+                setSessionToDelete(null);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

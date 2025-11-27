@@ -619,7 +619,12 @@ export const useUnifiedStorage = ({
       backgroundSaveQueue.current.pendingOptions = queueOptions;
       backgroundSaveQueue.current.isProcessing = true; // Lock immediately
       
-      console.log("🔒 PRIORITY SAVE: Locked queue with fresh graph state");
+      console.log("🔒 PRIORITY SAVE: Locked queue with fresh graph state", {
+        nodeCount: graphState?.nodes?.length || 0,
+        edgeCount: graphState?.edges?.length || 0,
+        frameCount: safeFrames?.length || 0,
+        chapterCount: safeChapters?.length || 0
+      });
       
       // Process immediately without delay for priority saves
       try {
@@ -645,7 +650,13 @@ export const useUnifiedStorage = ({
         const success = await unifiedStorage.saveAll(framesToSave, chaptersToSave, graphState, {
           skipVectorStore,
         });
-        console.log("🔒 PRIORITY SAVE: Completed with result:", { success });
+        console.log("🔒 PRIORITY SAVE: Completed with result:", { 
+          success,
+          persistedNodeCount: graphState?.nodes?.length || 0,
+          persistedEdgeCount: graphState?.edges?.length || 0,
+          persistedFrameCount: framesToSave?.length || 0,
+          persistedChapterCount: chaptersToSave?.length || 0
+        });
         
         if (success) {
           const newHash = generateStateHash(framesToSave, chaptersToSave, graphState);
@@ -746,6 +757,10 @@ export const useUnifiedStorage = ({
         
         console.log("🔄 BACKGROUND SAVE: Completed with result:", {
           success,
+          persistedNodeCount: latestGraphState?.nodes?.length || 0,
+          persistedEdgeCount: latestGraphState?.edges?.length || 0,
+          persistedFrameCount: framesToSave?.length || 0,
+          persistedChapterCount: chaptersToSave?.length || 0,
           timestamp: new Date().toISOString()
         });
         
@@ -1547,26 +1562,65 @@ export const useUnifiedStorage = ({
     
     // OPTIMISTIC: Handle force save events from attachment operations  
     const handleForceSaveEvent = (event: any) => {
-      const { graphState: eventGraphState, reason } = event.detail || {};
+      const { 
+        graphState: eventGraphState, 
+        frames: eventFrames,
+        chapters: eventChapters,
+        reason 
+      } = event.detail || {};
+      
+      console.log('📥 handleForceSaveEvent received!', { 
+        reason, 
+        hasGraphState: !!eventGraphState,
+        nodeCount: eventGraphState?.nodes?.length,
+        hasFrames: Array.isArray(eventFrames),
+        frameCount: Array.isArray(eventFrames) ? eventFrames.length : undefined,
+        hasChapters: Array.isArray(eventChapters),
+        chapterCount: Array.isArray(eventChapters) ? eventChapters.length : undefined
+      });
+      
+      // CRITICAL FIX (Issue 14): Use frames/chapters from event if provided (priority over stale refs)
+      // Merge event frames/chapters with existing by id to avoid overwriting prior items
+      const mergeById = <T extends { id?: string }>(current: T[], incoming?: T[]) => {
+        if (!Array.isArray(incoming) || incoming.length === 0) return current;
+        const map = new Map<string, T>();
+        current.forEach(item => { if (item?.id) map.set(item.id, item); });
+        incoming.forEach(item => { if (item?.id) map.set(item.id, item); });
+        return Array.from(map.values());
+      };
+      
+      const framesToSave = mergeById(framesRef.current, Array.isArray(eventFrames) ? eventFrames : undefined);
+      const chaptersToSave = mergeById(chaptersRef.current, Array.isArray(eventChapters) ? eventChapters : undefined);
+      
+      // Update refs/state with merged data when event provided fresh items
+      if (Array.isArray(eventFrames)) {
+        console.log(`✅ Using frames from event: ${eventFrames.length} frames (merged to ${framesToSave.length})`);
+        framesRef.current = framesToSave;
+        setFrames(framesToSave);
+      }
+      
+      if (Array.isArray(eventChapters)) {
+        console.log(`✅ Using chapters from event: ${eventChapters.length} chapters (merged to ${chaptersToSave.length})`);
+        chaptersRef.current = chaptersToSave;
+        setChapters(chaptersToSave);
+      }
       
       // CRITICAL FIX: Use fresh graph state from event if provided, otherwise fall back to ref
       const graphStateToUse = eventGraphState || graphStateRef.current;
       
-      
-      // CRITICAL FIX: Skip if this is a node-drop-delayed save and we already have a pending save
+      // CRITICAL FIX: Allow delayed save with fresh graph state to override in-progress save
+      // The delayed save has correct nodeCount (includes newly added chapter/frame nodes)
       if ((reason === 'node-drop-delayed' || reason === 'node-data-updated') && backgroundSaveQueue.current.isProcessing) {
-        console.log('⏸️ Skipping delayed save - background save already in progress');
-        return;
+        console.log('⏭️ Priority save - will override in-progress save with fresh graph state');
+        // Don't return - let the save proceed and queue/override via pendingGraphState
       }
       
       // OPTIMISTIC: Use background save instead of blocking save
       setHasUnsavedChanges(true);
 
-      // Simple approach: Use frames as-is, trust handleFrameDeletionEvent to handle deletion
-      // Removed complex filtering logic that was causing resurrection bugs
-      // Reference implementation works this way successfully
-      const isPriorityMode = (reason === 'node-drop-delayed' || reason === 'node-data-updated') && eventGraphState;
-      queueBackgroundSave(framesRef.current, chaptersRef.current, graphStateToUse, isPriorityMode);
+      // CRITICAL FIX: Convert to boolean to ensure priority flag is true, not GraphState object
+      const isPriorityMode = (reason === 'node-drop-delayed' || reason === 'node-data-updated') && !!eventGraphState;
+      queueBackgroundSave(framesToSave, chaptersToSave, graphStateToUse, isPriorityMode);
     };
     
     // CRITICAL FIX: Handle graph connection events (added/removed)
@@ -1584,6 +1638,8 @@ export const useUnifiedStorage = ({
       
       // Graph connection event detected
       let updatedGraphState = graphStateRef.current;
+      let updatedChapters = chaptersRef.current;
+      let updatedFrames = framesRef.current;
       
       // Update graph state with new connection using deduplication
       if (eventType === 'graph-connection-added' && connection) {
@@ -1592,10 +1648,62 @@ export const useUnifiedStorage = ({
           edges: [...(graphStateRef.current.edges || []), connection]
         };
         updateGraphState(updatedGraphState);
+        
+        // CRITICAL FIX (Issue 13): Update chapter/frame data models for chapter-frame connections
+        // This ensures linear view shows connections by persisting them in both data models
+        if (connection.sourceHandle === 'chapter-frame-out' && 
+            connection.targetHandle === 'chapter-frame-in') {
+          
+          const sourceNode = graphStateRef.current.nodes?.find(n => n.id === connection.source);
+          const targetNode = graphStateRef.current.nodes?.find(n => n.id === connection.target);
+          
+          if (sourceNode?.type === 'chapter' && targetNode?.type === 'aiframe') {
+            const chapterId = sourceNode.data?.id;
+            const frameId = targetNode.data?.frameId;
+            
+            if (chapterId && frameId) {
+              console.log('🔗 Updating chapter-frame connection in data models:', { chapterId, frameId });
+              
+              // Update chapters: Add frameId to chapter.frameIds
+              updatedChapters = chaptersRef.current.map(ch => {
+                if (ch.id === chapterId) {
+                  const existingFrameIds = ch.frameIds || [];
+                  if (!existingFrameIds.includes(frameId)) {
+                    return { ...ch, frameIds: [...existingFrameIds, frameId] };
+                  }
+                }
+                return ch;
+              });
+              chaptersRef.current = updatedChapters;
+              setChapters(updatedChapters);
+              
+              // Update frames: Set frame.chapterId (only if frame exists in storage)
+              // CRITICAL FIX (Issue 14): Guard against overwriting frames when frame not loaded yet
+              const frameExists = framesRef.current.some(fr => fr.id === frameId);
+              
+              if (frameExists) {
+                updatedFrames = framesRef.current.map(fr => {
+                  if (fr.id === frameId) {
+                    return { ...fr, chapterId };
+                  }
+                  return fr;
+                });
+                framesRef.current = updatedFrames;
+                setFrames(updatedFrames);
+                console.log('✅ Frame updated with chapterId');
+              } else {
+                console.log('⏭️ Skipping frame update - frame not in storage yet');
+                updatedFrames = framesRef.current; // Keep existing, don't overwrite!
+              }
+              
+              console.log('✅ Chapter-frame connection persisted to data models');
+            }
+          }
+        }
       
       // CRITICAL: Trigger immediate background save for connections
       setHasUnsavedChanges(true);
-      queueBackgroundSave(framesRef.current, chaptersRef.current, updatedGraphState, { skipVectorStore: true });
+      queueBackgroundSave(updatedFrames, updatedChapters, updatedGraphState, { skipVectorStore: true });
       }
     };
     

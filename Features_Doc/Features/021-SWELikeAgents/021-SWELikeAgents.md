@@ -13,6 +13,17 @@
 
 ---
 
+## 2025-11-27 • SWE Bridge Session Sync Regression
+
+**Summary**: Importing frames via the local SWE bridge leaves the new session with `0` reported frames even though Frame Statistics shows 8, and switching back to manual sessions displays the SWE graph.
+
+- **Evidence**: `Test/temp/logs.md` lines 179–2240 show the new session (`swe-bridge_1764250086597_ww665638x`) saving graph state with 8 frame nodes, yet subsequent logs never record `updateSessionFrameCount` for that session. A manual session created later *does* trigger the count update (lines 2658–2660), confirming the hook only runs when frames carry proper session/timeline metadata.
+- **Root Cause**: `handlePullFromLocalBridge` writes the imported frames/chapters directly into `unifiedStorage` without stamping the active SWE session ID or TimeCapsule ID. Because the “orphaned frame” effect in `page.tsx` only reassigns frames that already have a matching `timeCapsuleId`, the SWE frames stay sessionless. Filters such as `sessionFilteredFrames` therefore return zero rows, tripping the “clear empty session” guard and wiping the graph even though the imported state contains data.
+- **Impact**: Session cards show `0 frames`, manual sessions inherit the SWE graph when switching back, and the auto-save queue keeps clearing nodes because it believes the session is empty.
+- **Proposed Fix**: Stamp incoming SWE payloads with the active session + TimeCapsule IDs before calling `updateFrames/Chapters`, re-run `flowBuilder.updateSessionFrameCount`, and relax the orphaned-frame guard to treat missing `timeCapsuleId` the same way chapters already do. (See plan “SWE Session Sync Fix”, 2025-11-27.)
+
+---
+
 ## Problem Statement
 
 ### Current Performance Issues
