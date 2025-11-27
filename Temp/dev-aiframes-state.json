@@ -21,22 +21,22 @@
       "sourceUrl": "",
       "order": 1,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560908_fleet_overview",
       "chapterId": "chapter_1763361560908_fleet_overview",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.023Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.023Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     },
     {
       "id": "frame_1763361560910_fleet_categories",
@@ -59,22 +59,22 @@
       "sourceUrl": "",
       "order": 2,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560908_fleet_overview",
       "chapterId": "chapter_1763361560908_fleet_overview",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.023Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.024Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     },
     {
       "id": "frame_1763361560919_dimensions",
@@ -98,22 +98,22 @@
       "sourceUrl": "",
       "order": 1,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560918_specifications",
       "chapterId": "chapter_1763361560918_specifications",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.024Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.024Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     },
     {
       "id": "frame_1763361560920_naming",
@@ -136,22 +136,22 @@
       "sourceUrl": "",
       "order": 2,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560918_specifications",
       "chapterId": "chapter_1763361560918_specifications",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.024Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.024Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     },
     {
       "id": "frame_1763361560929_engine_power",
@@ -175,22 +175,22 @@
       "sourceUrl": "",
       "order": 1,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560928_performance",
       "chapterId": "chapter_1763361560928_performance",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.024Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.024Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     },
     {
       "id": "frame_1763361560930_service_speed",
@@ -214,22 +214,22 @@
       "sourceUrl": "",
       "order": 2,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560928_performance",
       "chapterId": "chapter_1763361560928_performance",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.024Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.024Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     },
     {
       "id": "frame_1763361560939_shipyards",
@@ -253,22 +253,22 @@
       "sourceUrl": "",
       "order": 1,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560938_construction",
       "chapterId": "chapter_1763361560938_construction",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.024Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.024Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     },
     {
       "id": "frame_1763361560940_timeline",
@@ -292,22 +292,22 @@
       "sourceUrl": "",
       "order": 2,
       "bubblSpaceId": "default",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv",
       "parentFrameId": "chapter_1763361560938_construction",
       "chapterId": "chapter_1763361560938_construction",
       "type": "frame",
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:01.475Z",
+      "updatedAt": "2025-11-27T15:37:46.680Z",
       "notes": "",
       "documents": [],
       "metadata": {
         "version": "2.0",
         "createdAt": "2025-11-17T06:39:20.907846Z",
-        "updatedAt": "2025-11-26T17:07:15.024Z",
+        "updatedAt": "2025-11-27T15:37:58.218Z",
         "source": "ai-frames",
-        "lastSaved": "2025-11-26T17:07:15.024Z"
+        "lastSaved": "2025-11-27T15:37:58.218Z"
       },
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w"
     }
   ],
   "chapters": [
@@ -323,10 +323,10 @@
       ],
       "order": 0,
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:15.024Z",
+      "updatedAt": "2025-11-27T15:37:58.218Z",
       "linkSequentially": true,
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv"
     },
     {
       "id": "chapter_1763361560918_specifications",
@@ -340,10 +340,10 @@
       ],
       "order": 1,
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:15.024Z",
+      "updatedAt": "2025-11-27T15:37:58.218Z",
       "linkSequentially": true,
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv"
     },
     {
       "id": "chapter_1763361560928_performance",
@@ -357,10 +357,10 @@
       ],
       "order": 2,
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:15.024Z",
+      "updatedAt": "2025-11-27T15:37:58.218Z",
       "linkSequentially": true,
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv"
     },
     {
       "id": "chapter_1763361560938_construction",
@@ -374,10 +374,10 @@
       ],
       "order": 3,
       "createdAt": "2025-11-17T06:39:20.907846Z",
-      "updatedAt": "2025-11-26T17:07:15.024Z",
+      "updatedAt": "2025-11-27T15:37:58.218Z",
       "linkSequentially": true,
-      "sessionId": "swe-bridge_1764176715859_m13ips2uu",
-      "timeCapsuleId": "timecapsule_1764176680136_fu9g6ksvz"
+      "sessionId": "swe-bridge_1764257823840_k4c4p9e0w",
+      "timeCapsuleId": "timecapsule_1764256349371_kjpfuuxpv"
     }
   ],
   "graphState": {
@@ -400,7 +400,6 @@
           ],
           "order": 0,
           "conceptIds": [],
-          "updatedAt": "2025-11-26T17:05:16.131Z",
           "linkSequentially": true
         },
         "measured": {
@@ -426,7 +425,6 @@
           ],
           "order": 1,
           "conceptIds": [],
-          "updatedAt": "2025-11-26T17:05:16.131Z",
           "linkSequentially": true
         },
         "measured": {
@@ -452,7 +450,6 @@
           ],
           "order": 2,
           "conceptIds": [],
-          "updatedAt": "2025-11-26T17:05:16.131Z",
           "linkSequentially": true
         },
         "measured": {
@@ -478,7 +475,6 @@
           ],
           "order": 3,
           "conceptIds": [],
-          "updatedAt": "2025-11-26T17:05:16.131Z",
           "linkSequentially": true
         },
         "measured": {
@@ -519,7 +515,7 @@
           "chapterId": "chapter_1763361560908_fleet_overview",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -540,8 +536,8 @@
         "id": "node_frame_1763361560910_fleet_categories_1",
         "type": "aiframe",
         "position": {
-          "x": -103.11435523114352,
-          "y": 1195.352798053528
+          "x": -186,
+          "y": 1032
         },
         "data": {
           "id": "frame_1763361560910_fleet_categories",
@@ -569,7 +565,7 @@
           "chapterId": "chapter_1763361560908_fleet_overview",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -622,7 +618,7 @@
           "chapterId": "chapter_1763361560918_specifications",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -643,8 +639,8 @@
         "id": "node_frame_1763361560920_naming_1",
         "type": "aiframe",
         "position": {
-          "x": 485.8017377321862,
-          "y": 1382.966289669734
+          "x": 458.66907507773374,
+          "y": 1015.9115226987715
         },
         "data": {
           "id": "frame_1763361560920_naming",
@@ -672,7 +668,7 @@
           "chapterId": "chapter_1763361560918_specifications",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -725,7 +721,7 @@
           "chapterId": "chapter_1763361560928_performance",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -746,8 +742,8 @@
         "id": "node_frame_1763361560930_service_speed_1",
         "type": "aiframe",
         "position": {
-          "x": 1060.123197259808,
-          "y": 1222.7179840632496
+          "x": 990.2768748647932,
+          "y": 1007.9778500108166
         },
         "data": {
           "id": "frame_1763361560930_service_speed",
@@ -776,7 +772,7 @@
           "chapterId": "chapter_1763361560928_performance",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -829,7 +825,7 @@
           "chapterId": "chapter_1763361560938_construction",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -850,8 +846,8 @@
         "id": "node_frame_1763361560940_timeline_1",
         "type": "aiframe",
         "position": {
-          "x": 1618.1482189291432,
-          "y": 1328.644830142112
+          "x": 1839.6712452406443,
+          "y": 1110.9844995622932
         },
         "data": {
           "id": "frame_1763361560940_timeline",
@@ -880,7 +876,7 @@
           "chapterId": "chapter_1763361560938_construction",
           "type": "aiframe",
           "createdAt": "2025-11-17T06:39:20.907846Z",
-          "updatedAt": "2025-11-26T17:07:01.578Z",
+          "updatedAt": "2025-11-27T15:37:46.777Z",
           "notes": "",
           "documents": [],
           "metadata": {
@@ -1237,10 +1233,10 @@
     "selectedNodeId": null
   },
   "metadata": {
-    "lastUpdated": "2025-11-26T17:07:15.042Z",
+    "lastUpdated": "2025-11-27T15:37:58.261Z",
     "source": "ai-frames",
     "version": "2.0",
-    "lastSaved": "2025-11-26T17:07:15.024Z",
+    "lastSaved": "2025-11-27T15:37:58.218Z",
     "frameCount": 8,
     "checksum": "eyJmcmFtZXMiOlt7"
   }

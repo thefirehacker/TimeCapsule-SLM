@@ -863,6 +863,8 @@ export default function AIFramesPage() {
     vectorStoreInitialized,
   });
 
+  const timeCapsule = useTimeCapsule(providerVectorStore);
+
   const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [documentManagerTab, setDocumentManagerTab] = useState("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
@@ -1053,8 +1055,85 @@ export default function AIFramesPage() {
     [unifiedStorage.graphState]
   );
 
+  const delay = useCallback(
+    (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+    []
+  );
+
+  const ensureActiveTimeCapsuleId = useCallback(async (): Promise<string | null> => {
+    const getExistingCapsuleId = () =>
+      timeCapsule.timeCapsules?.[0]?.id || null;
+
+    let attempts = 0;
+    while (attempts < 10) {
+      if (timeCapsule.activeTimeCapsuleId) {
+        return timeCapsule.activeTimeCapsuleId;
+      }
+
+      if (timeCapsule.timeCapsules?.length) {
+        const firstId = getExistingCapsuleId();
+        if (firstId && timeCapsule.switchTimeCapsule) {
+          await timeCapsule.switchTimeCapsule(firstId);
+        }
+        return firstId;
+      }
+
+      if (timeCapsule.isLoading) {
+        attempts += 1;
+        await delay(200);
+        continue;
+      }
+
+      if (timeCapsule.createTimeCapsule) {
+        const created = await timeCapsule.createTimeCapsule(
+          "My First Project",
+          "Auto-created for SWE Bridge sync"
+        );
+        if (created?.id) {
+          if (timeCapsule.switchTimeCapsule) {
+            await timeCapsule.switchTimeCapsule(created.id);
+          }
+          return created.id;
+        }
+      }
+
+      attempts += 1;
+      await delay(200);
+    }
+
+    return null;
+  }, [
+    delay,
+    timeCapsule.activeTimeCapsuleId,
+    timeCapsule.createTimeCapsule,
+    timeCapsule.isLoading,
+    timeCapsule.switchTimeCapsule,
+    timeCapsule.timeCapsules,
+  ]);
+
+  const runWithImportGuard = useCallback(
+    async (action: () => Promise<void>) => {
+      importingFromLocalBridgeRef.current = true;
+      try {
+        await action();
+      } finally {
+        importingFromLocalBridgeRef.current = false;
+      }
+    },
+    []
+  );
+
   const handlePullFromLocalBridge = useCallback(async () => {
     if (!localBridgeEnabled) {
+      return;
+    }
+    const activeTimeCapsuleId = await ensureActiveTimeCapsuleId();
+    if (!activeTimeCapsuleId) {
+      console.warn(
+        "⚠️ Cannot sync SWE Bridge data because no TimeCapsule could be initialized."
+      );
+      setLocalBridgeSyncState("error");
+      setTimeout(() => setLocalBridgeSyncState("idle"), 2000);
       return;
     }
     try {
@@ -1064,6 +1143,90 @@ export default function AIFramesPage() {
         throw new Error(await response.text());
       }
       const data = await response.json();
+
+      const stampSnapshotForSession = async (
+        overrides: { sessionId?: string; timeCapsuleId?: string } = {}
+      ) => {
+        const sessionId = overrides.sessionId || flowBuilder.activeSessionId;
+        if (!sessionId) {
+          console.warn(
+            "⚠️ Unable to stamp SWE Bridge data because no active session is available."
+          );
+          return null;
+        }
+
+        const resolvedTimeCapsuleId =
+          overrides.timeCapsuleId ||
+          flowBuilder.sessions.find((session) => session.id === sessionId)
+            ?.timeCapsuleId ||
+          activeTimeCapsuleId ||
+          undefined;
+
+        if (!resolvedTimeCapsuleId) {
+          console.warn(
+            "⚠️ Unable to resolve TimeCapsule for SWE Bridge payload; falling back to active capsule"
+          );
+        }
+
+        if (Array.isArray(data.frames)) {
+          const stampedFrames = data.frames.map((frame: AIFrame) => ({
+            ...frame,
+            sessionId,
+            timeCapsuleId:
+              (frame.timeCapsuleId && frame.timeCapsuleId !== "default"
+                ? frame.timeCapsuleId
+                : resolvedTimeCapsuleId) || activeTimeCapsuleId,
+          }));
+
+          const mergedFrames = sessionId
+            ? [
+                ...unifiedStorage.frames.filter(
+                  (frame) => frame.sessionId !== sessionId
+                ),
+                ...stampedFrames,
+              ]
+            : [...unifiedStorage.frames, ...stampedFrames];
+
+          unifiedStorage.updateFrames(mergedFrames);
+          if (flowBuilder.updateSessionFrameCount) {
+            await flowBuilder.updateSessionFrameCount(mergedFrames, sessionId);
+          }
+        }
+
+        if (Array.isArray(data.chapters)) {
+          const stampedChapters = data.chapters.map((chapter: Chapter) => ({
+            ...chapter,
+            sessionId,
+            timeCapsuleId:
+              (chapter.timeCapsuleId && chapter.timeCapsuleId !== "default"
+                ? chapter.timeCapsuleId
+                : resolvedTimeCapsuleId) || activeTimeCapsuleId,
+          }));
+
+          const mergedChapters = sessionId
+            ? [
+                ...unifiedStorage.chapters.filter(
+                  (chapter) => chapter.sessionId !== sessionId
+                ),
+                ...stampedChapters,
+              ]
+            : [...unifiedStorage.chapters, ...stampedChapters];
+
+          unifiedStorage.updateChapters(mergedChapters);
+        }
+
+        return { sessionId, timeCapsuleId: resolvedTimeCapsuleId };
+      };
+
+      const applyGraphStateAndSave = async (graphState?: GraphState, sessionId?: string) => {
+        if (graphState) {
+          unifiedStorage.updateGraphState(graphState);
+        }
+        const targetSessionId = sessionId || flowBuilder.activeSessionId;
+        if (flowBuilder.saveCurrentSession && targetSessionId) {
+          await flowBuilder.saveCurrentSession(true);
+        }
+      };
 
       // ✅ NEW: Session dialog logic for SWE Bridge sync
       if (Array.isArray(data.frames) && data.frames.length > 0) {
@@ -1081,16 +1244,13 @@ export default function AIFramesPage() {
             currentSessionName: activeSession?.name,
             onContinue: async () => {
               console.log("✅ Continuing with existing session for SWE Bridge");
-              // Use existing session - sync frames from SWE Bridge
-              if (Array.isArray(data.frames)) {
-                unifiedStorage.updateFrames(data.frames);
-              }
-              if (Array.isArray(data.chapters)) {
-                unifiedStorage.updateChapters(data.chapters);
-              }
-              if (data.graphState) {
-                unifiedStorage.updateGraphState(data.graphState);
-              }
+              await runWithImportGuard(async () => {
+                const stamped = await stampSnapshotForSession();
+                await applyGraphStateAndSave(
+                  data.graphState,
+                  stamped?.sessionId ?? flowBuilder.activeSessionId ?? undefined
+                );
+              });
               const latestStamp =
                 data?.metadata?.lastUpdated || new Date().toISOString();
               localBridgeRemoteStampRef.current = latestStamp;
@@ -1111,38 +1271,48 @@ export default function AIFramesPage() {
             onCreateNew: async () => {
               console.log("🆕 Creating new SWE Bridge session");
               // Create new SWE Bridge session (await to ensure session exists before loading data)
-              await flowBuilder.createNewSessionAsync(
+              const newSession = await flowBuilder.createNewSessionAsync(
                 "swe-bridge",
                 `SWE Sync ${new Date().toLocaleString()}`,
-                triggerGraphReset
+                triggerGraphReset,
+                {
+                  timeCapsuleId: activeTimeCapsuleId,
+                }
               );
 
-              // Then sync frames from SWE Bridge
-              if (Array.isArray(data.frames)) {
-                unifiedStorage.updateFrames(data.frames);
-              }
-              if (Array.isArray(data.chapters)) {
-                unifiedStorage.updateChapters(data.chapters);
-              }
-              
-              // Generate complete graph state from frames and chapters
-              if (Array.isArray(data.chapters) && Array.isArray(data.frames)) {
-                const completeGraphState = flowBuilder.generateGraphState(
-                  data.chapters, 
-                  data.frames
-                );
-                console.log("📊 Generated graph state from SWE data:", {
-                  nodeCount: completeGraphState.nodes.length,
-                  edgeCount: completeGraphState.edges.length,
-                  frameNodes: completeGraphState.nodes.filter(n => n.type === 'aiframe').length,
-                  chapterNodes: completeGraphState.nodes.filter(n => n.type === 'chapter').length
+              await runWithImportGuard(async () => {
+                const stamped = await stampSnapshotForSession({
+                  sessionId: newSession?.id,
+                  timeCapsuleId:
+                    newSession?.timeCapsuleId ||
+                    activeTimeCapsuleId ||
+                    undefined,
                 });
-                unifiedStorage.updateGraphState(completeGraphState);
-              } else if (data.graphState) {
-                // Fallback to provided graphState if generation fails
-                console.log("⚠️ Using fallback graphState from SWE Bridge");
-                unifiedStorage.updateGraphState(data.graphState);
-              }
+                
+                // Generate complete graph state from frames and chapters
+                let appliedGraphState: GraphState | undefined = data.graphState;
+                if (Array.isArray(data.chapters) && Array.isArray(data.frames)) {
+                  const completeGraphState = flowBuilder.generateGraphState(
+                    data.chapters, 
+                    data.frames
+                  );
+                  console.log("📊 Generated graph state from SWE data:", {
+                    nodeCount: completeGraphState.nodes.length,
+                    edgeCount: completeGraphState.edges.length,
+                    frameNodes: completeGraphState.nodes.filter(n => n.type === 'aiframe').length,
+                    chapterNodes: completeGraphState.nodes.filter(n => n.type === 'chapter').length
+                  });
+                  appliedGraphState = completeGraphState;
+                } else if (data.graphState) {
+                  // Fallback to provided graphState if generation fails
+                  console.log("⚠️ Using fallback graphState from SWE Bridge");
+                  appliedGraphState = data.graphState;
+                }
+                await applyGraphStateAndSave(
+                  appliedGraphState,
+                  stamped?.sessionId ?? newSession?.id ?? undefined
+                );
+              });
               const latestStamp =
                 data?.metadata?.lastUpdated || new Date().toISOString();
               localBridgeRemoteStampRef.current = latestStamp;
@@ -1167,15 +1337,10 @@ export default function AIFramesPage() {
       }
 
       // Normal sync flow (no frames or already has SWE Bridge session)
-      if (Array.isArray(data.frames)) {
-        unifiedStorage.updateFrames(data.frames);
-      }
-      if (Array.isArray(data.chapters)) {
-        unifiedStorage.updateChapters(data.chapters);
-      }
-      if (data.graphState) {
-        unifiedStorage.updateGraphState(data.graphState);
-      }
+      await runWithImportGuard(async () => {
+        const stamped = await stampSnapshotForSession();
+        await applyGraphStateAndSave(data.graphState, stamped?.sessionId);
+      });
       const latestStamp =
         data?.metadata?.lastUpdated || new Date().toISOString();
       localBridgeRemoteStampRef.current = latestStamp;
@@ -1200,6 +1365,7 @@ export default function AIFramesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     localBridgeEnabled,
+    ensureActiveTimeCapsuleId,
     unifiedStorage.updateFrames,
     unifiedStorage.updateChapters,
     unifiedStorage.updateGraphState,
@@ -1257,13 +1423,17 @@ export default function AIFramesPage() {
     setGraphState: (state) => {
       unifiedStorage.updateGraphState(state);
     },
+    setIsSwitching: (switching) => {
+      isSwitchingSessionRef.current = switching;
+    },
   });
 
   // Track last-saved graph hash to avoid redundant session saves
   const lastSavedGraphHashRef = useRef<string>("");
-
-  // TimeCapsule management hook
-  const timeCapsule = useTimeCapsule(providerVectorStore);
+  
+  // Track session switching to prevent contamination
+  const isSwitchingSessionRef = useRef(false);
+  const importingFromLocalBridgeRef = useRef(false);
 
   // Debug: Log session state changes
   useEffect(() => {
@@ -1311,6 +1481,12 @@ export default function AIFramesPage() {
     const nodes = unifiedStorage.graphState.nodes || [];
     const edges = unifiedStorage.graphState.edges || [];
 
+    // Skip if switching sessions to prevent contamination
+    if (isSwitchingSessionRef.current) {
+      console.log('⏭️ Skipping session save during switch');
+      return;
+    }
+
     if (!flowBuilder.activeSessionId || !flowBuilder.saveCurrentSession) {
       return;
     }
@@ -1343,6 +1519,9 @@ export default function AIFramesPage() {
   const lastClearedSessionRef = useRef<string | null>(null);
   useEffect(() => {
     if (!flowBuilder.activeSessionId) return;
+    if (importingFromLocalBridgeRef.current) {
+      return;
+    }
     const hasGraphContent = (unifiedStorage.graphState.nodes?.length || 0) > 0 || (unifiedStorage.graphState.edges?.length || 0) > 0;
     const shouldClear =
       sessionFilteredFrames.length === 0 &&
@@ -2175,15 +2354,19 @@ export default function AIFramesPage() {
     
     const orphanedFrames = unifiedStorage.frames.filter(f => 
       !f.sessionId && 
-      f.timeCapsuleId === timeCapsule.activeTimeCapsuleId
+      (!f.timeCapsuleId || f.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
     );
     
     if (orphanedFrames.length > 0) {
       console.log(`🔧 Found ${orphanedFrames.length} orphaned frames, assigning to session ${flowBuilder.activeSessionId}`);
       
       const fixedFrames = unifiedStorage.frames.map(f => 
-        (!f.sessionId && f.timeCapsuleId === timeCapsule.activeTimeCapsuleId)
-          ? { ...f, sessionId: flowBuilder.activeSessionId || undefined }
+        (!f.sessionId && (!f.timeCapsuleId || f.timeCapsuleId === timeCapsule.activeTimeCapsuleId))
+          ? { 
+              ...f, 
+              sessionId: flowBuilder.activeSessionId || undefined,
+              timeCapsuleId: timeCapsule.activeTimeCapsuleId || f.timeCapsuleId
+            }
           : f
       );
       

@@ -224,6 +224,7 @@ export interface UseAIFlowBuilderProps {
   onAcceptFrames?: (frames: AIFrame[]) => void; // Optional callback for graph replacement
   getGraphState: () => GraphState; // Retrieves authoritative graph state from unified storage
   setGraphState: (state: GraphState) => void; // Updates unified storage graph state
+  setIsSwitching?: (switching: boolean) => void; // Signals session switch in progress
 }
 
 export interface UseAIFlowBuilderReturn {
@@ -285,7 +286,10 @@ export interface UseAIFlowBuilderReturn {
   duplicateSession: (sessionId: string, onGraphReset?: () => void) => Promise<FlowSession | null>;
   syncFrameToSession: (frame: AIFrame) => void;
   syncFrameDeletions: (currentFrameIds: Set<string>) => void;
-  updateSessionFrameCount: (frames: AIFrame[]) => Promise<void>;
+  updateSessionFrameCount: (
+    frames: AIFrame[],
+    sessionIdOverride?: string
+  ) => Promise<void>;
   setCurrentGraphState: (graphState: GraphState) => void;
   generateGraphState: (chapters: PlannerChapter[], frames: AIFrame[]) => GraphState;
 }
@@ -770,6 +774,7 @@ export function useAIFlowBuilder({
   onAcceptFrames,
   getGraphState,
   setGraphState,
+  setIsSwitching,
 }: UseAIFlowBuilderProps): UseAIFlowBuilderReturn {
   const aiProviders = useAIProviders();
   const firecrawl = useFirecrawlKey();
@@ -1073,6 +1078,9 @@ export function useAIFlowBuilder({
         if (!currentSession) return;
 
         // Update session with current state
+        const currentGraphState = getGraphState();
+        const frameNodesCount = currentGraphState.nodes.filter(n => n.type === 'aiframe').length;
+        
         const updatedSession: FlowSession = {
           ...currentSession,
           plan,
@@ -1081,10 +1089,9 @@ export function useAIFlowBuilder({
             source: draft.source || currentSession.source, // Ensure source is set
           })) as any,
           sessionState: sessionState || currentSession.sessionState,
-          graphState: getGraphState(), // Save authoritative graph state from unified storage
-          frameCount: frameDrafts.length,
-          acceptedFrameCount: frameDrafts.filter((d) => d.status === "generated")
-            .length,
+          graphState: currentGraphState, // Save authoritative graph state from unified storage
+          frameCount: frameNodesCount, // Count from graph nodes (works for all session types)
+          acceptedFrameCount: frameNodesCount, // For SWE/manual sessions, all frames are "accepted"
           updatedAt: new Date().toISOString(),
           frameSources: {
             manual: frameDrafts.filter((d) => d.source === "manual").length,
@@ -1132,6 +1139,11 @@ export function useAIFlowBuilder({
     async (sessionId: string, onGraphReset?: () => void) => {
       if (!sessionStore) return;
 
+      // Signal that we're switching (prevent useEffect saves)
+      if (setIsSwitching) {
+        setIsSwitching(true);
+      }
+
       // 1. Save current session first if active
       if (activeSessionId) {
         await saveCurrentSession(true);
@@ -1141,6 +1153,10 @@ export function useAIFlowBuilder({
       const session = await sessionStore.loadSession(sessionId);
       if (!session) {
         console.error(`Session not found: ${sessionId}`);
+        // Reset switching flag on error
+        if (setIsSwitching) {
+          setIsSwitching(false);
+        }
         return;
       }
 
@@ -1191,8 +1207,14 @@ export function useAIFlowBuilder({
       }
 
       console.log(`🔄 Switched to session: ${session.name} (ID: ${sessionId})`);
+
+      // Signal switching complete (allow useEffect saves again)
+      // Use setTimeout to ensure graph state is fully applied
+      if (setIsSwitching) {
+        setTimeout(() => setIsSwitching(false), 100);
+      }
     },
-    [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics, setGraphState]
+    [sessionStore, activeSessionId, saveCurrentSession, calculateProgressMetrics, setGraphState, setIsSwitching]
   );
 
   const renameSession = useCallback(
@@ -1361,17 +1383,18 @@ export function useAIFlowBuilder({
     });
   }, [activeSessionId]);
 
-  const updateSessionFrameCount = useCallback(async (frames: AIFrame[]) => {
-    if (!activeSessionId || !sessionStore) return;
+  const updateSessionFrameCount = useCallback(async (frames: AIFrame[], sessionIdOverride?: string) => {
+    const targetSessionId = sessionIdOverride || activeSessionId;
+    if (!targetSessionId || !sessionStore) return;
     
-    const activeSession = sessions.find(s => s.id === activeSessionId);
+    const activeSession = sessions.find(s => s.id === targetSessionId);
     if (!activeSession) return;
     
     // Count frames belonging to this session
-    const sessionFrames = frames.filter(f => f.sessionId === activeSessionId);
+    const sessionFrames = frames.filter(f => f.sessionId === targetSessionId);
     const frameCount = sessionFrames.length;
     
-    console.log(`📊 Updating session frame count: ${frameCount} frames for session ${activeSessionId}`);
+    console.log(`📊 Updating session frame count: ${frameCount} frames for session ${targetSessionId}`);
     
     // Update session metadata
     const updatedSession: FlowSession = {
@@ -1387,7 +1410,7 @@ export function useAIFlowBuilder({
     
     // Update local state
     setSessions((prev) =>
-      prev.map((s) => (s.id === activeSessionId ? updatedSession : s))
+      prev.map((s) => (s.id === targetSessionId ? updatedSession : s))
     );
     
     console.log(`✅ Session metadata updated with ${frameCount} frames`);
