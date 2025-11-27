@@ -2455,6 +2455,7 @@ export function useAIFlowBuilder({
       const generatedGraphState = generateGraphState(legacyPlan.chapters, framesForGraph);
       const planWithGraphState = {
         ...legacyPlan,
+        frames: flowFrames,
         graphState: generatedGraphState,
       };
 
@@ -3121,38 +3122,119 @@ export function useAIFlowBuilder({
           // PRIORITY 1: Check if plan.frames exists and use it (new architecture)
       if (plan?.frames && plan.frames.length > 0) {
         console.log(`✅ [ACCEPT] Using plan.frames (${plan.frames.length} frames available)`);
-        
+
         const timestamp = new Date().toISOString();
-        const convertedFrames: AIFrame[] = plan.frames.map((frame, index) => {
-          // Map FlowPlannedFrame/FlowGeneratedFrame to AIFrame
-          const aiFrame: AIFrame = {
-            id: frame.id || `frame_${Date.now()}_${index}`,
-            title: frame.title,
-            goal: frame.goal,
-            informationText: (frame as any).informationText || '',
-            afterVideoText: (frame as any).afterVideoText || '',
-            videoUrl: (frame as any).videoUrl || '',
-            startTime: (frame as any).startTime || 0,
-            duration: (frame as any).duration || 0,
-            aiConcepts: frame.aiConcepts || [],
-            type: "frame" as const,
-            order: index,
-            chapterId: frame.chapterId,
-            parentFrameId: frame.chapterId,
-            isGenerated: true,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          };
-          return aiFrame;
+        const fallbackChapterId =
+          plan.chapters?.[0]?.id || "flow_overview";
+
+        const draftLookup = new Map<string, FrameDraft>();
+        frameDrafts.forEach((draft) => {
+          if (draft.id) {
+            draftLookup.set(draft.id, draft);
+          }
+          draftLookup.set(draft.tempId, draft);
         });
 
-        // Filter by frameIds if provided
-        const filteredFrames = frameIds 
-          ? convertedFrames.filter(f => frameIds.includes(f.id))
+        const getPlanFrameOrder = (
+          frame: FlowPlannedFrame,
+          fallback: number
+        ) => {
+          const candidate = (frame as FlowGeneratedFrame).order;
+          return typeof candidate === "number" ? candidate : fallback;
+        };
+
+        const convertPlanFrameToAI = (
+          frame: FlowPlannedFrame,
+          index: number
+        ): AIFrame | null => {
+          const draftMatch = frame.id ? draftLookup.get(frame.id) : undefined;
+          if (draftMatch) {
+            const aiFrame = convertDraftToFrame(draftMatch);
+            if (aiFrame) {
+              return {
+                ...aiFrame,
+                order: getPlanFrameOrder(frame, aiFrame.order ?? index),
+                chapterId: frame.chapterId || aiFrame.chapterId,
+                learningPhase: frame.phase || aiFrame.learningPhase,
+                updatedAt: timestamp,
+              };
+            }
+          }
+
+          const normalizedFrame: FlowGeneratedFrame = {
+            ...(frame as FlowGeneratedFrame),
+            id: frame.id || `flow_frame_${index}`,
+            informationText:
+              (frame as FlowGeneratedFrame).informationText || "",
+            afterVideoText:
+              (frame as FlowGeneratedFrame).afterVideoText || "",
+            aiConcepts: frame.aiConcepts || [],
+            type: (frame as FlowGeneratedFrame).type || "frame",
+            order: getPlanFrameOrder(frame, index),
+            videoUrl: (frame as FlowGeneratedFrame).videoUrl || "",
+            startTime:
+              (frame as FlowGeneratedFrame).startTime ?? 0,
+            duration:
+              (frame as FlowGeneratedFrame).duration ??
+              (frame as any).durationInSeconds ??
+              480,
+            durationInSeconds:
+              (frame as any).durationInSeconds ||
+              (frame as FlowGeneratedFrame).durationInSeconds ||
+              (frame as FlowGeneratedFrame).duration ||
+              480,
+            bubblSpaceId:
+              (frame as FlowGeneratedFrame).bubblSpaceId || "default",
+            timeCapsuleId:
+              (frame as FlowGeneratedFrame).timeCapsuleId || "default",
+            parentFrameId:
+              (frame as FlowGeneratedFrame).parentFrameId || "",
+            notes: (frame as FlowGeneratedFrame).notes || "",
+            documents: (frame as any).documents || [],
+            summary:
+              (frame as FlowGeneratedFrame).summary ||
+              frame.title ||
+              frame.goal,
+          };
+
+          const syntheticDraft = convertFlowFrameToDraft(
+            normalizedFrame,
+            index,
+            frame.chapterId || fallbackChapterId
+          );
+          const aiFrame = convertDraftToFrame(syntheticDraft);
+          if (!aiFrame) {
+            return null;
+          }
+
+          return {
+            ...aiFrame,
+            order: getPlanFrameOrder(frame, aiFrame.order ?? index),
+            chapterId: frame.chapterId || aiFrame.chapterId,
+            learningPhase: frame.phase || aiFrame.learningPhase,
+            documents:
+              (frame as any).documents && Array.isArray((frame as any).documents)
+                ? (frame as any).documents
+                : aiFrame.documents,
+            updatedAt: timestamp,
+          };
+        };
+
+        const convertedFrames = plan.frames
+          .map((frame, index) => convertPlanFrameToAI(frame, index))
+          .filter((frame): frame is AIFrame => Boolean(frame));
+
+        const filteredFrames = frameIds
+          ? convertedFrames.filter((frame) => frameIds.includes(frame.id))
           : convertedFrames;
 
-        console.log(`✅ [ACCEPT] Converted ${filteredFrames.length} frames from plan.frames`);
-        return filteredFrames;
+        console.log(
+          `✅ [ACCEPT] Converted ${filteredFrames.length} frames from plan.frames`
+        );
+
+        if (filteredFrames.length > 0) {
+          return filteredFrames;
+        }
       }
 
       // FALLBACK: Use frameDrafts for backward compatibility (old architecture)

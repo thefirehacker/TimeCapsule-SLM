@@ -1760,6 +1760,7 @@ export default function DualPaneFrameView({
                             editable={false}
                             className="border-0 p-0"
                             format="markdown"
+                            autoHeight
                           />
                         </div>
                       )}
@@ -1789,6 +1790,7 @@ export default function DualPaneFrameView({
                         placeholder="No learning goal specified"
                         className="leading-relaxed"
                         format="markdown"
+                        autoHeight
                       />
                     )}
                   </CardContent>
@@ -1805,12 +1807,21 @@ export default function DualPaneFrameView({
                   <CardContent>
                     <RichTextEditor
                       key={editingFrameId || 'view-mode-info'}
-                      content={editingFrameId === currentFrame.id ? (editData.informationText || '') : (currentFrame.informationText || '')}
-                      onChange={(html) => setEditData(prev => ({ ...prev, informationText: html }))}
+                      content={
+                        editingFrameId === currentFrame.id
+                          ? (editData.informationText || '')
+                          : (currentFrame.informationText || '')
+                      }
+                      onChange={(html) =>
+                        setEditData((prev) => ({ ...prev, informationText: html }))
+                      }
                       editable={editingFrameId === currentFrame.id}
                       placeholder="Enter context and background information..."
-                      className="min-h-[200px]"
+                      className={
+                        editingFrameId === currentFrame.id ? "min-h-[200px]" : ""
+                      }
                       format="markdown"
+                      autoHeight={editingFrameId !== currentFrame.id}
                     />
                   </CardContent>
                 </Card>
@@ -1926,12 +1937,21 @@ export default function DualPaneFrameView({
                   <CardContent>
                     <RichTextEditor
                       key={editingFrameId || 'view-mode-takeaways'}
-                      content={editingFrameId === currentFrame.id ? (editData.afterVideoText || '') : (currentFrame.afterVideoText || '')}
-                      onChange={(html) => setEditData(prev => ({ ...prev, afterVideoText: html }))}
+                      content={
+                        editingFrameId === currentFrame.id
+                          ? (editData.afterVideoText || '')
+                          : (currentFrame.afterVideoText || '')
+                      }
+                      onChange={(html) =>
+                        setEditData((prev) => ({ ...prev, afterVideoText: html }))
+                      }
                       editable={editingFrameId === currentFrame.id}
                       placeholder="Enter key takeaways and summary..."
-                      className="min-h-[200px]"
+                      className={
+                        editingFrameId === currentFrame.id ? "min-h-[200px]" : ""
+                      }
                       format="markdown"
+                      autoHeight={editingFrameId !== currentFrame.id}
                     />
                   </CardContent>
                 </Card>
