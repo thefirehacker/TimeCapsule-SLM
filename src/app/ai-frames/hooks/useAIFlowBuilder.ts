@@ -50,105 +50,11 @@ import type { AIFlowModelTier } from "../lib/openRouterModels";
 import type { FlowSession, SessionSource } from "../types/session";
 import type { GraphState } from "@/components/ai-graphs/types";
 import { getSessionStore, SessionStore } from "@/lib/kb/sessionStore";
-
-type CanonicalAttachmentType = "video" | "pdf" | "text";
-
-const normalizeAttachmentType = (
-  generatorType: string | undefined
-): CanonicalAttachmentType => {
-  if (!generatorType) return "text";
-  switch (generatorType.toLowerCase()) {
-    case "video":
-    case "youtube":
-    case "clip":
-      return "video";
-    case "pdf":
-    case "pdf_excerpt":
-    case "pdf-kb":
-    case "document_pdf":
-      return "pdf";
-    case "text":
-    case "text_excerpt":
-    case "document":
-    case "code":
-    case "diagram":
-    case "image":
-    default:
-      return "text";
-  }
-};
-
-const extractFilenameFromUrl = (url: string): string => {
-  if (!url) return "";
-  const parts = url.split("/");
-  return parts[parts.length - 1] || url;
-};
-
-const buildFrameAttachment = (
-  source: FlowGeneratedFrame["attachment"] | undefined,
-  frameId: string
-): AIFrame["attachment"] | undefined => {
-  if (!source) return undefined;
-
-  const normalizedType = normalizeAttachmentType(source.type);
-  const rawType = source.type || "";
-  const url = typeof source.url === "string" ? source.url.trim() : "";
-  const description =
-    typeof source.description === "string" ? source.description.trim() : "";
-
-  const requiresUrl = normalizedType !== "text";
-  const hasUrl = url.length > 0;
-  const hasDescription = description.length > 0;
-
-  if ((requiresUrl && !hasUrl) || (!requiresUrl && !hasDescription)) {
-    return undefined;
-  }
-
-  const attachmentId = hasUrl ? url : `attachment_${frameId}`;
-  const baseData: Record<string, any> = {
-    title:
-      description || (hasUrl ? extractFilenameFromUrl(url) : "Attachment"),
-    notes: description || "",
-    description: description || undefined,
-    originalType: rawType,
-    originalUrl: hasUrl ? url : undefined,
-    originalAttachment: source,
-  };
-
-  const attachmentData =
-    normalizedType === "video"
-      ? {
-          ...baseData,
-          videoUrl: url,
-          startTime: 0,
-          duration: 480,
-        }
-      : normalizedType === "pdf"
-        ? {
-            ...baseData,
-            pdfUrl: url,
-            pages: "",
-            pdfFileName: extractFilenameFromUrl(url),
-            pdfSource:
-              rawType?.toLowerCase() === "pdf-kb"
-                ? "knowledge_base"
-                : url.startsWith("http")
-                  ? "url"
-                  : "local",
-            kbDocumentId:
-              rawType?.toLowerCase() === "pdf-kb" ? source.url : undefined,
-          }
-        : {
-            ...baseData,
-            text: description || url,
-          };
-
-  return {
-    id: attachmentId,
-    type: normalizedType,
-    data: attachmentData,
-  };
-};
+import {
+  buildFrameAttachment,
+  CanonicalAttachmentType,
+  normalizeAttachmentType,
+} from "../lib/attachmentUtils";
 
 interface KnowledgeCitation {
   label: string;
@@ -177,12 +83,20 @@ interface KnowledgeContextResult {
 
 interface AttachmentSuggestion {
   id: string;
-  type: "video" | "pdf" | "text" | "image";
+  type: string;
   source: "knowledge_base" | "web" | "user";
   referenceLabel?: string;
   description: string;
   url?: string;
   pages?: string;
+  originalType?: string;
+  originalSourceId?: string;
+  kbDocumentId?: string;
+  filename?: string;
+  pdfSource?: "knowledge_base" | "url" | "local";
+  pdfUrl?: string;
+  pdfFileName?: string;
+  metadata?: Record<string, any>;
 }
 
 interface CheckpointMetadata {
@@ -257,6 +171,7 @@ const resolveAgentTier = (options?: AgentLLMOptions): AIFlowModelTier => {
 type FrameDraftStatus = "planned" | "generating" | "generated" | "error";
 
 interface GeneratedFrameContent {
+  title?: string;
   informationText: string;
   afterVideoText: string;
   aiConcepts: string[];
@@ -555,29 +470,66 @@ const buildAttachmentSuggestions = (
   if (!Array.isArray(attachments)) return [];
   return attachments
     .filter((attachment) => attachment && typeof attachment === "object")
-    .map((attachment) => ({
-      id: attachment.id || generateFrameId(),
-      type:
-        attachment.type === "pdf" ||
-        attachment.type === "video" ||
-        attachment.type === "text" ||
-        attachment.type === "image"
-          ? attachment.type
-          : "text",
-      source:
+    .map((attachment) => {
+      const pointer =
+        attachment.originalSourceId ||
+        attachment.kbDocumentId ||
+        attachment.id ||
+        attachment.url ||
+        generateFrameId();
+      const derivedSource =
         attachment.source === "knowledge_base" ||
         attachment.source === "web" ||
         attachment.source === "user"
           ? attachment.source
-          : "knowledge_base",
-      referenceLabel: attachment.referenceLabel,
-      description:
+          : attachment.kbDocumentId || attachment.originalSourceId
+            ? "knowledge_base"
+            : "web";
+      const description =
         attachment.description ||
         attachment.summary ||
-        "Suggested supporting material",
-      url: attachment.url,
-      pages: attachment.pages,
-    }));
+        attachment.filename ||
+        "Suggested supporting material";
+      const pointerIsHttp =
+        typeof attachment.url === "string" &&
+        /^https?:\/\//i.test(attachment.url);
+      const pdfFileName =
+        attachment.pdfFileName ||
+        attachment.filename ||
+        (typeof pointer === "string"
+          ? pointer.split("/").pop()
+          : undefined);
+      const pdfSource =
+        attachment.pdfSource ||
+        (derivedSource === "knowledge_base"
+          ? "knowledge_base"
+          : pointerIsHttp
+            ? "url"
+            : undefined);
+      const pdfUrl =
+        typeof attachment.pdfUrl === "string"
+          ? attachment.pdfUrl
+          : pointerIsHttp
+            ? attachment.url
+            : undefined;
+      return {
+        id: pointer,
+        type: typeof attachment.type === "string" && attachment.type.length > 0 ? attachment.type : "text",
+        source: derivedSource,
+        referenceLabel: attachment.referenceLabel,
+        description,
+        url: attachment.url,
+        pages: attachment.pages,
+        originalType: attachment.originalType || attachment.type,
+        originalSourceId: attachment.originalSourceId,
+        kbDocumentId: attachment.kbDocumentId,
+        filename: attachment.filename,
+        pdfSource,
+        pdfUrl,
+        pdfFileName,
+        metadata: attachment.metadata,
+      };
+    });
 };
 
 const normalizeCitations = (
@@ -786,16 +738,18 @@ const convertFlowFrameToDraft = (
   index: number,
   chapterId: string
 ): FrameDraft => {
+  const attachmentSuggestions = frame.attachments
+    ? buildAttachmentSuggestions(frame.attachments)
+    : [];
   const baseAttachment = frame.attachment
-    ? {
-        id: frame.attachment.url || generateFrameId(),
-        type: (frame.attachment.type as "video" | "image" | "text" | "pdf") || "text",
-        source: "knowledge_base" as const,
-        referenceLabel: undefined,
-        description: frame.attachment.description,
-        url: frame.attachment.url,
-      }
+    ? buildAttachmentSuggestions([frame.attachment])[0]
     : undefined;
+  const resolvedAttachments =
+    attachmentSuggestions.length > 0
+      ? attachmentSuggestions
+      : baseAttachment
+        ? [baseAttachment]
+        : [];
 
   const generated: GeneratedFrameContent = {
     informationText: frame.informationText,
@@ -803,10 +757,10 @@ const convertFlowFrameToDraft = (
     aiConcepts: frame.aiConcepts,
     videoUrl: "",
     attachment: baseAttachment,
-    attachments: baseAttachment ? [baseAttachment] : [],
+    attachments: resolvedAttachments,
     summary: frame.summary,
     durationInSeconds: frame.durationInSeconds,
-    recommendedResources: baseAttachment ? [baseAttachment] : [],
+    recommendedResources: resolvedAttachments,
   };
 
   return {
@@ -2809,12 +2763,18 @@ export function useAIFlowBuilder({
     if (!draft.generated) return null;
 
     const attachment = buildFrameAttachment(draft.generated.attachment, draft.id);
+    const generatedTitle = draft.generated.title || draft.title;
+    const informationText =
+      draft.generated.informationText ||
+      (draft.generated.summary
+        ? `## Summary\n\n${draft.generated.summary}`
+        : "");
 
     return {
       id: draft.id, // Preserve original planner ID like SWE sync does
-      title: draft.generated.summary || draft.title,
+      title: generatedTitle,
       goal: draft.goal,
-      informationText: draft.generated.informationText || "",
+      informationText,
       videoUrl: draft.generated.videoUrl || "",
       startTime: 0,
       duration: draft.generated.durationInSeconds || 0,

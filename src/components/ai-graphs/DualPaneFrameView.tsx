@@ -49,6 +49,7 @@ interface AIFrame {
   sourceGoal?: string;
   sourceUrl?: string;
   attachment?: any;
+  notes?: string;
   order?: number;
   bubblSpaceId?: string;
   timeCapsuleId?: string;
@@ -87,6 +88,75 @@ interface DualPaneFrameViewProps {
   activeSessionId?: string; // CRITICAL FIX (Issue 15): Active session ID for frame/chapter association
   activeTimeCapsuleId?: string; // CRITICAL FIX (Issue 15): Active TimeCapsule ID for frame/chapter association
 }
+
+const extractHeadingFromMarkdown = (markdown?: string): string => {
+  if (!markdown) {
+    return "";
+  }
+
+  const lines = markdown.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      continue;
+    }
+    if (line.startsWith("#")) {
+      return line.replace(/^#+\s*/, "").trim();
+    }
+    return line;
+  }
+
+  return "";
+};
+
+const deriveFrameTitle = (frame?: AIFrame | null): string => {
+  if (!frame) {
+    return "";
+  }
+
+  if (frame.title && frame.title.trim().length > 0) {
+    return frame.title.trim();
+  }
+
+  const fallbackSource = frame.informationText || frame.notes || "";
+  const heading = extractHeadingFromMarkdown(fallbackSource);
+  if (heading) {
+    return heading;
+  }
+
+  return frame.goal || "";
+};
+
+const isKnowledgeBaseAttachment = (attachment?: AIFrame["attachment"]) => {
+  return Boolean(
+    attachment?.data?.pdfSource === "knowledge_base" ||
+      attachment?.data?.kbDocumentId
+  );
+};
+
+const getAttachmentDisplayLabel = (attachment?: AIFrame["attachment"]) => {
+  if (!attachment) {
+    return "Attachment";
+  }
+
+  const title =
+    attachment.data?.title ||
+    attachment.data?.filename ||
+    attachment.data?.kbDocumentId ||
+    "Attachment";
+  const isKb = isKnowledgeBaseAttachment(attachment);
+
+  switch (attachment.type) {
+    case "video":
+      return `Video: ${title}`;
+    case "pdf":
+      return `${isKb ? "KB Document" : "PDF"}: ${title}`;
+    case "text":
+      return `Text: ${title}`;
+    default:
+      return title;
+  }
+};
 
 export default function DualPaneFrameView({
   frames,
@@ -271,6 +341,10 @@ export default function DualPaneFrameView({
   }, [frames.length, currentFrameIndex]);
 
   const currentFrame = frames[clampedFrameIndex] || null;
+  const frameTitle = useMemo(
+    () => deriveFrameTitle(currentFrame),
+    [currentFrame]
+  );
 
   // CRITICAL FIX: Setup callback to provide current graph state when requested
   const getCurrentGraphState = useCallback(() => {
@@ -419,9 +493,9 @@ export default function DualPaneFrameView({
   const handleEditFrame = (frame: AIFrame) => {
     setEditingFrameId(frame.id);
     setEditData({
-      title: frame.title,
+      title: frame.title || deriveFrameTitle(frame),
       goal: frame.goal,
-      informationText: frame.informationText,
+      informationText: frame.informationText || frame.notes || "",
       afterVideoText: frame.afterVideoText,
     });
   };
@@ -1749,19 +1823,16 @@ export default function DualPaneFrameView({
                     <CardTitle className="text-xl">
                       {editingFrameId === currentFrame.id ? (
                         <Input
-                          value={editData.title || ''}
-                          onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+                          value={editData.title ?? frameTitle ?? ''}
+                          onChange={(e) =>
+                            setEditData((prev) => ({ ...prev, title: e.target.value }))
+                          }
                           className="text-xl font-semibold"
+                          placeholder="Frame title"
                         />
                       ) : (
-                        <div className="text-xl font-semibold">
-                          <RichTextEditor
-                            content={currentFrame.title || ''}
-                            editable={false}
-                            className="border-0 p-0"
-                            format="markdown"
-                            autoHeight
-                          />
+                        <div className="text-xl font-semibold break-words">
+                          {frameTitle || "Untitled Frame"}
                         </div>
                       )}
                     </CardTitle>
@@ -1797,6 +1868,15 @@ export default function DualPaneFrameView({
                 </Card>
 
                 {/* Information Text */}
+                {(() => {
+                  const readonlyInformationText =
+                    currentFrame.informationText || currentFrame.notes || "";
+                  const editableInformationText =
+                    editData.informationText ??
+                    currentFrame.informationText ??
+                    currentFrame.notes ??
+                    "";
+                  return (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -1806,11 +1886,15 @@ export default function DualPaneFrameView({
                   </CardHeader>
                   <CardContent>
                     <RichTextEditor
-                      key={editingFrameId || 'view-mode-info'}
+                      key={
+                        editingFrameId === currentFrame.id
+                          ? `edit-info-${currentFrame.id}`
+                          : `view-info-${currentFrame.id}`
+                      }
                       content={
                         editingFrameId === currentFrame.id
-                          ? (editData.informationText || '')
-                          : (currentFrame.informationText || '')
+                          ? editableInformationText
+                          : readonlyInformationText
                       }
                       onChange={(html) =>
                         setEditData((prev) => ({ ...prev, informationText: html }))
@@ -1825,6 +1909,8 @@ export default function DualPaneFrameView({
                     />
                   </CardContent>
                 </Card>
+                  );
+                })()}
 
                 {/* Video Content - Enhanced to show both attachment and legacy */}
                 {(() => {
@@ -1903,15 +1989,46 @@ export default function DualPaneFrameView({
                       <CardTitle className="flex items-center gap-2 text-base">
                         {currentFrame.attachment.type === 'pdf' && <File className="h-4 w-4 text-blue-600" />}
                         {currentFrame.attachment.type === 'text' && <FileText className="h-4 w-4 text-green-600" />}
-                        {currentFrame.attachment.type === 'pdf' ? 'PDF Document' : 'Text Content'}
+                        {getAttachmentDisplayLabel(currentFrame.attachment)}
                         <Badge variant="outline" className="text-xs">From Graph Attachment</Badge>
+                        {isKnowledgeBaseAttachment(currentFrame.attachment) && (
+                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                            Knowledge Base
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       {currentFrame.attachment.type === 'pdf' && (
-                        <div className="space-y-2">
-                          <p className="text-sm"><strong>URL:</strong> {currentFrame.attachment.data?.pdfUrl}</p>
-                          <p className="text-sm"><strong>Pages:</strong> {currentFrame.attachment.data?.pages || 'All'}</p>
+                        <div className="space-y-2 text-sm">
+                          {isKnowledgeBaseAttachment(currentFrame.attachment) ? (
+                            <>
+                              <p>
+                                <strong>KB Document:</strong>{" "}
+                                {currentFrame.attachment.data?.title ||
+                                  currentFrame.attachment.data?.filename ||
+                                  currentFrame.attachment.data?.kbDocumentId ||
+                                  "Untitled"}
+                              </p>
+                              <p>
+                                <strong>KB ID:</strong>{" "}
+                                {currentFrame.attachment.data?.kbDocumentId ||
+                                  currentFrame.attachment.data?.originalUrl ||
+                                  "Not linked"}
+                              </p>
+                            </>
+                          ) : (
+                            <p>
+                              <strong>URL:</strong>{" "}
+                              {currentFrame.attachment.data?.pdfUrl ||
+                                currentFrame.attachment.data?.originalUrl ||
+                                "No URL provided"}
+                            </p>
+                          )}
+                          <p>
+                            <strong>Pages:</strong>{" "}
+                            {currentFrame.attachment.data?.pages || "All"}
+                          </p>
                         </div>
                       )}
                       

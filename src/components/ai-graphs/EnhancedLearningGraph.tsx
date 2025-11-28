@@ -29,6 +29,7 @@ import ConceptNode from "./ConceptNode";
 import ChapterNode from "./ChapterNode";
 import EnhancedSidebar from "./EnhancedSidebar";
 import type { Chapter as AiChapter, AIFrame } from "@/app/ai-frames/types/frames";
+import { makeAttachmentInstanceId } from "@/app/ai-frames/lib/attachmentUtils";
 
 // Extended Edge type with all ReactFlow properties
 type ExtendedEdge = Edge & {
@@ -81,6 +82,79 @@ const SEQUENTIAL_EDGE_MARKER = {
 
 let id = 0;
 const getId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${id++}`; // SPECS FIX: Guaranteed unique IDs
+
+const getAttachmentNodeType = (
+  attachment: FrameAttachment | string | undefined
+): string => {
+  if (!attachment) {
+    return "text-attachment";
+  }
+
+  if (typeof attachment === "string") {
+    if (attachment === "pdf-kb") {
+      return "pdf-attachment";
+    }
+    if (attachment.endsWith("-attachment")) {
+      return attachment;
+    }
+    return `${attachment}-attachment`;
+  }
+
+  const rawType = attachment.type || "";
+  const originalType = (
+    attachment.data?.originalType ||
+    attachment.type ||
+    ""
+  ).toLowerCase();
+  const hasKBMetadata =
+    originalType === "pdf-kb" || Boolean(attachment.data?.kbDocumentId);
+
+  if (hasKBMetadata) {
+    return "pdf-attachment";
+  }
+
+  if (rawType.endsWith("-attachment")) {
+    return rawType;
+  }
+
+  return `${rawType}-attachment`;
+};
+
+const deriveFrameNodeTitle = (frame: Partial<AIFrame> | undefined, fallbackTitle: string): string => {
+  if (!frame) {
+    return fallbackTitle;
+  }
+
+  const candidateTitle =
+    typeof frame.title === "string" && frame.title.trim().length > 0
+      ? frame.title.trim()
+      : "";
+
+  if (candidateTitle) {
+    return candidateTitle;
+  }
+
+  const info = typeof frame.informationText === "string" ? frame.informationText : "";
+  if (info) {
+    const heading = info
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(line => line.length > 0);
+
+    if (heading) {
+      if (heading.startsWith("#")) {
+        return heading.replace(/^#+\s*/, "").trim();
+      }
+      return heading;
+    }
+  }
+
+  if (frame.goal && frame.goal.trim().length > 0) {
+    return frame.goal.trim();
+  }
+
+  return fallbackTitle;
+};
 
 type ChapterNodeUpdates = Partial<Pick<ChapterNodeData, "title" | "description" | "frameIds" | "conceptIds" | "order" | "color" | "linkSequentially">>;
 
@@ -2114,7 +2188,7 @@ export default function EnhancedLearningGraph({
         
         // CRITICAL FIX: Preserve loaded frame content - only use defaults for undefined/null values
         const safeFrameData = {
-          title: frame.title != null ? frame.title : `Frame ${index + 1}`,
+          title: deriveFrameNodeTitle(frame, `Frame ${index + 1}`),
           goal: frame.goal != null ? frame.goal : 'Define your learning goal...',
           informationText: frame.informationText != null ? frame.informationText : 'Add context and background information...',
           afterVideoText: frame.afterVideoText != null ? frame.afterVideoText : 'Key takeaways and next steps...',
@@ -2153,24 +2227,9 @@ export default function EnhancedLearningGraph({
           // Check for saved attachment node position
           const savedAttachmentNode = initialGraphState?.nodes?.find(n =>
             n.data?.attachmentId === frame.attachment?.id ||
-            n.data?.frameId === frame.id && n.type?.includes('attachment')
+            (n.data?.frameId === frame.id && n.type?.includes('attachment'))
           );
           const attachmentNodeId = savedAttachmentNode?.id || frame.attachment.id || getId();
-          
-          // Helper to avoid double -attachment suffix
-          const getAttachmentNodeType = (frameAttachment: FrameAttachment): string => {
-            const originalType = (frameAttachment.data?.originalType || frameAttachment.type || "").toLowerCase();
-            const attachmentType = frameAttachment.type;
-            if (originalType === 'pdf-kb') {
-              return 'pdf-attachment';
-            }
-            // Don't add suffix if already present
-            if (attachmentType.endsWith('-attachment')) {
-              return attachmentType;
-            }
-            return `${attachmentType}-attachment`;
-          };
-          
           const nodeType = getAttachmentNodeType(frame.attachment);
           const attachmentNode: Node = {
             id: attachmentNodeId,
@@ -2311,6 +2370,7 @@ export default function EnhancedLearningGraph({
     }
 
     const frameIds = new Set(frames.map(f => f.id));
+    const currentEdgesSnapshot = edgesRef.current || [];
     const framesById = new Map(frames.map(frame => [frame.id, frame]));
 
     const frameAttachmentIds = new Map<string, Set<string>>();
@@ -2563,54 +2623,95 @@ export default function EnhancedLearningGraph({
       const attachmentKey = getAttachmentKeyFromData(frameId, attachment);
       if (
         !attachmentKey ||
-        attachmentKeySet.has(attachmentKey) ||
         pendingAttachmentNodeIdsRef.current.has(attachment.id)
       ) {
         return;
       }
 
       const savedAttachmentNode = savedAttachmentNodeMap.get(attachmentKey);
+      const existingAttachmentIndex = updatedNodes.findIndex(
+        node =>
+          node.type?.includes('-attachment') &&
+          getAttachmentKeyFromNode(node) === attachmentKey
+      );
+
+      const ensureAttachmentEdge = (attachmentNodeId: string) => {
+        const edgeExists =
+          currentEdgesSnapshot.some(
+            edge =>
+              edge.source === attachmentNodeId &&
+              edge.target === frameNode.id &&
+              (edge as ExtendedEdge).targetHandle === 'attachment-slot'
+          ) ||
+          attachmentEdgesToAdd.some(
+            edge => edge.source === attachmentNodeId && edge.target === frameNode.id
+          );
+
+        if (edgeExists) {
+          return;
+        }
+
+        attachmentEdgesToAdd.push({
+          id: `edge|${attachmentNodeId}|${frameNode.id}|attachment`,
+          source: attachmentNodeId,
+          target: frameNode.id,
+          targetHandle: 'attachment-slot',
+          type: 'straight',
+          style: { stroke: "#f97316", strokeWidth: 3 },
+        });
+      };
+
+      if (existingAttachmentIndex >= 0) {
+        const existingNode = updatedNodes[existingAttachmentIndex];
+        const desiredData = createAttachmentNodeData(attachment, frameId);
+        const nextNode = {
+          ...existingNode,
+          type: getAttachmentNodeType(attachment),
+          position:
+            existingNode.position ||
+            savedAttachmentNode?.position || {
+              x: frameNode.position.x + 420,
+              y: frameNode.position.y,
+            },
+          data: {
+            ...existingNode.data,
+            ...desiredData,
+          },
+        };
+
+        const nodeChanged =
+          existingNode.type !== nextNode.type ||
+          JSON.stringify(existingNode.data) !== JSON.stringify(nextNode.data);
+
+        if (nodeChanged) {
+          updatedNodes[existingAttachmentIndex] = nextNode;
+          hasChanges = true;
+        }
+
+        attachmentKeySet.add(attachmentKey);
+        ensureAttachmentEdge(nextNode.id);
+        return;
+      }
+
       const attachmentNodeId = savedAttachmentNode?.id || attachment.id || getId();
       const attachmentPosition =
         savedAttachmentNode?.position || {
           x: frameNode.position.x + 420,
           y: frameNode.position.y,
         };
-      
-      // Helper to avoid double -attachment suffix
-      const getAttachmentNodeType = (attachmentType: string): string => {
-        if (attachmentType === 'pdf-kb') {
-          return 'pdf-attachment';
-        }
-        // Don't add suffix if already present
-        if (attachmentType.endsWith('-attachment')) {
-          return attachmentType;
-        }
-        return `${attachmentType}-attachment`;
-      };
-      
-      const attachmentType = getAttachmentNodeType(attachment.type);
 
       const attachmentNode: Node = {
         id: attachmentNodeId,
-        type: attachmentType,
+        type: getAttachmentNodeType(attachment),
         position: attachmentPosition,
         data: createAttachmentNodeData(attachment, frameId),
       };
 
       updatedNodes.push(attachmentNode);
       attachmentKeySet.add(attachmentKey);
-      attachmentEdgesToAdd.push({
-        id: `edge|${attachmentNodeId}|${frameNode.id}|attachment`,
-        source: attachmentNodeId,
-        target: frameNode.id,
-        targetHandle: 'attachment-slot',
-        type: 'straight',
-        style: { stroke: "#f97316", strokeWidth: 3 },
-      });
-
       attachmentsAdded += 1;
       hasChanges = true;
+      ensureAttachmentEdge(attachmentNodeId);
     };
 
     frames.forEach(frame => {
@@ -2630,7 +2731,7 @@ export default function EnhancedLearningGraph({
       const nodeId = savedNode?.id || getId();
 
       const safeFrameData = {
-        title: frame.title != null ? frame.title : `Frame ${framePlacementIndex + 1}`,
+        title: deriveFrameNodeTitle(frame, `Frame ${framePlacementIndex + 1}`),
         goal: frame.goal != null ? frame.goal : 'Define your learning goal...',
         informationText:
           frame.informationText != null
@@ -2768,15 +2869,24 @@ export default function EnhancedLearningGraph({
   // Helper function to create attachment node data
   const createAttachmentNodeData = (attachment: FrameAttachment, frameId: string) => {
     const originalType = (attachment.data?.originalType || attachment.type || "").toLowerCase();
-    const isKBPdf =
-      originalType === "pdf-kb" || Boolean(attachment.data?.kbDocumentId);
+    const isKBPdf = originalType === "pdf-kb" || Boolean(attachment.data?.kbDocumentId);
+    const baseSourceType = isKBPdf ? "knowledge_base" : originalType || attachment.type;
+    const originalUrl =
+      (typeof attachment.data?.originalUrl === "string" && attachment.data.originalUrl) ||
+      (typeof attachment.data?.pdfUrl === "string" && attachment.data.pdfUrl) ||
+      (typeof attachment.data?.videoUrl === "string" && attachment.data.videoUrl) ||
+      "";
+
     const baseData = {
       id: attachment.id,
       title: attachment.data.title || 'Untitled',
       notes: attachment.data.notes,
       attachedToFrameId: frameId,
       isAttached: true,
-      sourceType: originalType || attachment.type,
+      sourceType: baseSourceType,
+      originalType: originalType || attachment.type,
+      originalUrl,
+      kbDocumentId: attachment.data?.kbDocumentId,
     };
 
     switch (attachment.type) {
@@ -2789,25 +2899,35 @@ export default function EnhancedLearningGraph({
           duration: attachment.data.duration || 300,
         } as VideoAttachmentNodeData;
       
-      case 'pdf':
+      case 'pdf': {
+        const pdfSource =
+          attachment.data?.pdfSource ||
+          (isKBPdf ? "knowledge_base" : baseSourceType === "local" ? "local" : "url");
+        const pdfUrlValue =
+          pdfSource === "knowledge_base"
+            ? ""
+            : attachment.data.pdfUrl || originalUrl || "";
+        const kbDocumentId =
+          attachment.data?.kbDocumentId ||
+          (pdfSource === "knowledge_base" ? originalUrl || attachment.id : undefined);
+
         return {
           ...baseData,
           type: 'pdf-attachment',
-          // URL PDF fields
-          pdfUrl: attachment.data.pdfUrl || attachment.data.originalUrl || '',
+          pdfUrl: pdfUrlValue,
           pages: attachment.data.pages || '',
-          // KB PDF fields (only included when KB metadata exists)
-          ...(isKBPdf && {
-            kbDocumentId: attachment.data.kbDocumentId || attachment.data.originalUrl,
-            filename: attachment.data.filename || attachment.data.pdfFileName,
-            startPage: attachment.data.startPage,
-            endPage: attachment.data.endPage,
-            totalPages: attachment.data.totalPages,
-            filesize: attachment.data.filesize,
-            uploadedAt: attachment.data.uploadedAt,
-          }),
+          pdfSource,
+          kbDocumentId,
+          filename: attachment.data.filename || attachment.data.pdfFileName,
+          pdfFileName: attachment.data.pdfFileName || attachment.data.filename,
+          startPage: attachment.data.startPage,
+          endPage: attachment.data.endPage,
+          totalPages: attachment.data.totalPages,
+          filesize: attachment.data.filesize,
+          uploadedAt: attachment.data.uploadedAt,
         } as PDFAttachmentNodeData;
-      
+      }
+
       case 'text':
         return {
           ...baseData,
@@ -2921,7 +3041,11 @@ export default function EnhancedLearningGraph({
           }
 
           // Create attachment from source node
-          const attachmentId = (sourceNode.data as any)?.id || sourceNode.id;
+          const baseAttachmentId = (sourceNode.data as any)?.id || sourceNode.id;
+          const attachmentId = makeAttachmentInstanceId(
+            targetNode.data.frameId,
+            baseAttachmentId
+          );
           const canonicalType: "video" | "pdf" | "text" =
             sourceNode.type === 'video-attachment'
               ? 'video'
@@ -2929,10 +3053,28 @@ export default function EnhancedLearningGraph({
                 ? 'pdf'
                 : 'text';
           const originalType =
-            sourceNode.type === 'pdf-attachment' && sourceNode.data?.kbDocumentId
+            sourceNode.type === 'pdf-attachment' &&
+            (sourceNode.data?.kbDocumentId ||
+              sourceNode.data?.pdfSource === 'knowledge_base')
               ? 'pdf-kb'
               : canonicalType;
 
+          const rawKbId = sourceNode.data.kbDocumentId;
+          const originalUrl =
+            sourceNode.data.originalUrl ||
+            sourceNode.data.pdfUrl ||
+            sourceNode.data.videoUrl ||
+            sourceNode.data.text ||
+            '';
+          const pdfSource =
+            rawKbId || sourceNode.data.pdfSource === 'knowledge_base'
+              ? 'knowledge_base'
+              : sourceNode.data.pdfSource || 'url';
+          const kbDocumentId =
+            rawKbId ||
+            (pdfSource === 'knowledge_base'
+              ? originalUrl || sourceNode.data.filename || baseAttachmentId
+              : undefined);
           const attachment: FrameAttachment = {
             id: attachmentId,
             type: canonicalType,
@@ -2940,15 +3082,27 @@ export default function EnhancedLearningGraph({
               title: sourceNode.data.title,
               notes: sourceNode.data.notes,
               originalType,
+              originalUrl,
+              kbDocumentId,
               ...(canonicalType === 'video' && {
                 videoUrl: sourceNode.data.videoUrl,
                 startTime: sourceNode.data.startTime,
                 duration: sourceNode.data.duration,
               }),
               ...(canonicalType === 'pdf' && {
-                pdfUrl: sourceNode.data.pdfUrl,
+                pdfSource,
+                pdfUrl:
+                  pdfSource === 'knowledge_base'
+                    ? ''
+                    : sourceNode.data.pdfUrl || sourceNode.data.originalUrl,
                 pages: sourceNode.data.pages,
-                kbDocumentId: sourceNode.data.kbDocumentId,
+                filename: sourceNode.data.filename || sourceNode.data.pdfFileName,
+                pdfFileName: sourceNode.data.pdfFileName || sourceNode.data.filename,
+                startPage: sourceNode.data.startPage,
+                endPage: sourceNode.data.endPage,
+                totalPages: sourceNode.data.totalPages,
+                filesize: sourceNode.data.filesize,
+                uploadedAt: sourceNode.data.uploadedAt,
               }),
               ...(canonicalType === 'text' && {
                 text: sourceNode.data.text,
@@ -3263,6 +3417,7 @@ export default function EnhancedLearningGraph({
               pdfUrl: "",
               pages: "",
               notes: "",
+            pdfSource: "url",
               isAttached: false,
             };
             
