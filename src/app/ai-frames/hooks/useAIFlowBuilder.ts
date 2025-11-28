@@ -51,6 +51,105 @@ import type { FlowSession, SessionSource } from "../types/session";
 import type { GraphState } from "@/components/ai-graphs/types";
 import { getSessionStore, SessionStore } from "@/lib/kb/sessionStore";
 
+type CanonicalAttachmentType = "video" | "pdf" | "text";
+
+const normalizeAttachmentType = (
+  generatorType: string | undefined
+): CanonicalAttachmentType => {
+  if (!generatorType) return "text";
+  switch (generatorType.toLowerCase()) {
+    case "video":
+    case "youtube":
+    case "clip":
+      return "video";
+    case "pdf":
+    case "pdf_excerpt":
+    case "pdf-kb":
+    case "document_pdf":
+      return "pdf";
+    case "text":
+    case "text_excerpt":
+    case "document":
+    case "code":
+    case "diagram":
+    case "image":
+    default:
+      return "text";
+  }
+};
+
+const extractFilenameFromUrl = (url: string): string => {
+  if (!url) return "";
+  const parts = url.split("/");
+  return parts[parts.length - 1] || url;
+};
+
+const buildFrameAttachment = (
+  source: FlowGeneratedFrame["attachment"] | undefined,
+  frameId: string
+): AIFrame["attachment"] | undefined => {
+  if (!source) return undefined;
+
+  const normalizedType = normalizeAttachmentType(source.type);
+  const rawType = source.type || "";
+  const url = typeof source.url === "string" ? source.url.trim() : "";
+  const description =
+    typeof source.description === "string" ? source.description.trim() : "";
+
+  const requiresUrl = normalizedType !== "text";
+  const hasUrl = url.length > 0;
+  const hasDescription = description.length > 0;
+
+  if ((requiresUrl && !hasUrl) || (!requiresUrl && !hasDescription)) {
+    return undefined;
+  }
+
+  const attachmentId = hasUrl ? url : `attachment_${frameId}`;
+  const baseData: Record<string, any> = {
+    title:
+      description || (hasUrl ? extractFilenameFromUrl(url) : "Attachment"),
+    notes: description || "",
+    description: description || undefined,
+    originalType: rawType,
+    originalUrl: hasUrl ? url : undefined,
+    originalAttachment: source,
+  };
+
+  const attachmentData =
+    normalizedType === "video"
+      ? {
+          ...baseData,
+          videoUrl: url,
+          startTime: 0,
+          duration: 480,
+        }
+      : normalizedType === "pdf"
+        ? {
+            ...baseData,
+            pdfUrl: url,
+            pages: "",
+            pdfFileName: extractFilenameFromUrl(url),
+            pdfSource:
+              rawType?.toLowerCase() === "pdf-kb"
+                ? "knowledge_base"
+                : url.startsWith("http")
+                  ? "url"
+                  : "local",
+            kbDocumentId:
+              rawType?.toLowerCase() === "pdf-kb" ? source.url : undefined,
+          }
+        : {
+            ...baseData,
+            text: description || url,
+          };
+
+  return {
+    id: attachmentId,
+    type: normalizedType,
+    data: attachmentData,
+  };
+};
+
 interface KnowledgeCitation {
   label: string;
   docId: string;
@@ -2704,41 +2803,12 @@ export function useAIFlowBuilder({
     ]
   );
 
-  // Helper to normalize attachment types from generator output to React Flow node types
-  const normalizeAttachmentType = (generatorType: string | undefined): string => {
-    if (!generatorType || generatorType === "") {
-      return 'text-attachment'; // Default fallback
-    }
-    switch (generatorType.toLowerCase()) {
-      case 'document':
-      case 'text':
-      case 'text_excerpt':
-      case 'code':
-        return 'text-attachment';
-      case 'diagram':
-      case 'image':
-        return 'image-attachment';
-      case 'pdf':
-      case 'pdf_excerpt':
-        return 'pdf-attachment';
-      case 'video':
-        return 'video-attachment';
-      default:
-        console.warn(`Unknown attachment type: "${generatorType}", defaulting to text-attachment`);
-        return 'text-attachment';
-    }
-  };
-
-  // Helper to extract filename from URL or path
-  const extractFilenameFromUrl = (url: string): string => {
-    if (!url) return '';
-    // Extract filename from URL or return the URL itself if it's already a filename
-    const parts = url.split('/');
-    return parts[parts.length - 1] || url;
-  };
+  // Helper to normalize generator attachment types to canonical values stored on AI Frames
 
   const convertDraftToFrame = useCallback((draft: FrameDraft): AIFrame | null => {
     if (!draft.generated) return null;
+
+    const attachment = buildFrameAttachment(draft.generated.attachment, draft.id);
 
     return {
       id: draft.id, // Preserve original planner ID like SWE sync does
@@ -2760,53 +2830,7 @@ export function useAIFlowBuilder({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       sessionId: activeSessionId || undefined,
-      attachment: (() => {
-        // Debug: Log attachment data before conversion
-        if (draft.generated.attachment) {
-          const willCreate = !!(
-            draft.generated.attachment.type &&
-            draft.generated.attachment.url &&
-            typeof draft.generated.attachment.url === 'string' &&
-            draft.generated.attachment.url.trim().length > 0
-          );
-          console.log(`🔍 Frame ${draft.id} attachment:`, {
-            type: draft.generated.attachment.type,
-            url: draft.generated.attachment.url,
-            urlLength: draft.generated.attachment.url?.length,
-            willCreate
-          });
-          
-          // Only create attachment if type and URL are valid and non-empty
-          if (!willCreate) {
-            return undefined;
-          }
-          
-          return {
-            id: `attachment_${draft.id}`, // Generate unique ID based on frame ID
-            type: normalizeAttachmentType(draft.generated.attachment.type),
-            data: {
-              title: draft.generated.attachment.description || 'Untitled',
-              notes: draft.generated.attachment.description || '',
-              // Map URL to the correct field based on type
-              ...(normalizeAttachmentType(draft.generated.attachment.type) === 'pdf-attachment' && {
-                pdfUrl: draft.generated.attachment.url || '',
-                pages: '',
-                pdfFileName: extractFilenameFromUrl(draft.generated.attachment.url || ''),
-                pdfSource: draft.generated.attachment.url ? 'url' : 'none',
-              }),
-              ...(normalizeAttachmentType(draft.generated.attachment.type) === 'video-attachment' && {
-                videoUrl: draft.generated.attachment.url || '',
-                startTime: 0,
-                duration: 480,
-              }),
-              ...(normalizeAttachmentType(draft.generated.attachment.type) === 'text-attachment' && {
-                text: draft.generated.attachment.description || '',
-              }),
-            },
-          };
-        }
-        return undefined;
-      })(),
+      attachment,
       notes: draft.generated.summary,
       documents: (draft.knowledgeContext?.citations || []).map((citation) => ({
         name: citation.label,
@@ -2815,7 +2839,7 @@ export function useAIFlowBuilder({
         url: undefined,
       })),
     };
-  }, [prompt]);
+  }, [prompt, activeSessionId]);
 
   const generateRemediationFrame = useCallback(
     async (parentDraft: FrameDraft): Promise<FrameDraft | null> => {

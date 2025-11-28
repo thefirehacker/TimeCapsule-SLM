@@ -987,13 +987,14 @@ export default function AIFramesPage() {
       if (frame.attachment) {
         const attachmentType = frame.attachment.type || "attachment";
         const data = frame.attachment.data || {};
+        const originalType = (data.originalType || attachmentType).toLowerCase();
         const attachmentTitle =
-          data.title || data.filename || frame.attachment.type.toUpperCase();
+          data.title || data.filename || attachmentType.toUpperCase();
 
         let attachmentSource = "Attachment";
-        if (attachmentType === "pdf-kb") {
+        if (originalType === "pdf-kb") {
           attachmentSource = "Knowledge Base";
-        } else if (attachmentType.startsWith("pdf")) {
+        } else if (attachmentType === "pdf") {
           attachmentSource = "PDF";
         } else if (attachmentType === "text") {
           attachmentSource = "Text Snippet";
@@ -1016,7 +1017,7 @@ export default function AIFramesPage() {
 
         attachments.push({
           title: attachmentTitle,
-          type: attachmentType,
+          type: originalType || attachmentType,
           source: attachmentSource,
           description: attachmentDescription
             ? truncateText(String(attachmentDescription), 160)

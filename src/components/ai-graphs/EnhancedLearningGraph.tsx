@@ -2158,8 +2158,10 @@ export default function EnhancedLearningGraph({
           const attachmentNodeId = savedAttachmentNode?.id || frame.attachment.id || getId();
           
           // Helper to avoid double -attachment suffix
-          const getAttachmentNodeType = (attachmentType: string): string => {
-            if (attachmentType === 'pdf-kb') {
+          const getAttachmentNodeType = (frameAttachment: FrameAttachment): string => {
+            const originalType = (frameAttachment.data?.originalType || frameAttachment.type || "").toLowerCase();
+            const attachmentType = frameAttachment.type;
+            if (originalType === 'pdf-kb') {
               return 'pdf-attachment';
             }
             // Don't add suffix if already present
@@ -2169,7 +2171,7 @@ export default function EnhancedLearningGraph({
             return `${attachmentType}-attachment`;
           };
           
-          const nodeType = getAttachmentNodeType(frame.attachment.type);
+          const nodeType = getAttachmentNodeType(frame.attachment);
           const attachmentNode: Node = {
             id: attachmentNodeId,
             type: nodeType,
@@ -2765,12 +2767,16 @@ export default function EnhancedLearningGraph({
 
   // Helper function to create attachment node data
   const createAttachmentNodeData = (attachment: FrameAttachment, frameId: string) => {
+    const originalType = (attachment.data?.originalType || attachment.type || "").toLowerCase();
+    const isKBPdf =
+      originalType === "pdf-kb" || Boolean(attachment.data?.kbDocumentId);
     const baseData = {
       id: attachment.id,
       title: attachment.data.title || 'Untitled',
       notes: attachment.data.notes,
       attachedToFrameId: frameId,
       isAttached: true,
+      sourceType: originalType || attachment.type,
     };
 
     switch (attachment.type) {
@@ -2784,17 +2790,16 @@ export default function EnhancedLearningGraph({
         } as VideoAttachmentNodeData;
       
       case 'pdf':
-      case 'pdf-kb':  // Handle KB PDF attachments
         return {
           ...baseData,
           type: 'pdf-attachment',
           // URL PDF fields
-          pdfUrl: attachment.data.pdfUrl || '',
+          pdfUrl: attachment.data.pdfUrl || attachment.data.originalUrl || '',
           pages: attachment.data.pages || '',
-          // KB PDF fields (only included when type is 'pdf-kb')
-          ...(attachment.type === 'pdf-kb' && {
-            kbDocumentId: attachment.data.kbDocumentId,
-            filename: attachment.data.filename,
+          // KB PDF fields (only included when KB metadata exists)
+          ...(isKBPdf && {
+            kbDocumentId: attachment.data.kbDocumentId || attachment.data.originalUrl,
+            filename: attachment.data.filename || attachment.data.pdfFileName,
             startPage: attachment.data.startPage,
             endPage: attachment.data.endPage,
             totalPages: attachment.data.totalPages,
@@ -2917,22 +2922,35 @@ export default function EnhancedLearningGraph({
 
           // Create attachment from source node
           const attachmentId = (sourceNode.data as any)?.id || sourceNode.id;
+          const canonicalType: "video" | "pdf" | "text" =
+            sourceNode.type === 'video-attachment'
+              ? 'video'
+              : sourceNode.type === 'pdf-attachment'
+                ? 'pdf'
+                : 'text';
+          const originalType =
+            sourceNode.type === 'pdf-attachment' && sourceNode.data?.kbDocumentId
+              ? 'pdf-kb'
+              : canonicalType;
+
           const attachment: FrameAttachment = {
             id: attachmentId,
-            type: sourceNode.type?.replace('-attachment', '') || 'unknown',
+            type: canonicalType,
             data: {
               title: sourceNode.data.title,
               notes: sourceNode.data.notes,
-              ...(sourceNode.type === 'video-attachment' && {
+              originalType,
+              ...(canonicalType === 'video' && {
                 videoUrl: sourceNode.data.videoUrl,
                 startTime: sourceNode.data.startTime,
                 duration: sourceNode.data.duration,
               }),
-              ...(sourceNode.type === 'pdf-attachment' && {
+              ...(canonicalType === 'pdf' && {
                 pdfUrl: sourceNode.data.pdfUrl,
                 pages: sourceNode.data.pages,
+                kbDocumentId: sourceNode.data.kbDocumentId,
               }),
-              ...(sourceNode.type === 'text-attachment' && {
+              ...(canonicalType === 'text' && {
                 text: sourceNode.data.text,
               }),
             }
