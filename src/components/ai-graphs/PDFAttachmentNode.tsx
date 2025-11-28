@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,49 @@ import {
   Database
 } from "lucide-react";
 
+const formatPageRange = (start: number, end: number): string => {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return "";
+  }
+  return start === end ? `${start}` : `${start}-${end}`;
+};
+
+const buildKBSelectionFromNode = (
+  nodeData: PDFAttachmentNodeData
+): KBPDFSelection | null => {
+  const kbDocumentId = (nodeData as any).kbDocumentId;
+  if (!kbDocumentId) {
+    return null;
+  }
+
+  const startPage =
+    Number((nodeData as any).startPage) ||
+    Number((nodeData as any).start_page) ||
+    1;
+  const endPage =
+    Number((nodeData as any).endPage) ||
+    Number((nodeData as any).end_page) ||
+    startPage;
+  const totalPages =
+    Number((nodeData as any).totalPages) ||
+    Number((nodeData as any).total_pages) ||
+    Math.max(endPage, startPage);
+
+  return {
+    kbDocumentId,
+    filename: (nodeData as any).filename || nodeData.pdfFileName || "",
+    title: nodeData.title || "",
+    startPage,
+    endPage,
+    totalPages,
+    filesize: Number((nodeData as any).filesize) || 0,
+    uploadedAt:
+      (nodeData as any).uploadedAt ||
+      (nodeData as any).uploaded_at ||
+      new Date().toISOString(),
+  };
+};
+
 interface PDFAttachmentNodeProps extends NodeProps {
   data: PDFAttachmentNodeData;
 }
@@ -36,144 +79,208 @@ export default function PDFAttachmentNode({ id: nodeId, data, selected }: PDFAtt
   const [editData, setEditData] = useState<PDFAttachmentNodeData>(data);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Determine source type based on existing data
-  const initialSource = (data as any).kbDocumentId ? "kb" : "url";
-  const [pdfSource, setPdfSource] = useState<"url" | "kb">(initialSource);
-  const [kbSelection, setKBSelection] = useState<KBPDFSelection | null>(
-    (data as any).kbDocumentId ? {
-      kbDocumentId: (data as any).kbDocumentId,
-      filename: (data as any).filename || "",
-      title: data.title,
-      startPage: (data as any).startPage || 1,
-      endPage: (data as any).endPage || 1,
-      totalPages: (data as any).totalPages || 1,
-      filesize: (data as any).filesize || 0,
-      uploadedAt: (data as any).uploadedAt || new Date().toISOString()
-    } : null
+  const nodeHasKBMetadata =
+    Boolean(
+      (data as any).kbDocumentId ||
+      data.pdfSource === "knowledge_base" ||
+      (data as any).sourceType === "knowledge_base"
+    );
+  const initialKBSelection = buildKBSelectionFromNode(data);
+  const [pdfSource, setPdfSource] = useState<"url" | "kb">(
+    nodeHasKBMetadata || initialKBSelection ? "kb" : "url"
   );
+  const [kbSelection, setKBSelection] = useState<KBPDFSelection | null>(
+    initialKBSelection
+  );
+
+  useEffect(() => {
+    if (isEditing) {
+      return;
+    }
+
+    setEditData(data);
+    const nextKBSelection = buildKBSelectionFromNode(data);
+    setKBSelection(nextKBSelection);
+    const hasKBSource =
+      Boolean(
+        nextKBSelection ||
+        (data as any).kbDocumentId ||
+        data.pdfSource === "knowledge_base" ||
+        (data as any).sourceType === "knowledge_base"
+      );
+    setPdfSource(hasKBSource ? "kb" : "url");
+  }, [data, isEditing]);
+
+  const displayHasKBMetadata = nodeHasKBMetadata;
+  const editingPrefersKB = pdfSource === "kb";
+  const showKBBadge = displayHasKBMetadata || (isEditing && editingPrefersKB);
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
 
     try {
-      // Prepare updated data based on source type
       let updatedNodeData: any;
+      const normalizedUrl =
+        typeof editData.pdfUrl === "string" ? editData.pdfUrl.trim() : "";
+      const fallbackKBMeta =
+        buildKBSelectionFromNode(editData) || buildKBSelectionFromNode(data);
+      const effectiveKBMeta =
+        pdfSource === "kb" ? kbSelection || fallbackKBMeta : null;
 
-      if (pdfSource === "kb" && kbSelection) {
-        // KB PDF: Store KB reference data
+      if (pdfSource === "kb") {
+        if (!effectiveKBMeta) {
+          console.warn(
+            "PDF attachment switched to Knowledge Base source but no document was selected."
+          );
+          setIsSaving(false);
+          return;
+        }
+
+        const pagesLabel = formatPageRange(
+          effectiveKBMeta.startPage,
+          effectiveKBMeta.endPage
+        );
+
         updatedNodeData = {
           type: "pdf-attachment",
           id: nodeId,
-          title: kbSelection.title,
-          kbDocumentId: kbSelection.kbDocumentId,
-          filename: kbSelection.filename,
-          startPage: kbSelection.startPage,
-          endPage: kbSelection.endPage,
-          totalPages: kbSelection.totalPages,
-          filesize: kbSelection.filesize,
-          uploadedAt: kbSelection.uploadedAt,
-          pages: `${kbSelection.startPage}-${kbSelection.endPage}`,
+          title: effectiveKBMeta.title || editData.title,
+          pdfUrl: "",
+          pages: pagesLabel,
           notes: editData.notes,
           isAttached: data.isAttached,
-          attachedToFrameId: data.attachedToFrameId
+          attachedToFrameId: data.attachedToFrameId,
+          pdfSource: "knowledge_base",
+          kbDocumentId: effectiveKBMeta.kbDocumentId,
+          filename: effectiveKBMeta.filename,
+          pdfFileName: effectiveKBMeta.filename,
+          startPage: effectiveKBMeta.startPage,
+          endPage: effectiveKBMeta.endPage,
+          totalPages: effectiveKBMeta.totalPages,
+          filesize: effectiveKBMeta.filesize,
+          uploadedAt: effectiveKBMeta.uploadedAt,
+          originalType: "pdf-kb",
+          originalUrl: effectiveKBMeta.kbDocumentId,
         };
       } else {
-        // URL PDF: Keep traditional data only
         updatedNodeData = {
           type: "pdf-attachment",
           id: nodeId,
           title: editData.title,
-          pdfUrl: editData.pdfUrl,
+          pdfUrl: normalizedUrl,
           pages: editData.pages,
           notes: editData.notes,
           isAttached: data.isAttached,
-          attachedToFrameId: data.attachedToFrameId
+          attachedToFrameId: data.attachedToFrameId,
+          pdfSource: "url",
+          kbDocumentId: undefined,
+          filename: editData.filename,
+          pdfFileName: editData.pdfFileName,
+          originalType: "pdf",
+          originalUrl: normalizedUrl || undefined,
         };
       }
 
-      // Update the node data
       Object.assign(data, updatedNodeData);
 
-      // CRITICAL FIX: Emit update-node-data event to persist changes in graph state
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('update-node-data', {
-          detail: {
-            nodeId: nodeId,
-            newData: updatedNodeData
-          }
-        }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("update-node-data", {
+            detail: {
+              nodeId,
+              newData: updatedNodeData,
+            },
+          })
+        );
 
-        console.log('🎯 PDF attachment data updated, triggering node data save:', {
-          nodeId: data.id,
-          title: updatedNodeData.title,
-          source: pdfSource,
-          ...(pdfSource === "kb" ? { kbDocumentId: updatedNodeData.kbDocumentId } : { pdfUrl: updatedNodeData.pdfUrl })
-        });
+        console.log(
+          "🎯 PDF attachment data updated, triggering node data save:",
+          {
+            nodeId: data.id,
+            title: updatedNodeData.title,
+            source: updatedNodeData.pdfSource,
+            ...(updatedNodeData.pdfSource === "knowledge_base"
+              ? { kbDocumentId: updatedNodeData.kbDocumentId }
+              : { pdfUrl: updatedNodeData.pdfUrl }),
+          }
+        );
       }
 
-      // If this attachment is connected to a frame, update the frame's attachment
       if (data.isAttached && data.attachedToFrameId) {
-        const attachmentType = pdfSource === "kb" ? "pdf-kb" : "pdf";
-        const attachmentData: any = pdfSource === "kb" ? {
-          kbDocumentId: kbSelection?.kbDocumentId,
-          filename: kbSelection?.filename,
-          title: kbSelection?.title,
-          startPage: kbSelection?.startPage,
-          endPage: kbSelection?.endPage,
-          pageCount: kbSelection ? (kbSelection.endPage - kbSelection.startPage + 1) : 0,
-          totalPages: kbSelection?.totalPages,
-          filesize: kbSelection?.filesize,
-          uploadedAt: kbSelection?.uploadedAt,
-          notes: editData.notes
-        } : {
-          title: editData.title,
-          pdfUrl: editData.pdfUrl,
-          pages: editData.pages,
-          notes: editData.notes
-        };
+        const attachmentType = "pdf" as const;
+        const attachmentData: any =
+          updatedNodeData.pdfSource === "knowledge_base"
+            ? {
+                title: updatedNodeData.title,
+                pdfUrl: "",
+                pages: updatedNodeData.pages,
+                notes: updatedNodeData.notes,
+                pdfSource: "knowledge_base",
+                kbDocumentId: updatedNodeData.kbDocumentId,
+                filename: updatedNodeData.filename,
+                pdfFileName: updatedNodeData.pdfFileName,
+                startPage: updatedNodeData.startPage,
+                endPage: updatedNodeData.endPage,
+                totalPages: updatedNodeData.totalPages,
+                filesize: updatedNodeData.filesize,
+                uploadedAt: updatedNodeData.uploadedAt,
+                originalType: "pdf-kb",
+                originalUrl: updatedNodeData.kbDocumentId,
+              }
+            : {
+                title: updatedNodeData.title,
+                pdfUrl: normalizedUrl,
+                pages: updatedNodeData.pages,
+                notes: updatedNodeData.notes,
+                pdfSource: "url",
+                originalType: "pdf",
+                originalUrl: normalizedUrl || undefined,
+              };
 
         const updatedAttachment = {
           id: nodeId,
-          type: attachmentType as const,
-          data: attachmentData
+          type: attachmentType,
+          data: attachmentData,
         };
 
-        // Emit event to update the connected frame
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('attachment-node-updated', {
-            detail: {
-              frameId: data.attachedToFrameId,
-              attachment: updatedAttachment,
-              nodeId
-            }
-          }));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("attachment-node-updated", {
+              detail: {
+                frameId: data.attachedToFrameId,
+                attachment: updatedAttachment,
+                nodeId,
+              },
+            })
+          );
 
-          // ENHANCED: Force immediate localStorage save for PDF content persistence
-          window.dispatchEvent(new CustomEvent('force-save-frames', {
-            detail: {
-              reason: 'pdf-attachment-updated',
-              frameId: data.attachedToFrameId,
-              attachmentType,
-              source: pdfSource,
-              timestamp: new Date().toISOString()
-            }
-          }));
+          window.dispatchEvent(
+            new CustomEvent("force-save-frames", {
+              detail: {
+                reason: "pdf-attachment-updated",
+                frameId: data.attachedToFrameId,
+                attachmentType,
+                source: updatedNodeData.pdfSource,
+                timestamp: new Date().toISOString(),
+              },
+            })
+          );
         }
 
-        console.log('📡 PDF attachment updated, notifying connected frame:', {
+        console.log("📡 PDF attachment updated, notifying connected frame:", {
           frameId: data.attachedToFrameId,
           type: attachmentType,
-          source: pdfSource
+          source: updatedNodeData.pdfSource,
         });
       }
 
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to save PDF attachment:', error);
+      console.error("Failed to save PDF attachment:", error);
     } finally {
       setIsSaving(false);
     }
-  }, [data, editData, pdfSource, kbSelection]);
+  }, [data, editData, kbSelection, nodeId, pdfSource]);
 
   const handleCancel = useCallback(() => {
     setEditData(data);
@@ -222,7 +329,7 @@ export default function PDFAttachmentNode({ id: nodeId, data, selected }: PDFAtt
                     <FileText className="h-2 w-2 mr-1" />
                     PDF
                   </Badge>
-                  {(data as any).kbDocumentId && (
+                  {showKBBadge && (
                     <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
                       <Database className="h-2 w-2 mr-1" />
                       KB
@@ -293,7 +400,25 @@ export default function PDFAttachmentNode({ id: nodeId, data, selected }: PDFAtt
           {isEditing && (
             <div className="space-y-2">
               <Label className="text-xs font-medium">PDF Source</Label>
-              <Select value={pdfSource} onValueChange={(value: "url" | "kb") => setPdfSource(value)}>
+              <Select
+                value={pdfSource}
+                onValueChange={(value: "url" | "kb") => {
+                  setPdfSource(value);
+                  if (value === "url") {
+                    setKBSelection(null);
+                    setEditData((prev) => ({
+                      ...prev,
+                      pdfSource: "url",
+                      kbDocumentId: undefined,
+                    }));
+                  } else {
+                    setEditData((prev) => ({
+                      ...prev,
+                      pdfSource: "knowledge_base",
+                    }));
+                  }
+                }}
+              >
                 <SelectTrigger className="text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -316,16 +441,26 @@ export default function PDFAttachmentNode({ id: nodeId, data, selected }: PDFAtt
           )}
 
           {/* KB PDF Selector (when source is KB) */}
-          {isEditing && pdfSource === "kb" && (
+          {isEditing && editingPrefersKB && (
             <KBPDFSelector
               vectorStore={vectorStore}
               onSelect={(selection) => {
                 setKBSelection(selection);
                 if (selection) {
-                  setEditData({
-                    ...editData,
-                    title: selection.title
-                  });
+                  setEditData((prev) => ({
+                    ...prev,
+                    title: selection.title,
+                    pages: formatPageRange(selection.startPage, selection.endPage),
+                    pdfSource: "knowledge_base",
+                    kbDocumentId: selection.kbDocumentId,
+                    filename: selection.filename,
+                    pdfFileName: selection.filename,
+                    startPage: selection.startPage,
+                    endPage: selection.endPage,
+                    totalPages: selection.totalPages,
+                    filesize: selection.filesize,
+                    uploadedAt: selection.uploadedAt,
+                  }));
                 }
               }}
               initialSelection={kbSelection || undefined}
@@ -333,48 +468,60 @@ export default function PDFAttachmentNode({ id: nodeId, data, selected }: PDFAtt
           )}
 
           {/* PDF URL (when source is URL) */}
-          {(pdfSource === "url" || !isEditing) && (
-            <div>
-              <Label className="text-xs font-medium">
-                {pdfSource === "kb" && (data as any).kbDocumentId ? "KB Document" : "PDF URL"}
-              </Label>
-              {isEditing ? (
+          <div>
+            <Label className="text-xs font-medium">
+              {(isEditing && editingPrefersKB) || displayHasKBMetadata
+                ? "Knowledge Base Document"
+                : "PDF URL"}
+            </Label>
+            {isEditing ? (
+              editingPrefersKB ? (
+                <p className="text-xs text-gray-600 mt-1">
+                  {kbSelection
+                    ? `${kbSelection.title} • ${kbSelection.filename}`
+                    : "Select a PDF from the Knowledge Base below."}
+                </p>
+              ) : (
                 <Input
                   value={editData.pdfUrl}
-                  onChange={(e) => setEditData({...editData, pdfUrl: e.target.value})}
+                  onChange={(e) =>
+                    setEditData({ ...editData, pdfUrl: e.target.value })
+                  }
                   className="mt-1 text-xs"
                   placeholder="https://example.com/document.pdf"
                 />
-              ) : (
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-gray-600 truncate flex-1">
-                    {(data as any).kbDocumentId ? (
-                      <span className="flex items-center gap-1">
-                        <Database className="h-3 w-3" />
-                        {(data as any).filename || data.title}
-                      </span>
-                    ) : (
-                      data.pdfUrl || "No URL provided"
-                    )}
-                  </p>
-                  {data.pdfUrl && !((data as any).kbDocumentId) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(data.pdfUrl, '_blank')}
-                      className="h-6 w-6 p-0 ml-2"
-                      title="Open PDF"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </Button>
+              )
+            ) : (
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-gray-600 truncate flex-1">
+                  {displayHasKBMetadata ? (
+                    <span className="flex items-center gap-1">
+                      <Database className="h-3 w-3" />
+                      {(data as any).filename ||
+                        (data as any).pdfFileName ||
+                        data.title}
+                    </span>
+                  ) : (
+                    data.pdfUrl || "No URL provided"
                   )}
-                </div>
-              )}
-            </div>
-          )}
+                </p>
+                {data.pdfUrl && !displayHasKBMetadata && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(data.pdfUrl, "_blank")}
+                    className="h-6 w-6 p-0 ml-2"
+                    title="Open PDF"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Pages (only show for URL PDFs in edit mode, or for display) */}
-          {((pdfSource === "url" && isEditing) || (!isEditing && !((data as any).kbDocumentId))) && (
+          {((!editingPrefersKB && isEditing) || (!isEditing && !displayHasKBMetadata)) && (
             <div>
               <Label className="text-xs font-medium">Pages</Label>
               {isEditing ? (
@@ -393,7 +540,7 @@ export default function PDFAttachmentNode({ id: nodeId, data, selected }: PDFAtt
           )}
 
           {/* KB Page Range Display (for KB PDFs not in edit mode) */}
-          {!isEditing && (data as any).kbDocumentId && (
+          {!isEditing && displayHasKBMetadata && (
             <div className="text-xs text-gray-600 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium">Pages:</span>

@@ -1848,7 +1848,10 @@ useEffect(() => {
               </Badge>
               <Badge variant="outline" className="flex items-center gap-1">
                 <Brain className="h-3 w-3" />
-                {frames.reduce((acc, frame) => acc + frame.aiConcepts.length, 0)} concepts
+                {frames.reduce(
+                  (acc, frame) => acc + (frame.aiConcepts?.length || 0),
+                  0
+                )} concepts
               </Badge>
             </div>
           </div>

@@ -205,6 +205,34 @@ TimeCapsule (Project)
 2. **Filters use these IDs for isolation** - entities without IDs are invisible
 3. **Two synchronization points required**: creation-time assignment + orphaned assignment
 
+#### “Pattern 0”: Ensure an Active TimeCapsule Before Any Sync
+
+Before importing frames (e.g., SWE Bridge) or auto-creating sessions, **always** make sure a TimeCapsule ID exists. The guard that stamps SWE data now calls `ensureActiveTimeCapsuleId()` which:
+
+```typescript
+const ensureActiveTimeCapsuleId = useCallback(async () => {
+  // Wait for hook to finish initializing
+  if (timeCapsule.activeTimeCapsuleId) return timeCapsule.activeTimeCapsuleId;
+
+  // Reuse first available capsule or auto-create “My First Project”
+  if (timeCapsule.timeCapsules?.length) {
+    const firstId = timeCapsule.timeCapsules[0].id;
+    await timeCapsule.switchTimeCapsule?.(firstId);
+    return firstId;
+  }
+
+  if (timeCapsule.createTimeCapsule) {
+    const created = await timeCapsule.createTimeCapsule("My First Project", "Auto-created for SWE sync");
+    await timeCapsule.switchTimeCapsule?.(created?.id ?? "");
+    return created?.id ?? null;
+  }
+
+  return null;
+}, [timeCapsule]);
+```
+
+Call this helper (or equivalent) before any import so that downstream stamping logic always receives a valid `sessionId` + `timeCapsuleId` pair.
+
 #### Pattern 1: Orphaned Entity Assignment (REQUIRED for all entity types)
 
 **When to Use**: When implementing ANY new entity type (Frames, Chapters, Concepts, Notes, etc.)

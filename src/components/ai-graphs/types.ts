@@ -77,6 +77,17 @@ export interface PDFAttachmentNodeData extends Record<string, unknown> {
   pages: string;
   title: string;
   notes?: string;
+  pdfSource?: "url" | "knowledge_base" | "local";
+  kbDocumentId?: string;
+  filename?: string;
+  pdfFileName?: string;
+  originalType?: string;
+  originalUrl?: string;
+  startPage?: number;
+  endPage?: number;
+  totalPages?: number;
+  filesize?: number;
+  uploadedAt?: string;
   // Connection info
   attachedToFrameId?: string;
   isAttached: boolean;

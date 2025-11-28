@@ -158,14 +158,20 @@ export default function EnhancedAIFrameNode({ data, selected, id }: EnhancedAIFr
   };
 
   const getAttachmentLabel = (attachment: FrameAttachment) => {
+    const title = attachment.data?.title || 'Untitled';
+    const isKBPdf =
+      attachment.data?.pdfSource === 'knowledge_base' ||
+      attachment.data?.kbDocumentId ||
+      attachment.data?.originalType === 'pdf-kb';
+
     switch (attachment.type) {
-      case 'video': 
-        return `Video: ${attachment.data.title || 'Untitled'}`;
-      case 'pdf': 
-        return `PDF: ${attachment.data.title || 'Untitled'}`;
-      case 'text': 
-        return `Text: ${attachment.data.title || 'Untitled'}`;
-      default: 
+      case 'video':
+        return `Video: ${title}`;
+      case 'pdf':
+        return `${isKBPdf ? 'Knowledge Base' : 'PDF'}: ${title}`;
+      case 'text':
+        return `Text: ${title}`;
+      default:
         return 'Unknown attachment';
     }
   };
@@ -389,21 +395,21 @@ export default function EnhancedAIFrameNode({ data, selected, id }: EnhancedAIFr
           </div>
 
           {/* AI Concepts (if any) */}
-          {data.aiConcepts.length > 0 && (
+          {Boolean(data.aiConcepts?.length) && (
             <div>
               <Label className="text-xs font-medium flex items-center gap-1">
                 <Brain className="h-3 w-3" />
-                Related Concepts ({data.aiConcepts.length})
+                Related Concepts ({data.aiConcepts?.length || 0})
               </Label>
               <div className="flex flex-wrap gap-1 mt-1">
-                {data.aiConcepts.slice(0, 3).map((concept, index) => (
+                {data.aiConcepts?.slice(0, 3).map((concept, index) => (
                   <Badge key={index} variant="outline" className="text-xs">
                     {concept}
                   </Badge>
                 ))}
-                {data.aiConcepts.length > 3 && (
+                {data.aiConcepts && data.aiConcepts.length > 3 && (
                   <Badge variant="outline" className="text-xs">
-                    +{data.aiConcepts.length - 3} more
+                    +{(data.aiConcepts.length || 0) - 3} more
                   </Badge>
                 )}
               </div>

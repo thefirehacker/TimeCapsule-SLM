@@ -50,6 +50,11 @@ import type { AIFlowModelTier } from "../lib/openRouterModels";
 import type { FlowSession, SessionSource } from "../types/session";
 import type { GraphState } from "@/components/ai-graphs/types";
 import { getSessionStore, SessionStore } from "@/lib/kb/sessionStore";
+import {
+  buildFrameAttachment,
+  CanonicalAttachmentType,
+  normalizeAttachmentType,
+} from "../lib/attachmentUtils";
 
 interface KnowledgeCitation {
   label: string;
@@ -78,12 +83,20 @@ interface KnowledgeContextResult {
 
 interface AttachmentSuggestion {
   id: string;
-  type: "video" | "pdf" | "text" | "image";
+  type: string;
   source: "knowledge_base" | "web" | "user";
   referenceLabel?: string;
   description: string;
   url?: string;
   pages?: string;
+  originalType?: string;
+  originalSourceId?: string;
+  kbDocumentId?: string;
+  filename?: string;
+  pdfSource?: "knowledge_base" | "url" | "local";
+  pdfUrl?: string;
+  pdfFileName?: string;
+  metadata?: Record<string, any>;
 }
 
 interface CheckpointMetadata {
@@ -158,6 +171,7 @@ const resolveAgentTier = (options?: AgentLLMOptions): AIFlowModelTier => {
 type FrameDraftStatus = "planned" | "generating" | "generated" | "error";
 
 interface GeneratedFrameContent {
+  title?: string;
   informationText: string;
   afterVideoText: string;
   aiConcepts: string[];
@@ -456,29 +470,66 @@ const buildAttachmentSuggestions = (
   if (!Array.isArray(attachments)) return [];
   return attachments
     .filter((attachment) => attachment && typeof attachment === "object")
-    .map((attachment) => ({
-      id: attachment.id || generateFrameId(),
-      type:
-        attachment.type === "pdf" ||
-        attachment.type === "video" ||
-        attachment.type === "text" ||
-        attachment.type === "image"
-          ? attachment.type
-          : "text",
-      source:
+    .map((attachment) => {
+      const pointer =
+        attachment.originalSourceId ||
+        attachment.kbDocumentId ||
+        attachment.id ||
+        attachment.url ||
+        generateFrameId();
+      const derivedSource =
         attachment.source === "knowledge_base" ||
         attachment.source === "web" ||
         attachment.source === "user"
           ? attachment.source
-          : "knowledge_base",
-      referenceLabel: attachment.referenceLabel,
-      description:
+          : attachment.kbDocumentId || attachment.originalSourceId
+            ? "knowledge_base"
+            : "web";
+      const description =
         attachment.description ||
         attachment.summary ||
-        "Suggested supporting material",
-      url: attachment.url,
-      pages: attachment.pages,
-    }));
+        attachment.filename ||
+        "Suggested supporting material";
+      const pointerIsHttp =
+        typeof attachment.url === "string" &&
+        /^https?:\/\//i.test(attachment.url);
+      const pdfFileName =
+        attachment.pdfFileName ||
+        attachment.filename ||
+        (typeof pointer === "string"
+          ? pointer.split("/").pop()
+          : undefined);
+      const pdfSource =
+        attachment.pdfSource ||
+        (derivedSource === "knowledge_base"
+          ? "knowledge_base"
+          : pointerIsHttp
+            ? "url"
+            : undefined);
+      const pdfUrl =
+        typeof attachment.pdfUrl === "string"
+          ? attachment.pdfUrl
+          : pointerIsHttp
+            ? attachment.url
+            : undefined;
+      return {
+        id: pointer,
+        type: typeof attachment.type === "string" && attachment.type.length > 0 ? attachment.type : "text",
+        source: derivedSource,
+        referenceLabel: attachment.referenceLabel,
+        description,
+        url: attachment.url,
+        pages: attachment.pages,
+        originalType: attachment.originalType || attachment.type,
+        originalSourceId: attachment.originalSourceId,
+        kbDocumentId: attachment.kbDocumentId,
+        filename: attachment.filename,
+        pdfSource,
+        pdfUrl,
+        pdfFileName,
+        metadata: attachment.metadata,
+      };
+    });
 };
 
 const normalizeCitations = (
@@ -687,16 +738,18 @@ const convertFlowFrameToDraft = (
   index: number,
   chapterId: string
 ): FrameDraft => {
+  const attachmentSuggestions = frame.attachments
+    ? buildAttachmentSuggestions(frame.attachments)
+    : [];
   const baseAttachment = frame.attachment
-    ? {
-        id: frame.attachment.url || generateFrameId(),
-        type: (frame.attachment.type as "video" | "image" | "text" | "pdf") || "text",
-        source: "knowledge_base" as const,
-        referenceLabel: undefined,
-        description: frame.attachment.description,
-        url: frame.attachment.url,
-      }
+    ? buildAttachmentSuggestions([frame.attachment])[0]
     : undefined;
+  const resolvedAttachments =
+    attachmentSuggestions.length > 0
+      ? attachmentSuggestions
+      : baseAttachment
+        ? [baseAttachment]
+        : [];
 
   const generated: GeneratedFrameContent = {
     informationText: frame.informationText,
@@ -704,10 +757,10 @@ const convertFlowFrameToDraft = (
     aiConcepts: frame.aiConcepts,
     videoUrl: "",
     attachment: baseAttachment,
-    attachments: baseAttachment ? [baseAttachment] : [],
+    attachments: resolvedAttachments,
     summary: frame.summary,
     durationInSeconds: frame.durationInSeconds,
-    recommendedResources: baseAttachment ? [baseAttachment] : [],
+    recommendedResources: resolvedAttachments,
   };
 
   return {
@@ -2455,6 +2508,7 @@ export function useAIFlowBuilder({
       const generatedGraphState = generateGraphState(legacyPlan.chapters, framesForGraph);
       const planWithGraphState = {
         ...legacyPlan,
+        frames: flowFrames,
         graphState: generatedGraphState,
       };
 
@@ -2703,47 +2757,24 @@ export function useAIFlowBuilder({
     ]
   );
 
-  // Helper to normalize attachment types from generator output to React Flow node types
-  const normalizeAttachmentType = (generatorType: string | undefined): string => {
-    if (!generatorType || generatorType === "") {
-      return 'text-attachment'; // Default fallback
-    }
-    switch (generatorType.toLowerCase()) {
-      case 'document':
-      case 'text':
-      case 'text_excerpt':
-      case 'code':
-        return 'text-attachment';
-      case 'diagram':
-      case 'image':
-        return 'image-attachment';
-      case 'pdf':
-      case 'pdf_excerpt':
-        return 'pdf-attachment';
-      case 'video':
-        return 'video-attachment';
-      default:
-        console.warn(`Unknown attachment type: "${generatorType}", defaulting to text-attachment`);
-        return 'text-attachment';
-    }
-  };
-
-  // Helper to extract filename from URL or path
-  const extractFilenameFromUrl = (url: string): string => {
-    if (!url) return '';
-    // Extract filename from URL or return the URL itself if it's already a filename
-    const parts = url.split('/');
-    return parts[parts.length - 1] || url;
-  };
+  // Helper to normalize generator attachment types to canonical values stored on AI Frames
 
   const convertDraftToFrame = useCallback((draft: FrameDraft): AIFrame | null => {
     if (!draft.generated) return null;
 
+    const attachment = buildFrameAttachment(draft.generated.attachment, draft.id);
+    const generatedTitle = draft.generated.title || draft.title;
+    const informationText =
+      draft.generated.informationText ||
+      (draft.generated.summary
+        ? `## Summary\n\n${draft.generated.summary}`
+        : "");
+
     return {
       id: draft.id, // Preserve original planner ID like SWE sync does
-      title: draft.generated.summary || draft.title,
+      title: generatedTitle,
       goal: draft.goal,
-      informationText: draft.generated.informationText || "",
+      informationText,
       videoUrl: draft.generated.videoUrl || "",
       startTime: 0,
       duration: draft.generated.durationInSeconds || 0,
@@ -2759,53 +2790,7 @@ export function useAIFlowBuilder({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       sessionId: activeSessionId || undefined,
-      attachment: (() => {
-        // Debug: Log attachment data before conversion
-        if (draft.generated.attachment) {
-          const willCreate = !!(
-            draft.generated.attachment.type &&
-            draft.generated.attachment.url &&
-            typeof draft.generated.attachment.url === 'string' &&
-            draft.generated.attachment.url.trim().length > 0
-          );
-          console.log(`🔍 Frame ${draft.id} attachment:`, {
-            type: draft.generated.attachment.type,
-            url: draft.generated.attachment.url,
-            urlLength: draft.generated.attachment.url?.length,
-            willCreate
-          });
-          
-          // Only create attachment if type and URL are valid and non-empty
-          if (!willCreate) {
-            return undefined;
-          }
-          
-          return {
-            id: `attachment_${draft.id}`, // Generate unique ID based on frame ID
-            type: normalizeAttachmentType(draft.generated.attachment.type),
-            data: {
-              title: draft.generated.attachment.description || 'Untitled',
-              notes: draft.generated.attachment.description || '',
-              // Map URL to the correct field based on type
-              ...(normalizeAttachmentType(draft.generated.attachment.type) === 'pdf-attachment' && {
-                pdfUrl: draft.generated.attachment.url || '',
-                pages: '',
-                pdfFileName: extractFilenameFromUrl(draft.generated.attachment.url || ''),
-                pdfSource: draft.generated.attachment.url ? 'url' : 'none',
-              }),
-              ...(normalizeAttachmentType(draft.generated.attachment.type) === 'video-attachment' && {
-                videoUrl: draft.generated.attachment.url || '',
-                startTime: 0,
-                duration: 480,
-              }),
-              ...(normalizeAttachmentType(draft.generated.attachment.type) === 'text-attachment' && {
-                text: draft.generated.attachment.description || '',
-              }),
-            },
-          };
-        }
-        return undefined;
-      })(),
+      attachment,
       notes: draft.generated.summary,
       documents: (draft.knowledgeContext?.citations || []).map((citation) => ({
         name: citation.label,
@@ -2814,7 +2799,7 @@ export function useAIFlowBuilder({
         url: undefined,
       })),
     };
-  }, [prompt]);
+  }, [prompt, activeSessionId]);
 
   const generateRemediationFrame = useCallback(
     async (parentDraft: FrameDraft): Promise<FrameDraft | null> => {
@@ -3121,38 +3106,119 @@ export function useAIFlowBuilder({
           // PRIORITY 1: Check if plan.frames exists and use it (new architecture)
       if (plan?.frames && plan.frames.length > 0) {
         console.log(`✅ [ACCEPT] Using plan.frames (${plan.frames.length} frames available)`);
-        
+
         const timestamp = new Date().toISOString();
-        const convertedFrames: AIFrame[] = plan.frames.map((frame, index) => {
-          // Map FlowPlannedFrame/FlowGeneratedFrame to AIFrame
-          const aiFrame: AIFrame = {
-            id: frame.id || `frame_${Date.now()}_${index}`,
-            title: frame.title,
-            goal: frame.goal,
-            informationText: (frame as any).informationText || '',
-            afterVideoText: (frame as any).afterVideoText || '',
-            videoUrl: (frame as any).videoUrl || '',
-            startTime: (frame as any).startTime || 0,
-            duration: (frame as any).duration || 0,
-            aiConcepts: frame.aiConcepts || [],
-            type: "frame" as const,
-            order: index,
-            chapterId: frame.chapterId,
-            parentFrameId: frame.chapterId,
-            isGenerated: true,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          };
-          return aiFrame;
+        const fallbackChapterId =
+          plan.chapters?.[0]?.id || "flow_overview";
+
+        const draftLookup = new Map<string, FrameDraft>();
+        frameDrafts.forEach((draft) => {
+          if (draft.id) {
+            draftLookup.set(draft.id, draft);
+          }
+          draftLookup.set(draft.tempId, draft);
         });
 
-        // Filter by frameIds if provided
-        const filteredFrames = frameIds 
-          ? convertedFrames.filter(f => frameIds.includes(f.id))
+        const getPlanFrameOrder = (
+          frame: FlowPlannedFrame,
+          fallback: number
+        ) => {
+          const candidate = (frame as FlowGeneratedFrame).order;
+          return typeof candidate === "number" ? candidate : fallback;
+        };
+
+        const convertPlanFrameToAI = (
+          frame: FlowPlannedFrame,
+          index: number
+        ): AIFrame | null => {
+          const draftMatch = frame.id ? draftLookup.get(frame.id) : undefined;
+          if (draftMatch) {
+            const aiFrame = convertDraftToFrame(draftMatch);
+            if (aiFrame) {
+              return {
+                ...aiFrame,
+                order: getPlanFrameOrder(frame, aiFrame.order ?? index),
+                chapterId: frame.chapterId || aiFrame.chapterId,
+                learningPhase: frame.phase || aiFrame.learningPhase,
+                updatedAt: timestamp,
+              };
+            }
+          }
+
+          const normalizedFrame: FlowGeneratedFrame = {
+            ...(frame as FlowGeneratedFrame),
+            id: frame.id || `flow_frame_${index}`,
+            informationText:
+              (frame as FlowGeneratedFrame).informationText || "",
+            afterVideoText:
+              (frame as FlowGeneratedFrame).afterVideoText || "",
+            aiConcepts: frame.aiConcepts || [],
+            type: (frame as FlowGeneratedFrame).type || "frame",
+            order: getPlanFrameOrder(frame, index),
+            videoUrl: (frame as FlowGeneratedFrame).videoUrl || "",
+            startTime:
+              (frame as FlowGeneratedFrame).startTime ?? 0,
+            duration:
+              (frame as FlowGeneratedFrame).duration ??
+              (frame as any).durationInSeconds ??
+              480,
+            durationInSeconds:
+              (frame as any).durationInSeconds ||
+              (frame as FlowGeneratedFrame).durationInSeconds ||
+              (frame as FlowGeneratedFrame).duration ||
+              480,
+            bubblSpaceId:
+              (frame as FlowGeneratedFrame).bubblSpaceId || "default",
+            timeCapsuleId:
+              (frame as FlowGeneratedFrame).timeCapsuleId || "default",
+            parentFrameId:
+              (frame as FlowGeneratedFrame).parentFrameId || "",
+            notes: (frame as FlowGeneratedFrame).notes || "",
+            documents: (frame as any).documents || [],
+            summary:
+              (frame as FlowGeneratedFrame).summary ||
+              frame.title ||
+              frame.goal,
+          };
+
+          const syntheticDraft = convertFlowFrameToDraft(
+            normalizedFrame,
+            index,
+            frame.chapterId || fallbackChapterId
+          );
+          const aiFrame = convertDraftToFrame(syntheticDraft);
+          if (!aiFrame) {
+            return null;
+          }
+
+          return {
+            ...aiFrame,
+            order: getPlanFrameOrder(frame, aiFrame.order ?? index),
+            chapterId: frame.chapterId || aiFrame.chapterId,
+            learningPhase: frame.phase || aiFrame.learningPhase,
+            documents:
+              (frame as any).documents && Array.isArray((frame as any).documents)
+                ? (frame as any).documents
+                : aiFrame.documents,
+            updatedAt: timestamp,
+          };
+        };
+
+        const convertedFrames = plan.frames
+          .map((frame, index) => convertPlanFrameToAI(frame, index))
+          .filter((frame): frame is AIFrame => Boolean(frame));
+
+        const filteredFrames = frameIds
+          ? convertedFrames.filter((frame) => frameIds.includes(frame.id))
           : convertedFrames;
 
-        console.log(`✅ [ACCEPT] Converted ${filteredFrames.length} frames from plan.frames`);
-        return filteredFrames;
+        console.log(
+          `✅ [ACCEPT] Converted ${filteredFrames.length} frames from plan.frames`
+        );
+
+        if (filteredFrames.length > 0) {
+          return filteredFrames;
+        }
       }
 
       // FALLBACK: Use frameDrafts for backward compatibility (old architecture)

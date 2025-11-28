@@ -244,6 +244,24 @@ export interface FlowPlannedFrame {
   checkpoints?: string[];
 }
 
+export interface FlowGeneratedAttachment {
+  id?: string;
+  type?: string;
+  description?: string;
+  url?: string;
+  originalSourceId?: string;
+  kbDocumentId?: string;
+  filename?: string;
+  pages?: string;
+  source?: string;
+  pdfSource?: string;
+  pdfUrl?: string;
+  pdfFileName?: string;
+  summary?: string;
+  referenceLabel?: string;
+  metadata?: Record<string, any>;
+}
+
 export interface FlowGeneratedFrame extends FlowPlannedFrame {
   informationText: string;
   afterVideoText: string;
@@ -260,11 +278,9 @@ export interface FlowGeneratedFrame extends FlowPlannedFrame {
   chapterId?: string;
   notes?: string;
   documents?: any[];
-  attachment?: {
-    type: string;
-    description: string;
-    url?: string;
-  };
+  attachment?: FlowGeneratedAttachment;
+  attachments?: FlowGeneratedAttachment[];
+  recommendedResources?: FlowGeneratedAttachment[];
   durationInSeconds?: number;
   summary?: string;
 }

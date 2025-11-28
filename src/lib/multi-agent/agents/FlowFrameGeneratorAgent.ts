@@ -131,6 +131,8 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
         parsed = this.createFallbackFrame(framePlan, llmResponse);
       }
 
+      const inferredAttachment = this.ensureAttachmentUrl(parsed.attachment, context, framePlan, parsed.documents);
+
       const generated: FlowGeneratedFrame = {
         ...framePlan,
         informationText: parsed.informationText,
@@ -150,7 +152,7 @@ export class FlowFrameGeneratorAgent extends BaseAgent {
         chapterId: parsed.chapterId || "",
         notes: parsed.notes || "",
         documents: parsed.documents || [],
-        attachment: parsed.attachment,
+        attachment: inferredAttachment,
         durationInSeconds: parsed.durationInSeconds,
         summary: parsed.summary,
       };
@@ -305,5 +307,115 @@ Do not include markdown fences or commentary—respond with JSON only.
       aiConcepts: framePlan.aiConcepts || [],
       attachment: undefined,
     };
+  }
+
+  private ensureAttachmentUrl(
+    attachment: FlowGeneratedFrame["attachment"] | undefined,
+    context: ResearchContext,
+    framePlan: FlowPlannedFrame,
+    documents?: any[]
+  ): FlowGeneratedFrame["attachment"] | undefined {
+    if (!attachment) return undefined;
+
+    const rawDescription =
+      typeof attachment.description === "string"
+        ? attachment.description.trim()
+        : "";
+    const normalizedUrl =
+      typeof attachment.url === "string" ? attachment.url.trim() : "";
+
+    const kbDocFromResponse =
+      documents?.find(
+        (doc) => typeof doc?.url === "string" && doc.url.trim().length > 0
+      ) ||
+      documents?.find(
+        (doc) =>
+          typeof doc?.filename === "string" && doc.filename.trim().length > 0
+      );
+    const kbUrlFromDocs =
+      kbDocFromResponse?.url || kbDocFromResponse?.filename || "";
+    const kbDocId = kbDocFromResponse?.id || kbDocFromResponse?.docId;
+
+    const ragChunks = context.ragResults?.chunks || [];
+    const normalizedDescription = attachment.description?.toLowerCase();
+    const matchingChunk =
+      ragChunks.find((chunk: any) => {
+        const filename = chunk?.metadata?.filename?.toLowerCase();
+        const source = chunk?.source?.toLowerCase();
+        if (!normalizedDescription) return false;
+        return (
+          (filename && filename.includes(normalizedDescription)) ||
+          (source && source.includes(normalizedDescription))
+        );
+      }) || ragChunks[0];
+
+    const chunkUrl =
+      matchingChunk?.metadata?.filename ||
+      matchingChunk?.source ||
+      matchingChunk?.id ||
+      "";
+
+    const kbSlugFromContext =
+      context.sharedKnowledge?.documentInsights?.[framePlan.id || ""]?.sourceUrl ||
+      "";
+
+    const fallbackUrl = kbUrlFromDocs || chunkUrl || kbSlugFromContext;
+
+    const providedUrl = normalizedUrl;
+    let resolvedUrl = providedUrl || fallbackUrl || "";
+    const pointerIsHttp = resolvedUrl
+      ? /^https?:\/\//i.test(resolvedUrl)
+      : false;
+    if (!resolvedUrl) {
+      // Nothing else we can do—return attachment unchanged
+      return attachment;
+    }
+
+    const kbFilename =
+      kbDocFromResponse?.filename ||
+      matchingChunk?.metadata?.filename ||
+      this.extractFilename(resolvedUrl);
+
+    const nextAttachment: FlowGeneratedFrame["attachment"] = {
+      ...attachment,
+      url: resolvedUrl,
+      originalSourceId:
+        attachment.originalSourceId ||
+        kbDocId ||
+        (!pointerIsHttp ? resolvedUrl : undefined),
+    };
+
+    const attachmentType = (attachment.type || "").toLowerCase();
+    const looksLikeKbSlug = Boolean(resolvedUrl) && !pointerIsHttp;
+    const shouldForceKbPdf = Boolean(kbDocId || looksLikeKbSlug);
+
+    if (shouldForceKbPdf) {
+      nextAttachment.type = "pdf-kb";
+      nextAttachment.kbDocumentId =
+        kbDocId ||
+        attachment.kbDocumentId ||
+        nextAttachment.originalSourceId ||
+        resolvedUrl;
+      nextAttachment.filename = kbFilename || attachment.filename;
+      nextAttachment.url = resolvedUrl;
+      nextAttachment.originalSourceId =
+        nextAttachment.originalSourceId || nextAttachment.kbDocumentId;
+    }
+    // Preserve genuine text/code attachments by keeping their textual content
+    else if (rawDescription.length > 0 && !providedUrl && attachmentType) {
+      nextAttachment.type = attachmentType;
+      nextAttachment.description = rawDescription;
+    }
+
+    return nextAttachment;
+  }
+
+  private extractFilename(pointer?: string): string | undefined {
+    if (!pointer) return undefined;
+    const sanitized = pointer.trim();
+    if (!sanitized) return undefined;
+    const parts = sanitized.split(/[\\/]/);
+    const last = parts[parts.length - 1];
+    return last || sanitized;
   }
 }

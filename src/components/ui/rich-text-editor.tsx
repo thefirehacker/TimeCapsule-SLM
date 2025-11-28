@@ -87,6 +87,7 @@ interface RichTextEditorProps {
   format?: 'markdown' | 'html';
   showExportButtons?: boolean;
   compact?: boolean;
+  autoHeight?: boolean;
 }
 
 export function RichTextEditor({
@@ -98,6 +99,7 @@ export function RichTextEditor({
   format = 'html',
   showExportButtons = true,
   compact = false,
+  autoHeight = false,
 }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -111,6 +113,15 @@ export function RichTextEditor({
     }
     return content;
   }, [content, format]);
+
+  const editorClassName = useMemo(() => {
+    if (compact) {
+      return `prose prose-slate dark:prose-invert max-w-none text-xs p-1 focus:outline-none ${className}`;
+    }
+
+    const minHeightClass = autoHeight && !editable ? "" : "min-h-[500px]";
+    return `prose prose-slate dark:prose-invert max-w-none ${minHeightClass} p-4 focus:outline-none ${className}`.trim();
+  }, [autoHeight, className, compact, editable]);
 
   const editor = useEditor({
     extensions: [
@@ -173,9 +184,7 @@ export function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: compact
-          ? `prose prose-slate dark:prose-invert max-w-none text-xs p-1 focus:outline-none ${className}`
-          : `prose prose-slate dark:prose-invert max-w-none min-h-[500px] p-4 focus:outline-none ${className}`,
+        class: editorClassName,
       },
     },
   });
@@ -208,6 +217,20 @@ export function RichTextEditor({
       }, 100);
     }
   }, [editor, editable, isTransitioning]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.setOptions({
+      ...editor.options,
+      editorProps: {
+        ...(editor.options.editorProps || {}),
+        attributes: {
+          ...(editor.options.editorProps?.attributes || {}),
+          class: editorClassName,
+        },
+      },
+    });
+  }, [editor, editorClassName]);
 
   // Update content when prop changes (with enhanced race condition prevention)
   useEffect(() => {

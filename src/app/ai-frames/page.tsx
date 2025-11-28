@@ -111,6 +111,11 @@ import type { Chapter } from "./types/frames";
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
 import { useAIFlowBuilder, PlannerChapter } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
+import type { FlowGeneratedFrame } from "@/lib/multi-agent/interfaces/Context";
+import {
+  buildFrameAttachment,
+  makeAttachmentInstanceId,
+} from "./lib/attachmentUtils";
 import { ChunkViewerModal } from "@/components/shared/ChunkViewerModal";
 import { getBuildEnv, isLocalBuildEnv } from "./utils/buildEnv";
 
@@ -190,6 +195,97 @@ type PrintableAttachmentSummary = {
   source?: string;
   description?: string;
   excerpt?: string;
+};
+
+type SnapshotAttachment = {
+  id?: string;
+  type?: string;
+  description?: string;
+  notes?: string;
+  title?: string;
+  name?: string;
+  url?: string;
+  originalSourceId?: string;
+  data?: Record<string, any>;
+};
+
+const hasAttachmentDataPayload = (
+  attachment: any
+): attachment is { id?: string; type?: string; data: Record<string, any> } => {
+  return Boolean(
+    attachment &&
+      typeof attachment === "object" &&
+      attachment.data &&
+      typeof attachment.data === "object"
+  );
+};
+
+const canonicalizeSnapshotAttachment = (
+  attachment: SnapshotAttachment | AIFrame["attachment"] | undefined,
+  frameId: string
+): AIFrame["attachment"] | undefined => {
+  if (!attachment) return undefined;
+
+  if (hasAttachmentDataPayload(attachment)) {
+    const pointer =
+      attachment.data.originalUrl ||
+      attachment.data.kbDocumentId ||
+      attachment.data.pdfUrl ||
+      attachment.data.videoUrl ||
+      attachment.id ||
+      attachment.type;
+
+    const inferredKbSource =
+      attachment.data.pdfSource === "knowledge_base" ||
+      Boolean(attachment.data.kbDocumentId) ||
+      (typeof attachment.data.originalUrl === "string" &&
+        attachment.data.originalUrl.length > 0 &&
+        !attachment.data.originalUrl.startsWith("http"));
+
+    return {
+      ...attachment,
+      id: makeAttachmentInstanceId(frameId, pointer),
+      data: {
+        ...attachment.data,
+        originalUrl:
+          attachment.data.originalUrl ||
+          attachment.data.pdfUrl ||
+          attachment.data.videoUrl ||
+          attachment.data.text ||
+          attachment.data.notes,
+        kbDocumentId:
+          attachment.data.kbDocumentId ||
+          (inferredKbSource
+            ? attachment.data.originalUrl ||
+              attachment.data.pdfUrl ||
+              pointer
+            : attachment.data.kbDocumentId),
+        pdfSource:
+          attachment.data.pdfSource ||
+          (inferredKbSource ? "knowledge_base" : attachment.data.pdfSource),
+      },
+    };
+  }
+
+  const legacy = attachment as SnapshotAttachment;
+  const rawUrl = typeof legacy.url === "string" ? legacy.url.trim() : "";
+  const looksLikeKbSlug =
+    (rawUrl && !/^https?:\/\//i.test(rawUrl)) ||
+    (legacy.originalSourceId &&
+      !legacy.originalSourceId.toLowerCase().startsWith("http")) ||
+    (legacy.type && legacy.type.toLowerCase() === "pdf-kb") ||
+    rawUrl.toLowerCase().endsWith(".pdf");
+
+  const builderSource: FlowGeneratedFrame["attachment"] = {
+    type: looksLikeKbSlug ? "pdf-kb" : legacy.type || "text",
+    description:
+      legacy.description || legacy.notes || legacy.title || legacy.name || "",
+    url: rawUrl,
+    originalSourceId:
+      legacy.originalSourceId || (looksLikeKbSlug ? rawUrl : undefined),
+  };
+
+  return buildFrameAttachment(builderSource, frameId);
 };
 
 const escapeHtml = (value?: string | null): string => {
@@ -987,13 +1083,14 @@ export default function AIFramesPage() {
       if (frame.attachment) {
         const attachmentType = frame.attachment.type || "attachment";
         const data = frame.attachment.data || {};
+        const originalType = (data.originalType || attachmentType).toLowerCase();
         const attachmentTitle =
-          data.title || data.filename || frame.attachment.type.toUpperCase();
+          data.title || data.filename || attachmentType.toUpperCase();
 
         let attachmentSource = "Attachment";
-        if (attachmentType === "pdf-kb") {
+        if (originalType === "pdf-kb") {
           attachmentSource = "Knowledge Base";
-        } else if (attachmentType.startsWith("pdf")) {
+        } else if (attachmentType === "pdf") {
           attachmentSource = "PDF";
         } else if (attachmentType === "text") {
           attachmentSource = "Text Snippet";
@@ -1016,7 +1113,7 @@ export default function AIFramesPage() {
 
         attachments.push({
           title: attachmentTitle,
-          type: attachmentType,
+          type: originalType || attachmentType,
           source: attachmentSource,
           description: attachmentDescription
             ? truncateText(String(attachmentDescription), 160)
@@ -1169,14 +1266,27 @@ export default function AIFramesPage() {
         }
 
         if (Array.isArray(data.frames)) {
-          const stampedFrames = data.frames.map((frame: AIFrame) => ({
-            ...frame,
-            sessionId,
-            timeCapsuleId:
-              (frame.timeCapsuleId && frame.timeCapsuleId !== "default"
-                ? frame.timeCapsuleId
-                : resolvedTimeCapsuleId) || activeTimeCapsuleId,
-          }));
+          const stampedFrames = data.frames.map((frame: AIFrame, index: number) => {
+            const safeFrameId =
+              typeof frame.id === "string" && frame.id.trim().length > 0
+                ? frame.id
+                : `swe_frame_${index}_${Date.now()}`;
+            const canonicalAttachment = canonicalizeSnapshotAttachment(
+              frame.attachment,
+              safeFrameId
+            );
+
+            return {
+              ...frame,
+              id: safeFrameId,
+              attachment: canonicalAttachment,
+              sessionId,
+              timeCapsuleId:
+                (frame.timeCapsuleId && frame.timeCapsuleId !== "default"
+                  ? frame.timeCapsuleId
+                  : resolvedTimeCapsuleId) || activeTimeCapsuleId,
+            };
+          });
 
           const mergedFrames = sessionId
             ? [
@@ -2460,7 +2570,12 @@ export default function AIFramesPage() {
         order: existingMaxOrder + index + 1,
         createdAt: frame.createdAt || timestamp,
         updatedAt: timestamp,
-        sessionId: frame.sessionId || flowBuilder.activeSessionId || undefined,
+        sessionId:
+          frame.sessionId || flowBuilder.activeSessionId || undefined,
+        timeCapsuleId:
+          frame.timeCapsuleId ||
+          timeCapsule.activeTimeCapsuleId ||
+          undefined,
         metadata: {
           version: "2.0",
           createdAt: frame.createdAt || timestamp,
@@ -2515,6 +2630,8 @@ export default function AIFramesPage() {
           conceptIds: [],
           createdAt: timestamp,
           updatedAt: timestamp,
+          sessionId: flowBuilder.activeSessionId || undefined,
+          timeCapsuleId: timeCapsule.activeTimeCapsuleId || undefined,
         }));
         
         chaptersToUse = [...nonAIFlowChapters, ...convertedChapters];
