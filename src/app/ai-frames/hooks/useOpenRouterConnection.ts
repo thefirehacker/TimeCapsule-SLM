@@ -77,6 +77,7 @@ export interface OpenRouterConnectionState {
   lastValidatedAt: string | null;
   lastLatencyMs?: number;
   lastTokensUsed?: number;
+  managedProvider: boolean;
 }
 
 export interface UseOpenRouterConnectionReturn {
@@ -141,31 +142,43 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
       lastValidatedAt: null,
       lastLatencyMs: undefined,
       lastTokensUsed: undefined,
+      managedProvider: false,
     });
+  const [managedProvider, setManagedProvider] = useState(false);
 
   useEffect(() => {
     apiKeyRef.current = apiKey;
   }, [apiKey]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(OPENROUTER_STORAGE_KEY);
-    if (!stored) return;
-    try {
-      const decoded = atob(stored);
-      if (decoded) {
-        setApiKey(decoded);
+    let cancelled = false;
+    const bootstrapManagedProvider = async () => {
+      try {
+        const response = await fetch("/api/aiframes/openrouter/models");
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (cancelled || !payload?.managed) return;
+        setManagedProvider(true);
         setConnectionState((prev) => ({
           ...prev,
+          connecting: false,
+          connected: true,
           apiKeyPresent: true,
-          maskedApiKey: maskKey(decoded),
+          maskedApiKey: "TimeCapsule Credits",
+          remoteModels: payload.models ?? [],
+          lastValidatedAt: new Date().toISOString(),
+          error: null,
+          managedProvider: true,
         }));
-        void validateApiKey(decoded, { persist: false, silent: true });
+      } catch (error) {
+        console.debug("Managed OpenRouter proxy unavailable:", error);
       }
-    } catch (error) {
-      console.warn("Failed to decode stored OpenRouter key:", error);
-      window.localStorage.removeItem(OPENROUTER_STORAGE_KEY);
-    }
+    };
+
+    bootstrapManagedProvider();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const persistApiKey = useCallback((key: string | null) => {
@@ -234,6 +247,7 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
           remoteModels,
           lastValidatedAt: new Date().toISOString(),
           error: null,
+          managedProvider: false,
         }));
 
         return true;
@@ -255,8 +269,32 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
     [persistApiKey]
   );
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(OPENROUTER_STORAGE_KEY);
+    if (!stored) return;
+    try {
+      const decoded = atob(stored);
+      if (decoded) {
+        setManagedProvider(false);
+        setApiKey(decoded);
+        setConnectionState((prev) => ({
+          ...prev,
+          apiKeyPresent: true,
+          maskedApiKey: maskKey(decoded),
+          managedProvider: false,
+        }));
+        void validateApiKey(decoded, { persist: false, silent: true });
+      }
+    } catch (error) {
+      console.warn("Failed to decode stored OpenRouter key:", error);
+      window.localStorage.removeItem(OPENROUTER_STORAGE_KEY);
+    }
+  }, [validateApiKey]);
+
   const connectWithApiKey = useCallback(
     async (key: string) => {
+      setManagedProvider(false);
       return validateApiKey(key, { persist: true });
     },
     [validateApiKey]
@@ -272,7 +310,9 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
       maskedApiKey: null,
       error: null,
       remoteModels: [],
+      managedProvider: false,
     }));
+    setManagedProvider(false);
   }, [persistApiKey]);
 
   const clearStoredKey = useCallback(() => {
@@ -282,7 +322,9 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
       ...prev,
       apiKeyPresent: false,
       maskedApiKey: null,
+      managedProvider: false,
     }));
+    setManagedProvider(false);
   }, [persistApiKey]);
 
   const updateModelSelection = useCallback(
@@ -389,12 +431,6 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
 
   const sendChatRequest = useCallback(
     async (request: OpenRouterChatRequest): Promise<OpenRouterChatResult> => {
-      if (!apiKeyRef.current) {
-        throw new Error(
-          "OpenRouter API key not configured. Connect in AI Controls first."
-        );
-      }
-
       const {
         messages,
         modelTier = "generator",
@@ -415,15 +451,61 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
         getDefaultModelForTier(modelTier) ||
         getDefaultModelForTier("fallback");
 
+      const finalTemperature =
+        temperature ??
+        tierDefaults?.defaultTemperature ??
+        (modelTier === "planner" ? 0.2 : 0.35);
+      const finalMaxTokens =
+        maxTokens ?? tierDefaults?.maxOutputTokens ?? 2048;
+
+      if (managedProvider) {
+        const response = await fetch("/api/aiframes/openrouter/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages,
+            modelTier,
+            modelId: resolvedModelId,
+            temperature: finalTemperature,
+            maxTokens: finalMaxTokens,
+            topP,
+            frequencyPenalty,
+            presencePenalty,
+            responseFormat,
+            metadata,
+          }),
+          signal,
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(
+            payload?.error ||
+              `Managed OpenRouter request failed (${response.status})`
+          );
+        }
+        const data = await response.json();
+        return {
+          id: data?.id ?? `openrouter_${Date.now()}`,
+          model: data?.model ?? resolvedModelId,
+          content: data.content,
+          message: data.message ?? null,
+          usage: data.usage,
+          raw: data.raw ?? data,
+        };
+      }
+
+      if (!apiKeyRef.current) {
+        throw new Error(
+          "OpenRouter API key not configured. Connect in AI Controls first."
+        );
+      }
+
       const payload: Record<string, any> = {
         model: resolvedModelId,
         zdr: true,
         messages,
-        temperature:
-          temperature ??
-          tierDefaults?.defaultTemperature ??
-          (modelTier === "planner" ? 0.2 : 0.35),
-        max_tokens: maxTokens ?? tierDefaults?.maxOutputTokens ?? 2048,
+        temperature: finalTemperature,
+        max_tokens: finalMaxTokens,
       };
 
       if (typeof topP === "number") payload.top_p = topP;
@@ -474,6 +556,7 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
         error: null,
         lastLatencyMs: latency,
         lastTokensUsed: usage?.total_tokens,
+        managedProvider: false,
       }));
 
       return {
@@ -485,7 +568,7 @@ export function useOpenRouterConnection(): UseOpenRouterConnectionReturn {
         raw: data,
       };
     },
-    [resolveModelId]
+    [resolveModelId, managedProvider]
   );
 
   const modelOptions = useMemo(

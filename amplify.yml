@@ -30,6 +30,13 @@ frontend:
         - echo "AWS_REGION is ${REGION_AWS:+set}"
         - echo "AWS_ACCESS_KEY_ID is ${ACCESS_KEY_ID_AWS:+set}"
         - echo "AWS_SECRET_ACCESS_KEY is ${SECRET_ACCESS_KEY_AWS:+set}"
+        - |
+            if [ "$NEXT_BUILD_ENV" = "cloud" ]; then
+              echo "S3_BUCKET is ${S3_BUCKET:+set}"
+              echo "OPEN_ROUTER_API_KEY is ${OPEN_ROUTER_API_KEY:+set}"
+            else
+              echo "Skipping cloud-only env vars (S3_BUCKET/OPEN_ROUTER_API_KEY)"
+            fi
         - echo "📧 Email service variables check..."
         - echo "RESEND_API_KEY is ${RESEND_API_KEY:+set}"
         - echo "💰 Payment service variables check..."
@@ -62,6 +69,13 @@ frontend:
         - echo "RAZORPAY_WEBHOOK_SECRET=$RAZORPAY_WEBHOOK_SECRET" >> .env.production
         - echo "NEXT_PUBLIC_FIRECRAWL_API_KEY=%NEXT_PUBLIC_FIRECRAWL_API_KEY" >> .env.production
         - echo "NEXT_BUILD_ENV=$NEXT_BUILD_ENV" >> .env.production
+        - |
+            if [ "$NEXT_BUILD_ENV" = "cloud" ]; then
+              echo "S3_BUCKET=$S3_BUCKET" >> .env.production
+              echo "OPEN_ROUTER_API_KEY=$OPEN_ROUTER_API_KEY" >> .env.production
+            else
+              echo "Skipping cloud-only env exports (S3_BUCKET/OPEN_ROUTER_API_KEY)"
+            fi
         - echo "✅ Environment variables written to .env.production"
         - echo "🔍 Verifying .env.production contents:"
         - cat .env.production

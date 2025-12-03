@@ -18,6 +18,7 @@ import {
   UseAIProvidersReturn,
 } from "./useAIProviders";
 import { useFirecrawlKey } from "./useFirecrawlKey";
+import { CREDITS_EVENT } from "./useTimeCapsuleCredits";
 import {
   getUnifiedWebSearchService,
   UnifiedWebSearchContext,
@@ -858,6 +859,35 @@ export function useAIFlowBuilder({
     remediationCount: 0,
     currentPhase: null,
   });
+
+  const consumeManagedCredit = useCallback(
+    async (type: "sessions" | "flowBuilders") => {
+      try {
+        const response = await fetch("/api/aiframes/credits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          const message =
+            payload?.error ||
+            (type === "sessions"
+              ? "Session credit limit reached"
+              : "Flow Builder credit limit reached");
+          throw new Error(message);
+        }
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event(CREDITS_EVENT));
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Credit limit reached";
+        throw new Error(message);
+      }
+    },
+    []
+  );
   
   // Session Management State
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -2283,23 +2313,45 @@ export function useAIFlowBuilder({
         });
 
         if (createNew) {
-      // Create new AI Flow session
-      if (sessionStore) {
-        aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
-            console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
+          if (sessionStore) {
+            await consumeManagedCredit("sessions");
+            aiFlowSession = createNewSession(
+              "ai-flow",
+              `AI Flow: ${prompt.slice(0, 50)}`
+            );
+            console.log(
+              `🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`
+            );
           }
         } else {
-          // Continue with existing session
           aiFlowSession = activeSession;
-          console.log(`✅ Continuing AI Flow with existing session: ${aiFlowSession?.name}`);
+          console.log(
+            `✅ Continuing AI Flow with existing session: ${aiFlowSession?.name}`
+          );
         }
       }
     } else {
-      // Create new AI Flow session (no active session)
       if (sessionStore) {
-        aiFlowSession = createNewSession("ai-flow", `AI Flow: ${prompt.slice(0, 50)}`);
-        console.log(`🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`);
+        await consumeManagedCredit("sessions");
+        aiFlowSession = createNewSession(
+          "ai-flow",
+          `AI Flow: ${prompt.slice(0, 50)}`
+        );
+        console.log(
+          `🆕 Created new AI Flow session: ${aiFlowSession?.name || "unnamed"}`
+        );
       }
+    }
+
+    try {
+      await consumeManagedCredit("flowBuilders");
+    } catch (creditError) {
+      const message =
+        creditError instanceof Error
+          ? creditError.message
+          : "Flow Builder credit limit reached";
+      setError(message);
+      return;
     }
 
     const flowSessionId = `session_${Date.now()}`;
