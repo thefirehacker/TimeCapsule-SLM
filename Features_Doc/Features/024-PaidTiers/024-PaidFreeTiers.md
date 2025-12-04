@@ -94,4 +94,12 @@ Standard shape:
 - Integration tests hitting the new API guards with mocked Dynamo/S3.
 - UI tests verifying counters decrement and share controls appear/disappear based on tier.
 
+## 9. Recent Updates (Dec 2025)
+- **Sharing resilience**: the Flow Builder now always posts the server-issued `frameSetId`/`frameVersion` from the credit snapshot (instead of local fallbacks) and surfaces those IDs inside the share card for debugging.
+- **Backend hardening**: `/api/aiframes/share` and `/api/aiframes/invite` normalize and validate the TimeCapsule key pair before touching Dynamo, returning human-readable guidance if metadata is missing or stale.
+- **Invite notifications**: every new collaborator (existing or pending) receives a Resend-powered HTML + plaintext email that includes the capsule name, inviter identity, and share URL when public links are enabled.
+- **Shared-with-me UX**: the TimeCapsule sidebar now lists shared capsules, offering quick “Open” + “Copy link” actions with inline feedback; collaborators are reminded if the owner hasn’t generated a public share token yet.
+- **Credits snapshot shape**: `sharing.frameSetId`, `sharing.frameVersion`, and `sharing.timeCapsuleName` travel through the credits hook so the client can match server metadata without re-fetching.
+- **Error messaging**: Share/invite panels instruct users to pick a capsule (or refresh) before sending invites, reducing “key element does not match schema” confusion during collaboration setup.
+
 This spec unlocks implementation of the Option 2 credit-based model, ensuring users can rely on TimeCapsule-managed resources while giving us levers to monetize and monitor usage.

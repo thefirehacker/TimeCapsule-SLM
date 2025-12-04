@@ -7,9 +7,14 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { docClient } from "../aws/dynamodb";
 import { shouldEnforceCredits, recordUsageEvent } from "./credits";
-import { CREDIT_LIMITS, USER_TYPE_TO_TIER, TimeCapsuleTier } from "./creditConfig";
+import {
+  CREDIT_LIMITS,
+  USER_TYPE_TO_TIER,
+  TimeCapsuleTier,
+} from "./creditConfig";
+import { sendTimeCapsuleInviteEmail } from "../email/sendTimeCapsuleInvite";
 
-const AIFRAMES_TABLE = process.env.AIFRAMES_TABLE || "aiframes";
+export const AIFRAMES_TABLE = process.env.AIFRAMES_TABLE || "aiframes";
 const USERS_TABLE = "Users";
 
 export interface AIFrameShareRecord {
@@ -22,6 +27,7 @@ export interface AIFrameShareRecord {
   pendingInviteEmails: string[];
   pendingInviteTokens?: Record<string, string>;
   updatedAt: string;
+  title?: string | null;
 }
 
 const generateShareToken = () =>
@@ -66,6 +72,18 @@ const applyUserSharingPatch = async (
       {},
     updatedAt: new Date().toISOString(),
     maxInvitees: resolvedMaxInvitees,
+    frameSetId:
+      patch.frameSetId ??
+      currentSharing.frameSetId ??
+      null,
+    frameVersion:
+      patch.frameVersion ??
+      currentSharing.frameVersion ??
+      null,
+    timeCapsuleName:
+      patch.timeCapsuleName ??
+      currentSharing.timeCapsuleName ??
+      null,
   };
 
   await docClient.send(
@@ -113,11 +131,13 @@ export const toggleShareLink = async ({
   frameSetId,
   version,
   enable,
+  timeCapsuleName,
 }: {
   userId: string;
   frameSetId: string;
   version: string;
   enable: boolean;
+  timeCapsuleName?: string;
 }): Promise<AIFrameShareRecord | null> => {
   if (!shouldEnforceCredits()) {
     return getFrameRecord(frameSetId, version);
@@ -126,25 +146,32 @@ export const toggleShareLink = async ({
   const now = new Date().toISOString();
   const shareToken = enable ? generateShareToken() : null;
 
+  const expressionParts = [
+    "userId = :userId",
+    "isShared = :isShared",
+    "shareToken = :shareToken",
+    "allowedEmails = if_not_exists(allowedEmails, :emptyList)",
+    "pendingInviteEmails = if_not_exists(pendingInviteEmails, :emptyList)",
+    "updatedAt = :now",
+  ];
+  const expressionValues: Record<string, unknown> = {
+    ":userId": userId,
+    ":isShared": enable,
+    ":shareToken": shareToken,
+    ":emptyList": [],
+    ":now": now,
+  };
+  if (timeCapsuleName) {
+    expressionParts.push("title = :title");
+    expressionValues[":title"] = timeCapsuleName;
+  }
+
   await docClient.send(
     new UpdateCommand({
       TableName: AIFRAMES_TABLE,
       Key: { frameSetId, version },
-      UpdateExpression: `
-        SET userId = :userId,
-            isShared = :isShared,
-            shareToken = :shareToken,
-            allowedEmails = if_not_exists(allowedEmails, :emptyList),
-            pendingInviteEmails = if_not_exists(pendingInviteEmails, :emptyList),
-            updatedAt = :now
-      `,
-      ExpressionAttributeValues: {
-        ":userId": userId,
-        ":isShared": enable,
-        ":shareToken": shareToken,
-        ":emptyList": [],
-        ":now": now,
-      },
+      UpdateExpression: `SET ${expressionParts.join(", ")}`,
+      ExpressionAttributeValues: expressionValues,
     })
   );
 
@@ -154,6 +181,9 @@ export const toggleShareLink = async ({
     isLinkEnabled: enable,
     shareToken,
     maxInvitees: CREDIT_LIMITS[ownerTier].maxInvitees,
+    frameSetId,
+    frameVersion: version,
+    timeCapsuleName: timeCapsuleName ?? null,
   });
 
   await recordUsageEvent(userId, enable ? "sharing.enabled" : "sharing.disabled", {
@@ -169,11 +199,13 @@ export const addInvites = async ({
   frameSetId,
   version,
   emails,
+  timeCapsuleName,
 }: {
   userId: string;
   frameSetId: string;
   version: string;
   emails: string[];
+  timeCapsuleName?: string;
 }) => {
   if (!shouldEnforceCredits()) return getFrameRecord(frameSetId, version);
   const trimmed = Array.from(
@@ -207,6 +239,7 @@ export const addInvites = async ({
     allowedEmails: [],
     pendingInviteEmails: [],
     updatedAt: new Date().toISOString(),
+    title: timeCapsuleName || null,
   };
 
   const allowed = new Set(existing.allowedEmails || []);
@@ -217,12 +250,20 @@ export const addInvites = async ({
   for (const email of trimmed) {
     const user = await queryUserByEmail(email);
     if (user) {
+      const wasAllowed = allowed.has(email);
       allowed.add(email);
       pending.delete(email);
-      accepted.push(email);
+      if (!wasAllowed) {
+        accepted.push(email);
+      }
     } else {
-      pending.add(email);
-      awaitingSignup.push(email);
+      const wasPending = pending.has(email);
+      if (!allowed.has(email)) {
+        pending.add(email);
+      }
+      if (!wasPending && !allowed.has(email)) {
+        awaitingSignup.push(email);
+      }
     }
   }
 
@@ -233,20 +274,27 @@ export const addInvites = async ({
     );
   }
 
+  const inviteExpressionParts = [
+    "allowedEmails = :allowed",
+    "pendingInviteEmails = :pending",
+    "updatedAt = :now",
+  ];
+  const inviteExpressionValues: Record<string, unknown> = {
+    ":allowed": Array.from(allowed),
+    ":pending": Array.from(pending),
+    ":now": new Date().toISOString(),
+  };
+  if (timeCapsuleName) {
+    inviteExpressionParts.push("title = :title");
+    inviteExpressionValues[":title"] = timeCapsuleName;
+  }
+
   await docClient.send(
     new UpdateCommand({
       TableName: AIFRAMES_TABLE,
       Key: { frameSetId, version },
-      UpdateExpression: `
-        SET allowedEmails = :allowed,
-            pendingInviteEmails = :pending,
-            updatedAt = :now
-      `,
-      ExpressionAttributeValues: {
-        ":allowed": Array.from(allowed),
-        ":pending": Array.from(pending),
-        ":now": new Date().toISOString(),
-      },
+      UpdateExpression: `SET ${inviteExpressionParts.join(", ")}`,
+      ExpressionAttributeValues: inviteExpressionValues,
     })
   );
 
@@ -256,6 +304,9 @@ export const addInvites = async ({
   await applyUserSharingPatch(userId, {
     allowedEmails: Array.from(allowed),
     pendingInviteTokens: Object.fromEntries(pendingEntries),
+    frameSetId,
+    frameVersion: version,
+    timeCapsuleName: timeCapsuleName ?? existing.title ?? null,
   });
 
   await recordUsageEvent(userId, "sharing.invites.updated", {
@@ -265,7 +316,38 @@ export const addInvites = async ({
     awaitingSignup,
   });
 
-  return getFrameRecord(frameSetId, version);
+  const updatedRecord = await getFrameRecord(frameSetId, version);
+
+  try {
+    const shareUrl =
+      updatedRecord?.isShared && updatedRecord?.shareToken
+        ? `${(process.env.NEXT_PUBLIC_SITE_URL || "https://timecapsule.bubblspace.com").replace(/\/$/, "")}/timecapsule/${updatedRecord.shareToken}`
+        : undefined;
+    const capsuleLabel =
+      timeCapsuleName ||
+      updatedRecord?.title ||
+      `TimeCapsule ${frameSetId}`;
+    const recipients = Array.from(
+      new Set([...accepted, ...awaitingSignup])
+    );
+    if (recipients.length) {
+      await Promise.allSettled(
+        recipients.map((recipient) =>
+          sendTimeCapsuleInviteEmail({
+            recipient,
+            inviterName: ownerRecord?.name,
+            inviterEmail: ownerRecord?.email,
+            capsuleName: capsuleLabel,
+            shareUrl,
+          })
+        )
+      );
+    }
+  } catch (emailError) {
+    console.error("Failed to send TimeCapsule invite emails:", emailError);
+  }
+
+  return updatedRecord;
 };
 
 export const removeInvites = async ({

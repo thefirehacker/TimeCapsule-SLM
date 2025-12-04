@@ -42,6 +42,7 @@ import {
   Edit,
   Sparkles,
   Copy,
+  ExternalLink,
   AlertTriangle,
 } from "lucide-react";
 
@@ -78,7 +79,7 @@ import {
   getGraphStorageManager,
   GraphStorageManager,
 } from "@/lib/GraphStorageManager";
-import { useTimeCapsule } from "./hooks/useTimeCapsule";
+import { useTimeCapsule, SharedTimeCapsuleSummary } from "./hooks/useTimeCapsule";
 import {
   BubblSpace,
   TimeCapsuleMetadata,
@@ -962,6 +963,7 @@ export default function AIFramesPage() {
   const timeCapsule = useTimeCapsule(providerVectorStore);
 
   const [showDocumentManager, setShowDocumentManager] = useState(false);
+  const [copiedSharedId, setCopiedSharedId] = useState<string | null>(null);
   const [documentManagerTab, setDocumentManagerTab] = useState("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
   const [semanticSearchResults, setSemanticSearchResults] = useState<any[]>([]);
@@ -2249,6 +2251,38 @@ export default function AIFramesPage() {
     setSidebarCollapsed(false);
     setSidebarManualOverride(true);
   }, []);
+
+  const handleSharedTimeCapsuleSelect = useCallback(
+    (shared: SharedTimeCapsuleSummary) => {
+      if (typeof window === "undefined") return;
+      if (shared.shareToken) {
+        const target = `/timecapsule/${shared.shareToken}`;
+        window.open(target, "_blank", "noopener,noreferrer");
+      } else {
+        console.warn(
+          "Shared TimeCapsule is missing a share link. Ask the owner to enable public sharing."
+        );
+      }
+    },
+    []
+  );
+
+  const handleCopySharedLink = useCallback(
+    async (shared: SharedTimeCapsuleSummary) => {
+      if (typeof window === "undefined" || !shared.shareToken) return;
+      const link = `${window.location.origin}/timecapsule/${shared.shareToken}`;
+      try {
+        await navigator.clipboard.writeText(link);
+        setCopiedSharedId(shared.id);
+        window.setTimeout(() => {
+          setCopiedSharedId((current) => (current === shared.id ? null : current));
+        }, 2000);
+      } catch (error) {
+        console.error("Failed to copy shared TimeCapsule link:", error);
+      }
+    },
+    []
+  );
 
   const handleViewModeChange = useCallback(
     (mode: "graph" | "split" | "linear") => {
@@ -3872,6 +3906,7 @@ export default function AIFramesPage() {
             knowledgeBaseUnavailableMessage={knowledgeBaseErrorMessage}
             onGraphReset={triggerGraphReset}
             activeTimeCapsuleId={timeCapsule.activeTimeCapsuleId || undefined}
+            activeTimeCapsuleName={timeCapsule.activeTimeCapsule?.name}
             allFrames={unifiedStorage.frames}
           />
         ) : (
@@ -3984,6 +4019,7 @@ export default function AIFramesPage() {
                     <label className="text-xs font-medium text-gray-700">TimeCapsules (Projects)</label>
                     <TimeCapsuleSelector
                       timeCapsules={timeCapsule.timeCapsules}
+                      sharedTimeCapsules={timeCapsule.sharedTimeCapsules}
                       activeId={timeCapsule.activeTimeCapsuleId}
                       onSwitch={timeCapsule.switchTimeCapsule}
                       onCreate={timeCapsule.createTimeCapsule}
@@ -3992,11 +4028,85 @@ export default function AIFramesPage() {
                       }}
                       sessions={flowBuilder.sessions}
                       frames={unifiedStorage.frames}
+                      onSharedSelect={handleSharedTimeCapsuleSelect}
                     />
                     <p className="text-xs text-slate-500">
                       {flowBuilder.sessions.filter(s => s.timeCapsuleId === timeCapsule.activeTimeCapsuleId).length} sessions · {sessionFilteredFrames.length} frames · {timeCapsule.activeTimeCapsule?.documentCount || 0} docs
                     </p>
                   </div>
+
+                  {timeCapsule.sharedTimeCapsules.length > 0 && (
+                    <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-700">
+                          Shared with you
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {timeCapsule.sharedTimeCapsules.length}
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        {timeCapsule.sharedTimeCapsules.map((shared) => (
+                          <div
+                            key={`shared-card-${shared.id}`}
+                            className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm"
+                          >
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {shared.name}
+                                </p>
+                                <Badge variant="secondary" className="text-[10px]">
+                                  Shared
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                Owner: {shared.ownerUserId || "Unknown"} · Updated{" "}
+                                {shared.updatedAt
+                                  ? new Date(shared.updatedAt).toLocaleDateString()
+                                  : "recently"}
+                              </p>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={!shared.shareToken}
+                                onClick={() => handleSharedTimeCapsuleSelect(shared)}
+                                className="gap-1"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Open
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={!shared.shareToken}
+                                onClick={() => handleCopySharedLink(shared)}
+                                className="gap-1 text-slate-600 hover:text-slate-900"
+                              >
+                                {copiedSharedId === shared.id ? (
+                                  <span className="text-emerald-600 text-xs font-semibold">
+                                    Copied!
+                                  </span>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3 w-3" />
+                                    Copy link
+                                  </>
+                                )}
+                              </Button>
+                              {!shared.shareToken && (
+                                <span className="text-xs text-amber-600">
+                                  Owner hasn’t enabled a share link yet.
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
               {/* Knowledge Base Section - EXACTLY like Deep Research */}
               <KnowledgeBaseSection

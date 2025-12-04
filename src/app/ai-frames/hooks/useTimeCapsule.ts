@@ -12,12 +12,23 @@ export interface UseTimeCapsuleReturn {
   activeTimeCapsuleId: string | null;
   activeTimeCapsule: TimeCapsule | null;
   timeCapsules: TimeCapsule[];
+  sharedTimeCapsules: SharedTimeCapsuleSummary[];
   isLoading: boolean;
   createTimeCapsule: (name: string, description: string) => Promise<TimeCapsule | null>;
   switchTimeCapsule: (timeCapsuleId: string) => Promise<void>;
   updateTimeCapsule: (id: string, updates: Partial<TimeCapsule>) => Promise<void>;
   deleteTimeCapsule: (id: string) => Promise<void>;
   refreshTimeCapsules: () => Promise<void>;
+  refreshSharedTimeCapsules: () => Promise<void>;
+}
+
+export interface SharedTimeCapsuleSummary {
+  id: string;
+  name: string;
+  ownerUserId?: string | null;
+  shareToken?: string | null;
+  updatedAt?: string | null;
+  isShared?: boolean;
 }
 
 /**
@@ -26,6 +37,7 @@ export interface UseTimeCapsuleReturn {
 export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleReturn {
   const [activeTimeCapsuleId, setActiveTimeCapsuleId] = useState<string | null>(null);
   const [timeCapsules, setTimeCapsules] = useState<TimeCapsule[]>([]);
+  const [sharedTimeCapsules, setSharedTimeCapsules] = useState<SharedTimeCapsuleSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const timeCapsuleStoreRef = useRef<TimeCapsuleStore | null>(null);
 
@@ -189,6 +201,38 @@ export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleR
     }
   }, [timeCapsules, activeTimeCapsuleId, switchTimeCapsule]);
 
+  const refreshSharedTimeCapsules = useCallback(async () => {
+    try {
+      const response = await fetch("/api/aiframes/shared", {
+        method: "GET",
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch shared TimeCapsules");
+      }
+      const data = await response.json();
+      const summaries: SharedTimeCapsuleSummary[] = (data.shared || []).map(
+        (item: any) => ({
+          id: item.frameSetId,
+          name:
+            item.title ||
+            `Shared project (${String(item.frameSetId).slice(-4)})`,
+          ownerUserId: item.ownerUserId || null,
+          shareToken: item.shareToken || null,
+          updatedAt: item.updatedAt || null,
+          isShared: Boolean(item.isShared),
+        })
+      );
+      setSharedTimeCapsules(summaries);
+    } catch (error) {
+      console.error("Failed to load shared TimeCapsules:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSharedTimeCapsules();
+  }, [refreshSharedTimeCapsules]);
+
   /**
    * Refresh TimeCapsules list
    */
@@ -208,12 +252,14 @@ export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleR
     activeTimeCapsuleId,
     activeTimeCapsule,
     timeCapsules,
+    sharedTimeCapsules,
     isLoading,
     createTimeCapsule,
     switchTimeCapsule,
     updateTimeCapsule,
     deleteTimeCapsule,
     refreshTimeCapsules,
+    refreshSharedTimeCapsules,
   };
 }
 

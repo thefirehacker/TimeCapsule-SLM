@@ -87,6 +87,7 @@ interface AIFlowBuilderPanelProps {
   knowledgeBaseUnavailableMessage?: string | null;
   onGraphReset?: () => void;
   activeTimeCapsuleId?: string;
+  activeTimeCapsuleName?: string;
   allFrames?: AIFrame[];
 }
 
@@ -117,6 +118,7 @@ export function AIFlowBuilderPanel({
   knowledgeBaseUnavailableMessage,
   onGraphReset,
   activeTimeCapsuleId,
+  activeTimeCapsuleName,
   allFrames = [],
 }: AIFlowBuilderPanelProps) {
   const {
@@ -217,8 +219,26 @@ export function AIFlowBuilderPanel({
   const openRouterState = aiProviders.openrouter.connectionState;
   const openRouterModels = aiProviders.openrouter.modelOptions;
   const managedOpenRouter = openRouterState.managedProvider;
-  const frameSetId = activeTimeCapsuleId || "workspace";
-  const frameVersion = "latest";
+
+  const frameSetId = useMemo(() => {
+    const serverId =
+      typeof credits?.sharing?.frameSetId === "string"
+        ? credits.sharing.frameSetId.trim()
+        : "";
+    if (serverId) return serverId;
+    if (activeTimeCapsuleId) return activeTimeCapsuleId;
+    return null;
+  }, [credits?.sharing?.frameSetId, activeTimeCapsuleId]);
+
+  const frameVersion = useMemo(() => {
+    const serverVersion =
+      typeof credits?.sharing?.frameVersion === "string"
+        ? credits.sharing.frameVersion.trim()
+        : "";
+    return serverVersion || TIMECAPSULE_VERSION;
+  }, [credits?.sharing?.frameVersion]);
+
+  const sharingDisabled = !frameSetId;
 
   const shareLink = useMemo(() => {
     if (
@@ -238,6 +258,10 @@ export function AIFlowBuilderPanel({
 
   const handleShareToggle = useCallback(
     async (enabled: boolean) => {
+      if (!frameSetId) {
+        setShareError("Select a TimeCapsule project before updating sharing.");
+        return;
+      }
       setShareSaving(true);
       setShareError(null);
       try {
@@ -248,6 +272,7 @@ export function AIFlowBuilderPanel({
             frameSetId,
             version: frameVersion,
             enable: enabled,
+            timeCapsuleName: activeTimeCapsuleName,
           }),
         });
         if (!response.ok) {
@@ -263,11 +288,15 @@ export function AIFlowBuilderPanel({
         setShareSaving(false);
       }
     },
-    [frameSetId, frameVersion, refreshCredits]
+    [frameSetId, frameVersion, activeTimeCapsuleName, refreshCredits]
   );
 
   const handleAddInvite = useCallback(async () => {
     if (!inviteInput.trim()) return;
+    if (!frameSetId) {
+      setInviteError("Select a TimeCapsule project before sending invites.");
+      return;
+    }
     setInviteSaving(true);
     setInviteError(null);
     try {
@@ -278,6 +307,7 @@ export function AIFlowBuilderPanel({
           frameSetId,
           version: frameVersion,
           emails: [inviteInput.trim()],
+          timeCapsuleName: activeTimeCapsuleName,
         }),
       });
       if (!response.ok) {
@@ -293,10 +323,14 @@ export function AIFlowBuilderPanel({
     } finally {
       setInviteSaving(false);
     }
-  }, [inviteInput, frameSetId, frameVersion, refreshCredits]);
+  }, [inviteInput, frameSetId, frameVersion, activeTimeCapsuleName, refreshCredits]);
 
   const handleRemoveInvite = useCallback(
     async (email: string) => {
+      if (!frameSetId) {
+        setInviteError("Select a TimeCapsule project before removing invites.");
+        return;
+      }
       setInviteSaving(true);
       setInviteError(null);
       try {
@@ -307,6 +341,7 @@ export function AIFlowBuilderPanel({
             frameSetId,
             version: frameVersion,
             emails: [email],
+          timeCapsuleName: activeTimeCapsuleName,
           }),
         });
         if (!response.ok) {
@@ -322,7 +357,7 @@ export function AIFlowBuilderPanel({
         setInviteSaving(false);
       }
     },
-    [frameSetId, frameVersion, refreshCredits]
+    [frameSetId, frameVersion, activeTimeCapsuleName, refreshCredits]
   );
 
   const handleCopyShareLink = useCallback(async () => {
@@ -906,7 +941,13 @@ const handleCopySwePrompt = async () => {
                 {creditsLoading ? (
                   <p className="text-sm text-slate-500">Loading sharing settings…</p>
                 ) : credits?.limits.maxInvitees ? (
-                  <>
+                  sharingDisabled ? (
+                    <p className="text-sm text-slate-500">
+                      Select or create a TimeCapsule project to enable sharing controls,
+                      then refresh this panel so we can fetch its server metadata.
+                    </p>
+                  ) : (
+                    <>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600 flex items-center gap-2">
                         Public link
@@ -930,6 +971,11 @@ const handleCopySwePrompt = async () => {
                         </Button>
                       </div>
                     )}
+                    <p className="text-[11px] text-slate-500">
+                      Target TimeCapsule ID{" "}
+                      <span className="font-mono text-slate-700">{frameSetId}</span> · Version{" "}
+                      <span className="font-mono text-slate-700">{frameVersion}</span>
+                    </p>
                     <div className="space-y-2">
                       <Label className="text-xs text-slate-600 font-semibold">
                         Invite by email (up to {credits.limits.maxInvitees} collaborators)
@@ -1004,7 +1050,8 @@ const handleCopySwePrompt = async () => {
                           )}
                       </div>
                     </div>
-                  </>
+                    </>
+                  )
                 ) : (
                   <p className="text-sm text-slate-500">
                     Sharing and email invites unlock on the Pro plan.

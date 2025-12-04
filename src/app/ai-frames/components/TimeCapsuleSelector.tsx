@@ -16,8 +16,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Package, Plus, ChevronDown, Edit, Check, X } from 'lucide-react';
 import { TimeCapsule } from '@/lib/kb/types/timecapsule';
+import { SharedTimeCapsuleSummary } from '../hooks/useTimeCapsule';
 
 export interface TimeCapsuleSelectorProps {
   timeCapsules: TimeCapsule[];
@@ -27,6 +29,8 @@ export interface TimeCapsuleSelectorProps {
   onRename?: (id: string, newName: string) => Promise<void>;
   sessions?: any[];  // To calculate session count per TimeCapsule
   frames?: any[];    // To calculate frame count per TimeCapsule
+  sharedTimeCapsules?: SharedTimeCapsuleSummary[];
+  onSharedSelect?: (capsule: SharedTimeCapsuleSummary) => void;
 }
 
 export function TimeCapsuleSelector({
@@ -37,6 +41,8 @@ export function TimeCapsuleSelector({
   onRename,
   sessions = [],
   frames = [],
+  sharedTimeCapsules = [],
+  onSharedSelect,
 }: TimeCapsuleSelectorProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -176,6 +182,47 @@ export function TimeCapsuleSelector({
           );
         })}
         
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Shared with me</DropdownMenuLabel>
+        {sharedTimeCapsules.length ? (
+          sharedTimeCapsules.map((shared) => (
+            <DropdownMenuItem
+              key={`shared-${shared.id}`}
+              className="flex flex-col items-start gap-1 opacity-90"
+              onSelect={(e) => {
+                e.preventDefault();
+                onSharedSelect?.(shared);
+              }}
+            >
+              <div className="flex w-full items-center justify-between">
+                <span className="font-medium truncate">{shared.name}</span>
+                <Badge variant="outline" className="text-[10px]">
+                  Shared
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Owner: {shared.ownerUserId || "Unknown"} · Updated{" "}
+                {shared.updatedAt
+                  ? new Date(shared.updatedAt).toLocaleDateString()
+                  : "recently"}
+              </p>
+              {shared.shareToken ? (
+                <span className="text-[11px] text-blue-600">
+                  Click to open shared link in a new tab
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-500">
+                  Waiting for owner to generate a share link
+                </span>
+              )}
+            </DropdownMenuItem>
+          ))
+        ) : (
+          <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+            No shared projects yet.
+          </DropdownMenuItem>
+        )}
+
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
