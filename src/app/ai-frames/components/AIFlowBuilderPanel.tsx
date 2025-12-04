@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectTrigger,
@@ -58,6 +59,7 @@ import {
   AlertTriangle,
   Edit,
   Layers,
+  Link,
 } from "lucide-react";
 import type { UseAIFlowBuilderReturn, PlannerChapter } from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
@@ -66,6 +68,7 @@ import { OllamaConnectionModal } from "@/components/DeepResearch/components/Olla
 import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
 import { TIMECAPSULE_VERSION } from "@/lib/version";
+import { useTimeCapsuleCredits } from "../hooks/useTimeCapsuleCredits";
 
 interface WorkspaceStats {
   frames: number;
@@ -173,6 +176,19 @@ export function AIFlowBuilderPanel({
   const [clearLogsDialogOpen, setClearLogsDialogOpen] = useState(false);
   const [deleteSessionDialogOpen, setDeleteSessionDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const {
+    credits,
+    loading: creditsLoading,
+    error: creditsError,
+    refresh: refreshCredits,
+  } = useTimeCapsuleCredits();
+  const [shareSaving, setShareSaving] = useState(false);
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteInput, setInviteInput] = useState("");
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [shareLinkCopyState, setShareLinkCopyState] = useState<"idle" | "copied">("idle");
   
   // Ref for click-outside detection
   const panelRef = useRef<HTMLDivElement>(null);
@@ -200,6 +216,127 @@ export function AIFlowBuilderPanel({
 
   const openRouterState = aiProviders.openrouter.connectionState;
   const openRouterModels = aiProviders.openrouter.modelOptions;
+  const managedOpenRouter = openRouterState.managedProvider;
+  const frameSetId = activeTimeCapsuleId || "workspace";
+  const frameVersion = "latest";
+
+  const shareLink = useMemo(() => {
+    if (
+      typeof window === "undefined" ||
+      !credits?.sharing?.shareToken ||
+      !credits.sharing.isLinkEnabled
+    ) {
+      return "";
+    }
+    return `${window.location.origin}/timecapsule/${credits.sharing.shareToken}`;
+  }, [credits?.sharing?.shareToken, credits?.sharing?.isLinkEnabled]);
+
+  const pendingInviteList = useMemo(
+    () => Object.keys(credits?.sharing?.pendingInviteTokens || {}),
+    [credits?.sharing?.pendingInviteTokens]
+  );
+
+  const handleShareToggle = useCallback(
+    async (enabled: boolean) => {
+      setShareSaving(true);
+      setShareError(null);
+      try {
+        const response = await fetch("/api/aiframes/share", {
+          method: enabled ? "POST" : "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            frameSetId,
+            version: frameVersion,
+            enable: enabled,
+          }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to update sharing settings");
+        }
+        await refreshCredits();
+      } catch (error) {
+        setShareError(
+          error instanceof Error ? error.message : "Failed to update sharing settings"
+        );
+      } finally {
+        setShareSaving(false);
+      }
+    },
+    [frameSetId, frameVersion, refreshCredits]
+  );
+
+  const handleAddInvite = useCallback(async () => {
+    if (!inviteInput.trim()) return;
+    setInviteSaving(true);
+    setInviteError(null);
+    try {
+      const response = await fetch("/api/aiframes/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frameSetId,
+          version: frameVersion,
+          emails: [inviteInput.trim()],
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to send invite");
+      }
+      setInviteInput("");
+      await refreshCredits();
+    } catch (error) {
+      setInviteError(
+        error instanceof Error ? error.message : "Failed to send invite"
+      );
+    } finally {
+      setInviteSaving(false);
+    }
+  }, [inviteInput, frameSetId, frameVersion, refreshCredits]);
+
+  const handleRemoveInvite = useCallback(
+    async (email: string) => {
+      setInviteSaving(true);
+      setInviteError(null);
+      try {
+        const response = await fetch("/api/aiframes/invite", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            frameSetId,
+            version: frameVersion,
+            emails: [email],
+          }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to remove invite");
+        }
+        await refreshCredits();
+      } catch (error) {
+        setInviteError(
+          error instanceof Error ? error.message : "Failed to remove invite"
+        );
+      } finally {
+        setInviteSaving(false);
+      }
+    },
+    [frameSetId, frameVersion, refreshCredits]
+  );
+
+  const handleCopyShareLink = useCallback(async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareLinkCopyState("copied");
+      setTimeout(() => setShareLinkCopyState("idle"), 1200);
+    } catch (error) {
+      setShareError(
+        error instanceof Error ? error.message : "Failed to copy link"
+      );
+    }
+  }, [shareLink]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const selectedHistory = useMemo(
     () => historySessions.find((session) => session.id === selectedHistoryId) || null,
@@ -614,7 +751,7 @@ const handleCopySwePrompt = async () => {
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-slate-700 font-medium">
-                    Action Provider (default: SWE bridge)
+                    Action Provider (default: TimeCapsule credits)
                   </Label>
                   {providerStatusBadge(
                     aiProviders.providerReady[aiProviders.activeProvider]
@@ -629,7 +766,7 @@ const handleCopySwePrompt = async () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="openrouter">
-                      OpenRouter (Default)
+                      TimeCapsule Credits
                     </SelectItem>
                     <SelectItem value="ollama">Ollama · Local</SelectItem>
                     <SelectItem
@@ -680,6 +817,198 @@ const handleCopySwePrompt = async () => {
                       />
                     </div>
                   </div>
+                )}
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-slate-700 font-medium flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-500" />
+                    TimeCapsule credits
+                  </Label>
+                  {credits?.tier && (
+                    <Badge variant="outline" className="text-xs capitalize text-slate-600">
+                      {credits.tier}
+                    </Badge>
+                  )}
+                </div>
+                {creditsLoading ? (
+                  <p className="text-sm text-slate-500">Loading credit balances…</p>
+                ) : credits ? (
+                  <div className="space-y-3">
+                    {[
+                      {
+                        key: "sessions",
+                        label: "AI Frame sessions",
+                        limit: credits.limits.sessions,
+                        used: credits.usage.sessions,
+                      },
+                      {
+                        key: "flowBuilders",
+                        label: "Flow Builder prompts",
+                        limit: credits.limits.flowBuilders,
+                        used: credits.usage.flowBuilders,
+                      },
+                      {
+                        key: "agentCalls",
+                        label: "Agent calls",
+                        limit: credits.limits.agentCalls,
+                        used: credits.usage.agentCalls,
+                      },
+                    ].map((item) => {
+                      const remaining = Math.max(item.limit - item.used, 0);
+                      const percentage =
+                        item.limit > 0
+                          ? Math.min(100, (item.used / item.limit) * 100)
+                          : 0;
+                      return (
+                        <div key={item.key} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span className="text-slate-600 font-medium">
+                              {item.label}
+                            </span>
+                            <span>
+                              {remaining}/{item.limit} left
+                            </span>
+                          </div>
+                          <Progress value={percentage} className="h-2" />
+                        </div>
+                      );
+                    })}
+                    <p className="text-xs text-slate-500">
+                      Renews{" "}
+                      {new Date(credits.renewsAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-red-500">
+                    {creditsError || "Unable to load credit balances"}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-slate-700 font-medium flex items-center gap-2">
+                    <Link className="h-4 w-4" />
+                    Share TimeCapsule plan
+                  </Label>
+                  <Badge
+                    variant={credits?.limits.maxInvitees ? "outline" : "secondary"}
+                    className="text-xs"
+                  >
+                    {credits?.limits.maxInvitees ? "Pro feature" : "Upgrade to use"}
+                  </Badge>
+                </div>
+                {creditsLoading ? (
+                  <p className="text-sm text-slate-500">Loading sharing settings…</p>
+                ) : credits?.limits.maxInvitees ? (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600 flex items-center gap-2">
+                        Public link
+                        {shareSaving && <Loader2 className="h-3 w-3 animate-spin" />}
+                      </span>
+                      <Switch
+                        checked={Boolean(credits?.sharing?.isLinkEnabled)}
+                        onCheckedChange={handleShareToggle}
+                        disabled={shareSaving}
+                      />
+                    </div>
+                    {shareLink && (
+                      <div className="flex gap-2">
+                        <Input readOnly value={shareLink} className="bg-white border-slate-300" />
+                        <Button
+                          variant="secondary"
+                          onClick={handleCopyShareLink}
+                          disabled={!shareLink}
+                        >
+                          {shareLinkCopyState === "copied" ? "Copied" : "Copy"}
+                        </Button>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-600 font-semibold">
+                        Invite by email (up to {credits.limits.maxInvitees} collaborators)
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="email"
+                          placeholder="teammate@example.com"
+                          value={inviteInput}
+                          onChange={(event) => setInviteInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleAddInvite();
+                            }
+                          }}
+                          className="bg-white border-slate-300"
+                        />
+                        <Button
+                          variant="secondary"
+                          onClick={handleAddInvite}
+                          disabled={!inviteInput.trim() || inviteSaving}
+                        >
+                          {inviteSaving ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Sending
+                            </>
+                          ) : (
+                            "Invite"
+                          )}
+                        </Button>
+                      </div>
+                      {inviteError && (
+                        <p className="text-xs text-red-500">{inviteError}</p>
+                      )}
+                      {shareError && (
+                        <p className="text-xs text-red-500">{shareError}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {credits?.sharing?.allowedEmails?.map((email) => (
+                          <Badge
+                            key={email}
+                            variant="secondary"
+                            className="flex items-center gap-1"
+                          >
+                            {email}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveInvite(email)}
+                              className="text-xs text-slate-600 hover:text-slate-900"
+                              aria-label={`Remove ${email}`}
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        ))}
+                        {pendingInviteList.map((email) => (
+                          <Badge
+                            key={`pending-${email}`}
+                            variant="outline"
+                            className="text-xs text-amber-700 border-amber-200 bg-amber-50"
+                          >
+                            {email} · awaiting signup
+                          </Badge>
+                        ))}
+                        {!credits?.sharing?.allowedEmails?.length &&
+                          !pendingInviteList.length && (
+                            <p className="text-xs text-slate-500">
+                              No collaborators yet.
+                            </p>
+                          )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Sharing and email invites unlock on the Pro plan.
+                  </p>
                 )}
               </div>
 
@@ -756,103 +1085,127 @@ const handleCopySwePrompt = async () => {
               )}
 
               {/* Hide OpenRouter card when Local SWE Bridge or Ollama is active */}
-              {aiProviders.activeProvider !== 'local-bridge' && aiProviders.activeProvider !== 'ollama' && (
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-slate-700 font-medium flex items-center gap-2">
-                      <Key className="h-4 w-4" />
-                      OpenRouter API Key
-                    </Label>
-                  {openRouterState.maskedApiKey && (
-                    <Badge variant="outline" className="text-xs text-slate-500">
-                      {openRouterState.maskedApiKey}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="password"
-                    placeholder="sk-or-v1-..."
-                    value={openRouterKey}
-                    onChange={(event) => setOpenRouterKey(event.target.value)}
-                    className="bg-white border-slate-300"
-                  />
-                  <Button
-                    onClick={handleConnectOpenRouter}
-                    disabled={!openRouterKey.trim() || openRouterState.connecting}
-                    className="bg-emerald-500 text-white hover:bg-emerald-600"
-                  >
-                    {openRouterState.connecting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Connecting
-                      </>
-                    ) : (
-                      <>
-                        <Plug className="h-4 w-4 mr-2" />
-                        Connect
-                      </>
-                    )}
-                  </Button>
-                  {openRouterState.apiKeyPresent && (
-                    <Button
-                      variant="ghost"
-                      onClick={aiProviders.openrouter.disconnect}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      Disconnect
-                    </Button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["planner", "generator", "vision"] as const).map((tier) => (
-                    <div key={tier}>
-                      <Label className="text-xs uppercase tracking-wide text-slate-500">
-                        {tier === "planner"
-                          ? "Planner model"
-                          : tier === "generator"
-                          ? "Generator model"
-                          : "Vision model"}
+              {aiProviders.activeProvider !== "local-bridge" &&
+                aiProviders.activeProvider !== "ollama" &&
+                (managedOpenRouter ? (
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-emerald-900 font-semibold flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4" />
+                        Managed OpenRouter access
                       </Label>
-                      <Select
-                        value={openRouterState.modelSelections[tier]}
-                        onValueChange={modelChangeHandlers[tier]}
-                      >
-                        <SelectTrigger className="bg-white border-slate-300 h-9">
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {openRouterModels[tier].map((model) => (
-                            <SelectItem key={model.id} value={model.id}>
-                              {model.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Badge variant="outline" className="text-xs text-emerald-800">
+                        TimeCapsule credits
+                      </Badge>
                     </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div>
-                    <p className="text-slate-700 font-medium">Vision mode</p>
-                    <p className="text-slate-500 text-xs">
-                      Enable to send image/PDF snippets to vision models
+                    <p className="text-sm text-emerald-900">
+                      OpenRouter calls run through the TimeCapsule proxy, so you don’t need
+                      a personal API key. Usage draws from your monthly agent-call credits.
+                    </p>
+                    <p className="text-xs text-emerald-800">
+                      Remaining agent calls:{" "}
+                      {credits
+                        ? `${credits.remaining.agentCalls}/${credits.limits.agentCalls}`
+                        : "—"}
                     </p>
                   </div>
-                  <Switch
-                    checked={openRouterState.visionMode === "vision"}
-                    onCheckedChange={(checked) =>
-                      aiProviders.openrouter.setVisionMode(
-                        checked ? "vision" : "text"
-                      )
-                    }
-                  />
-                </div>
-                {openRouterState.error && (
-                  <p className="text-xs text-red-500">{openRouterState.error}</p>
-                )}
-                </div>
-              )}
+                ) : (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-slate-700 font-medium flex items-center gap-2">
+                        <Key className="h-4 w-4" />
+                        OpenRouter API Key
+                      </Label>
+                      {openRouterState.maskedApiKey && (
+                        <Badge variant="outline" className="text-xs text-slate-500">
+                          {openRouterState.maskedApiKey}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        placeholder="sk-or-v1-..."
+                        value={openRouterKey}
+                        onChange={(event) => setOpenRouterKey(event.target.value)}
+                        className="bg-white border-slate-300"
+                      />
+                      <Button
+                        onClick={handleConnectOpenRouter}
+                        disabled={!openRouterKey.trim() || openRouterState.connecting}
+                        className="bg-emerald-500 text-white hover:bg-emerald-600"
+                      >
+                        {openRouterState.connecting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Connecting
+                          </>
+                        ) : (
+                          <>
+                            <Plug className="h-4 w-4 mr-2" />
+                            Connect
+                          </>
+                        )}
+                      </Button>
+                      {openRouterState.apiKeyPresent && (
+                        <Button
+                          variant="ghost"
+                          onClick={aiProviders.openrouter.disconnect}
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          Disconnect
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["planner", "generator", "vision"] as const).map((tier) => (
+                        <div key={tier}>
+                          <Label className="text-xs uppercase tracking-wide text-slate-500">
+                            {tier === "planner"
+                              ? "Planner model"
+                              : tier === "generator"
+                              ? "Generator model"
+                              : "Vision model"}
+                          </Label>
+                          <Select
+                            value={openRouterState.modelSelections[tier]}
+                            onValueChange={modelChangeHandlers[tier]}
+                          >
+                            <SelectTrigger className="bg-white border-slate-300 h-9">
+                              <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {openRouterModels[tier].map((model) => (
+                                <SelectItem key={model.id} value={model.id}>
+                                  {model.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div>
+                        <p className="text-slate-700 font-medium">Vision mode</p>
+                        <p className="text-slate-500 text-xs">
+                          Enable to send image/PDF snippets to vision models
+                        </p>
+                      </div>
+                      <Switch
+                        checked={openRouterState.visionMode === "vision"}
+                        onCheckedChange={(checked) =>
+                          aiProviders.openrouter.setVisionMode(
+                            checked ? "vision" : "text"
+                          )
+                        }
+                      />
+                    </div>
+                    {openRouterState.error && (
+                      <p className="text-xs text-red-500">{openRouterState.error}</p>
+                    )}
+                  </div>
+                ))}
 
               {/* Hide Firecrawl card when Local SWE Bridge is active */}
               {aiProviders.activeProvider !== 'local-bridge' && (

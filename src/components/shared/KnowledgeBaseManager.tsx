@@ -20,7 +20,12 @@ import {
   Eye,
   Download,
   Settings,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  X,
 } from "lucide-react";
+import type { UploadJob } from "../DeepResearch/hooks/useDocuments";
 
 interface Document {
   id: string;
@@ -72,6 +77,8 @@ interface KnowledgeBaseManagerProps {
   tabConfigs: TabConfig[];
   title?: string;
   description?: string;
+  uploadJobs?: UploadJob[];
+  onDismissUploadJob?: (jobId: string) => void;
 }
 
 export function KnowledgeBaseManager({
@@ -84,6 +91,8 @@ export function KnowledgeBaseManager({
   tabConfigs,
   title = "Knowledge Base Manager",
   description = "Organized view of your documents by category. Search and manage your knowledge base content.",
+  uploadJobs = [],
+  onDismissUploadJob,
 }: KnowledgeBaseManagerProps) {
   const [activeTab, setActiveTab] = useState(tabConfigs[0]?.id || "");
   const [expandedDocuments, setExpandedDocuments] = useState<Set<string>>(
@@ -137,6 +146,52 @@ export function KnowledgeBaseManager({
 
   const groupedDocuments = getGroupedDocuments();
   const documentCounts = getDocumentCategoryCounts();
+
+  const uploadStatusStyles: Record<
+    UploadJob["status"],
+    { label: string; badgeClass: string; icon: React.ComponentType<any>; tone: string; border: string }
+  > = {
+    queued: {
+      label: "Queued",
+      badgeClass: "bg-amber-100 text-amber-800",
+      icon: Clock,
+      tone: "text-amber-800",
+      border: "border-amber-100",
+    },
+    uploading: {
+      label: "Uploading",
+      badgeClass: "bg-blue-100 text-blue-800",
+      icon: Loader2,
+      tone: "text-blue-800",
+      border: "border-blue-100",
+    },
+    success: {
+      label: "Processed",
+      badgeClass: "bg-emerald-100 text-emerald-800",
+      icon: CheckCircle2,
+      tone: "text-emerald-800",
+      border: "border-emerald-100",
+    },
+    error: {
+      label: "Failed",
+      badgeClass: "bg-rose-100 text-rose-800",
+      icon: XCircle,
+      tone: "text-rose-800",
+      border: "border-rose-100",
+    },
+  };
+
+  const formatTimestamp = (timestamp?: string) => {
+    if (!timestamp) return "";
+    try {
+      return new Date(timestamp).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return timestamp;
+    }
+  };
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -201,6 +256,75 @@ export function KnowledgeBaseManager({
             </Button>
           )}
         </div>
+
+        {uploadJobs.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-muted-foreground">
+                Upload activity
+              </span>
+              <Badge variant="outline" className="text-xs">
+                {uploadJobs.length}{" "}
+                {uploadJobs.length === 1 ? "entry" : "entries"}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {uploadJobs.map((job) => {
+                const meta = uploadStatusStyles[job.status];
+                const Icon = meta.icon;
+                return (
+                  <div
+                    key={job.id}
+                    className={`flex items-start gap-3 rounded-xl border bg-white/70 p-3 ${meta.border}`}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
+                      {job.status === "uploading" ? (
+                        <Loader2 className={`h-4 w-4 animate-spin ${meta.tone}`} />
+                      ) : (
+                        <Icon className={`h-4 w-4 ${meta.tone}`} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {job.filename}
+                        </p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.badgeClass}`}
+                        >
+                          {meta.label}
+                        </span>
+                      </div>
+                      {job.message && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {job.message}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        {job.status === "success"
+                          ? `Ready ${formatTimestamp(job.completedAt)}`
+                          : job.status === "error"
+                          ? `Updated ${formatTimestamp(job.completedAt)}`
+                          : `Started ${formatTimestamp(job.startedAt)}`}
+                      </p>
+                    </div>
+                    {onDismissUploadJob &&
+                      (job.status === "success" || job.status === "error") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          onClick={() => onDismissUploadJob(job.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabbed Document Interface */}

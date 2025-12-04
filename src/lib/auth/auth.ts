@@ -10,38 +10,16 @@ import {
 import { docClient } from "../aws/dynamodb";
 import { createHash } from "crypto";
 import bcrypt from "bcryptjs";
+import type { User } from "./types";
+import {
+  CREDIT_LIMITS,
+  USER_TYPE_TO_TIER,
+  createEmptyUsage,
+  getNextMonthlyResetISO,
+} from "../timecapsule/creditConfig";
+import { resolvePendingInvitesForEmail } from "../timecapsule/aiframeSharing";
 
 const TABLE_NAME = "Users";
-
-export interface User {
-  userId: string;
-  email: string;
-  name: string;
-  password: string;
-  role: "admin" | "user";
-  userType: "RegularPro" | "Free";
-  company: string;
-  createdAt: string;
-  updatedAt: string;
-  status: string;
-  isVerified: boolean;
-  verificationToken: string;
-  verificationTokenExpiry: number;
-  payment_verified: boolean;
-  immediate_access_until: number;
-  subscriptionId: string;
-  createdBy?: string;
-  // Login tracking fields
-  provider?: "google" | "github" | "email";
-  loginCount?: number;
-  sessionHistory?: Array<{
-    timestamp: string;
-    provider: "google" | "github" | "email";
-    userAgent?: string;
-    ip?: string;
-  }>;
-  lastLoginAt?: string;
-}
 
 export async function createUser(user: {
   email: string;
@@ -59,6 +37,18 @@ export async function createUser(user: {
     .substring(0, 25);
 
   const hashedPassword = await bcrypt.hash(user.password, 10);
+  const tier = USER_TYPE_TO_TIER[user.userType] ?? "free";
+  const credits = createEmptyUsage();
+  const creditRenewsAt = getNextMonthlyResetISO();
+  const nowIso = new Date().toISOString();
+  const sharingDefaults = {
+    isLinkEnabled: false,
+    shareToken: null,
+    allowedEmails: [],
+    pendingInviteTokens: {},
+    maxInvitees: CREDIT_LIMITS[tier].maxInvitees,
+    updatedAt: nowIso,
+  };
 
   const params = {
     TableName: TABLE_NAME,
@@ -70,8 +60,8 @@ export async function createUser(user: {
       role: user.role,
       company: user.company,
       userType: user.userType,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
       status: user.status,
       isVerified: false,
       // Initialize login tracking fields
@@ -79,11 +69,17 @@ export async function createUser(user: {
       sessionHistory: [],
       lastLoginAt: null,
       ...(user.createdBy && { createdBy: user.createdBy }),
+      tier,
+      credits,
+      creditRenewsAt,
+      lastCreditResetAt: nowIso,
+      sharing: sharingDefaults,
     },
   };
 
   try {
     await docClient.send(new PutCommand(params));
+    await resolvePendingInvitesForEmail(user.email.toLowerCase(), userId);
     return {
       userId,
       email: user.email,

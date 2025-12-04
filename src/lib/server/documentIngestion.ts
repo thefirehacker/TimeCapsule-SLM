@@ -7,11 +7,18 @@ import { generateServerEmbeddings } from "./embedding";
 import mammoth from "mammoth";
 import { plainTextToStructured } from "./textCleanup";
 
+export interface ExtractedDocumentText {
+  plainText: string;
+  structuredText: string;
+  pageCount: number;
+}
+
 interface IngestParams {
   buffer: Buffer;
   filename: string;
   mimeType: string;
   documentType: DocumentType;
+  parsed?: ExtractedDocumentText;
 }
 
 const SUPPORTED_TEXT_TYPES = new Set([
@@ -25,8 +32,10 @@ export async function ingestDocumentBuffer({
   filename,
   mimeType,
   documentType,
+  parsed,
 }: IngestParams): Promise<DocumentData> {
-  const textResult = await extractText({ buffer, filename, mimeType });
+  const textResult =
+    parsed ?? (await extractDocumentText({ buffer, filename, mimeType }));
 
   const chunks = chunkStructuredText(textResult.structuredText);
   const vectors = chunks.length
@@ -68,7 +77,7 @@ export async function ingestDocumentBuffer({
   };
 }
 
-async function extractText({
+export async function extractDocumentText({
   buffer,
   filename,
   mimeType,
@@ -76,7 +85,7 @@ async function extractText({
   buffer: Buffer;
   filename: string;
   mimeType: string;
-}): Promise<{ plainText: string; structuredText: string; pageCount: number }> {
+}): Promise<ExtractedDocumentText> {
   if (mimeType === "application/pdf" || filename.toLowerCase().endsWith(".pdf")) {
     const pdfResult = await parsePdfBuffer(buffer);
     const sanitizedPlain = sanitizeExtractedText(pdfResult.plainText, filename);
@@ -94,7 +103,9 @@ async function extractText({
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     filename.toLowerCase().endsWith(".docx")
   ) {
-    const { value } = await mammoth.extractRawText({ arrayBuffer: buffer.buffer });
+    const { value } = await mammoth.extractRawText({
+      arrayBuffer: buffer.buffer as ArrayBuffer,
+    });
     const plainText = sanitizeExtractedText(value, filename);
     return {
       plainText,
