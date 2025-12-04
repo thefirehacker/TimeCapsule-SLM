@@ -25,17 +25,24 @@ const formatSharingError = (error: unknown, fallback: string) => {
 
 const normalizeFrameTarget = (
   frameSetId: unknown,
-  version: unknown
-): { frameSetId: string; version: string } | { error: string } => {
+  frameVersion: unknown,
+  legacyVersion?: unknown
+): { frameSetId: string; frameVersion: string } | { error: string } => {
   if (typeof frameSetId !== "string" || !frameSetId.trim()) {
     return { error: "Select a TimeCapsule before sending invites." };
   }
-  if (typeof version !== "string" || !version.trim()) {
+  const resolvedVersion =
+    typeof frameVersion === "string" && frameVersion.trim()
+      ? frameVersion.trim()
+      : typeof legacyVersion === "string" && legacyVersion.trim()
+      ? legacyVersion.trim()
+      : null;
+  if (!resolvedVersion) {
     return { error: "TimeCapsule version is missing." };
   }
   return {
     frameSetId: frameSetId.trim(),
-    version: version.trim(),
+    frameVersion: resolvedVersion,
   };
 };
 
@@ -46,15 +53,21 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await parseBody(request);
-  const { frameSetId, version, emails, timeCapsuleName } = body || {};
-  const normalized = normalizeFrameTarget(frameSetId, version);
+  const {
+    frameSetId,
+    frameVersion,
+    version,
+    emails,
+    timeCapsuleName,
+  } = body || {};
+  const normalized = normalizeFrameTarget(frameSetId, frameVersion, version);
   if ("error" in normalized || !Array.isArray(emails)) {
     return NextResponse.json(
       {
         error:
           "error" in normalized
             ? normalized.error
-            : "frameSetId, version, and emails[] are required",
+            : "frameSetId, frameVersion, and emails[] are required",
       },
       { status: 400 }
     );
@@ -64,7 +77,7 @@ export async function POST(request: NextRequest) {
     const record = await addInvites({
       userId: session.userId,
       frameSetId: normalized.frameSetId,
-      version: normalized.version,
+      frameVersion: normalized.frameVersion,
       emails,
       timeCapsuleName,
     });
@@ -85,15 +98,15 @@ export async function DELETE(request: NextRequest) {
   }
 
   const body = await parseBody(request);
-  const { frameSetId, version, emails } = body || {};
-  const normalized = normalizeFrameTarget(frameSetId, version);
+  const { frameSetId, frameVersion, version, emails } = body || {};
+  const normalized = normalizeFrameTarget(frameSetId, frameVersion, version);
   if ("error" in normalized || !Array.isArray(emails)) {
     return NextResponse.json(
       {
         error:
           "error" in normalized
             ? normalized.error
-            : "frameSetId, version, and emails[] are required",
+            : "frameSetId, frameVersion, and emails[] are required",
       },
       { status: 400 }
     );
@@ -103,7 +116,7 @@ export async function DELETE(request: NextRequest) {
     const record = await removeInvites({
       userId: session.userId,
       frameSetId: normalized.frameSetId,
-      version: normalized.version,
+      frameVersion: normalized.frameVersion,
       emails,
     });
     return NextResponse.json({ ok: true, share: record });

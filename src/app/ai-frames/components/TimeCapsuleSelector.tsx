@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Package, Plus, ChevronDown, Edit, Check, X } from 'lucide-react';
+import { Package, Plus, ChevronDown, Edit, Check, X, Share2 } from "lucide-react";
 import { TimeCapsule } from '@/lib/kb/types/timecapsule';
 import { SharedTimeCapsuleSummary } from '../hooks/useTimeCapsule';
 
@@ -31,6 +31,10 @@ export interface TimeCapsuleSelectorProps {
   frames?: any[];    // To calculate frame count per TimeCapsule
   sharedTimeCapsules?: SharedTimeCapsuleSummary[];
   onSharedSelect?: (capsule: SharedTimeCapsuleSummary) => void;
+  shareState?: {
+    isShared: boolean;
+    collaboratorCount: number;
+  };
 }
 
 export function TimeCapsuleSelector({
@@ -43,6 +47,7 @@ export function TimeCapsuleSelector({
   frames = [],
   sharedTimeCapsules = [],
   onSharedSelect,
+  shareState,
 }: TimeCapsuleSelectorProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -90,17 +95,27 @@ export function TimeCapsuleSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="outline" 
-          className="min-w-[200px] justify-between"
+        <Button
+          variant="outline"
+          className="min-w-[220px] justify-between"
         >
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            <span className="truncate">
-              {activeTimeCapsule?.name || 'Select Project'}
-            </span>
+          <div className="flex items-center gap-2 overflow-hidden text-left">
+            <Package className="h-4 w-4 flex-shrink-0" />
+            <div className="flex flex-col leading-tight">
+              <span className="truncate">
+                {activeTimeCapsule?.name || "Select Project"}
+              </span>
+              {shareState?.isShared && (
+                <span className="text-[11px] text-emerald-600 flex items-center gap-1">
+                  <Share2 className="h-3 w-3" />
+                  {shareState.collaboratorCount > 0
+                    ? `${shareState.collaboratorCount} collaborator${shareState.collaboratorCount === 1 ? "" : "s"}`
+                    : "Link active"}
+                </span>
+              )}
+            </div>
           </div>
-          <ChevronDown className="h-4 w-4 ml-2" />
+          <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[280px]">

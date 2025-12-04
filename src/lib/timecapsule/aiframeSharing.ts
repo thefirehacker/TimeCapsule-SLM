@@ -1,6 +1,7 @@
 // cspell:ignore AIFRAMES
 import {
   GetCommand,
+  PutCommand,
   QueryCommand,
   ScanCommand,
   UpdateCommand,
@@ -19,7 +20,7 @@ const USERS_TABLE = "Users";
 
 export interface AIFrameShareRecord {
   frameSetId: string;
-  version: string;
+  frameVersion: string;
   userId: string;
   isShared: boolean;
   shareToken: string | null;
@@ -28,6 +29,13 @@ export interface AIFrameShareRecord {
   pendingInviteTokens?: Record<string, string>;
   updatedAt: string;
   title?: string | null;
+  createdAt?: string;
+  lastSyncedAt?: string | null;
+  syncSummary?: {
+    frames: number;
+    chapters: number;
+    lastSaved?: string | null;
+  } | null;
 }
 
 const generateShareToken = () =>
@@ -98,17 +106,40 @@ const applyUserSharingPatch = async (
   );
 };
 
+const hydrateFrameRecord = (item: any): AIFrameShareRecord | null => {
+  if (!item) return null;
+  const frameVersion = item.frameVersion ?? item.version;
+  if (!frameVersion) return null;
+  return {
+    frameSetId: item.frameSetId,
+    frameVersion,
+    userId: item.userId,
+    isShared: Boolean(item.isShared),
+    shareToken: item.shareToken ?? null,
+    allowedEmails: Array.isArray(item.allowedEmails) ? item.allowedEmails : [],
+    pendingInviteEmails: Array.isArray(item.pendingInviteEmails)
+      ? item.pendingInviteEmails
+      : [],
+    pendingInviteTokens: item.pendingInviteTokens ?? {},
+    updatedAt: item.updatedAt,
+    title: item.title ?? null,
+    createdAt: item.createdAt,
+    lastSyncedAt: item.lastSyncedAt ?? null,
+    syncSummary: item.syncSummary ?? null,
+  };
+};
+
 const getFrameRecord = async (
   frameSetId: string,
-  version: string
+  frameVersion: string
 ): Promise<AIFrameShareRecord | null> => {
   const response = await docClient.send(
     new GetCommand({
       TableName: AIFRAMES_TABLE,
-      Key: { frameSetId, version },
+      Key: { frameSetId, frameVersion },
     })
   );
-  return (response.Item as AIFrameShareRecord) || null;
+  return hydrateFrameRecord(response.Item);
 };
 
 const queryUserByEmail = async (email: string) => {
@@ -126,25 +157,140 @@ const queryUserByEmail = async (email: string) => {
   return response.Items?.[0] || null;
 };
 
+interface EnsureFrameRecordParams {
+  userId: string;
+  frameSetId: string;
+  frameVersion: string;
+  title?: string | null;
+}
+
+export const ensureFrameRecord = async ({
+  userId,
+  frameSetId,
+  frameVersion,
+  title,
+}: EnsureFrameRecordParams): Promise<AIFrameShareRecord> => {
+  const existing = await getFrameRecord(frameSetId, frameVersion);
+  if (existing) {
+    return existing;
+  }
+  const now = new Date().toISOString();
+  await docClient.send(
+    new PutCommand({
+      TableName: AIFRAMES_TABLE,
+      Item: {
+        frameSetId,
+        frameVersion,
+        userId,
+        title: title ?? null,
+        isShared: false,
+        shareToken: null,
+        allowedEmails: [],
+        pendingInviteEmails: [],
+        pendingInviteTokens: {},
+        createdAt: now,
+        updatedAt: now,
+      },
+    })
+  );
+  return (
+    (await getFrameRecord(frameSetId, frameVersion)) as AIFrameShareRecord
+  );
+};
+
+interface SyncPayloadSummary {
+  frames?: number;
+  chapters?: number;
+  lastSaved?: string | null;
+}
+
+export interface TimeCapsuleSyncPayload {
+  frames?: unknown;
+  chapters?: unknown;
+  graphState?: unknown;
+  metadata?: { lastSaved?: string };
+}
+
+export const upsertTimeCapsuleRecord = async ({
+  userId,
+  frameSetId,
+  frameVersion,
+  title,
+  payload,
+}: {
+  userId: string;
+  frameSetId: string;
+  frameVersion: string;
+  title?: string | null;
+  payload?: TimeCapsuleSyncPayload;
+}): Promise<AIFrameShareRecord> => {
+  const existing = await ensureFrameRecord({
+    userId,
+    frameSetId,
+    frameVersion,
+    title,
+  });
+
+  const now = new Date().toISOString();
+  const summary: SyncPayloadSummary = {
+    frames: Array.isArray((payload as any)?.frames)
+      ? (payload as any).frames.length
+      : undefined,
+    chapters: Array.isArray((payload as any)?.chapters)
+      ? (payload as any).chapters.length
+      : undefined,
+    lastSaved: (payload as any)?.metadata?.lastSaved ?? null,
+  };
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: AIFRAMES_TABLE,
+      Key: { frameSetId, frameVersion },
+      UpdateExpression: `
+        SET userId = :userId,
+            title = :title,
+            updatedAt = :now,
+            lastSyncedAt = :now,
+            syncSummary = :summary
+      `,
+      ExpressionAttributeValues: {
+        ":userId": userId,
+        ":title": title ?? existing.title ?? null,
+        ":now": now,
+        ":summary": summary,
+      },
+    })
+  );
+
+  return (await getFrameRecord(frameSetId, frameVersion)) as AIFrameShareRecord;
+};
+
 export const toggleShareLink = async ({
   userId,
   frameSetId,
-  version,
+  frameVersion,
   enable,
   timeCapsuleName,
 }: {
   userId: string;
   frameSetId: string;
-  version: string;
+  frameVersion: string;
   enable: boolean;
   timeCapsuleName?: string;
 }): Promise<AIFrameShareRecord | null> => {
   if (!shouldEnforceCredits()) {
-    return getFrameRecord(frameSetId, version);
+    return getFrameRecord(frameSetId, frameVersion);
   }
 
   const now = new Date().toISOString();
   const shareToken = enable ? generateShareToken() : null;
+
+  await ensureFrameRecord({
+    userId,
+    frameSetId,
+    frameVersion,
+    title: timeCapsuleName,
+  });
 
   const expressionParts = [
     "userId = :userId",
@@ -169,7 +315,7 @@ export const toggleShareLink = async ({
   await docClient.send(
     new UpdateCommand({
       TableName: AIFRAMES_TABLE,
-      Key: { frameSetId, version },
+      Key: { frameSetId, frameVersion },
       UpdateExpression: `SET ${expressionParts.join(", ")}`,
       ExpressionAttributeValues: expressionValues,
     })
@@ -182,32 +328,32 @@ export const toggleShareLink = async ({
     shareToken,
     maxInvitees: CREDIT_LIMITS[ownerTier].maxInvitees,
     frameSetId,
-    frameVersion: version,
+    frameVersion,
     timeCapsuleName: timeCapsuleName ?? null,
   });
 
   await recordUsageEvent(userId, enable ? "sharing.enabled" : "sharing.disabled", {
     frameSetId,
-    version,
+    version: frameVersion,
   });
 
-  return getFrameRecord(frameSetId, version);
+  return getFrameRecord(frameSetId, frameVersion);
 };
 
 export const addInvites = async ({
   userId,
   frameSetId,
-  version,
+  frameVersion,
   emails,
   timeCapsuleName,
 }: {
   userId: string;
   frameSetId: string;
-  version: string;
+  frameVersion: string;
   emails: string[];
   timeCapsuleName?: string;
 }) => {
-  if (!shouldEnforceCredits()) return getFrameRecord(frameSetId, version);
+  if (!shouldEnforceCredits()) return getFrameRecord(frameSetId, frameVersion);
   const trimmed = Array.from(
     new Set(
       emails
@@ -215,7 +361,7 @@ export const addInvites = async ({
         .filter((email): email is string => !!email)
     )
   );
-  if (!trimmed.length) return getFrameRecord(frameSetId, version);
+  if (!trimmed.length) return getFrameRecord(frameSetId, frameVersion);
 
   const owner = await docClient.send(
     new GetCommand({
@@ -230,9 +376,9 @@ export const addInvites = async ({
     throw new Error("Sharing invites require a Pro subscription");
   }
 
-  const existing = (await getFrameRecord(frameSetId, version)) || {
+  const existing = (await getFrameRecord(frameSetId, frameVersion)) || {
     frameSetId,
-    version,
+    frameVersion,
     userId,
     isShared: false,
     shareToken: null,
@@ -292,7 +438,7 @@ export const addInvites = async ({
   await docClient.send(
     new UpdateCommand({
       TableName: AIFRAMES_TABLE,
-      Key: { frameSetId, version },
+      Key: { frameSetId, frameVersion },
       UpdateExpression: `SET ${inviteExpressionParts.join(", ")}`,
       ExpressionAttributeValues: inviteExpressionValues,
     })
@@ -305,18 +451,18 @@ export const addInvites = async ({
     allowedEmails: Array.from(allowed),
     pendingInviteTokens: Object.fromEntries(pendingEntries),
     frameSetId,
-    frameVersion: version,
+    frameVersion,
     timeCapsuleName: timeCapsuleName ?? existing.title ?? null,
   });
 
   await recordUsageEvent(userId, "sharing.invites.updated", {
     frameSetId,
-    version,
+    version: frameVersion,
     accepted,
     awaitingSignup,
   });
 
-  const updatedRecord = await getFrameRecord(frameSetId, version);
+  const updatedRecord = await getFrameRecord(frameSetId, frameVersion);
 
   try {
     const shareUrl =
@@ -353,17 +499,17 @@ export const addInvites = async ({
 export const removeInvites = async ({
   userId,
   frameSetId,
-  version,
+  frameVersion,
   emails,
 }: {
   userId: string;
   frameSetId: string;
-  version: string;
+  frameVersion: string;
   emails: string[];
 }) => {
-  if (!shouldEnforceCredits()) return getFrameRecord(frameSetId, version);
+  if (!shouldEnforceCredits()) return getFrameRecord(frameSetId, frameVersion);
   const trimmed = emails.map((email) => email.trim().toLowerCase());
-  const existing = await getFrameRecord(frameSetId, version);
+  const existing = await getFrameRecord(frameSetId, frameVersion);
   if (!existing) return null;
 
   const allowed = (existing.allowedEmails || []).filter(
@@ -376,7 +522,7 @@ export const removeInvites = async ({
   await docClient.send(
     new UpdateCommand({
       TableName: AIFRAMES_TABLE,
-      Key: { frameSetId, version },
+      Key: { frameSetId, frameVersion },
       UpdateExpression: `
         SET allowedEmails = :allowed,
             pendingInviteEmails = :pending,
@@ -398,11 +544,11 @@ export const removeInvites = async ({
 
   await recordUsageEvent(userId, "sharing.invites.removed", {
     frameSetId,
-    version,
+    version: frameVersion,
     removed: trimmed,
   });
 
-  return getFrameRecord(frameSetId, version);
+  return getFrameRecord(frameSetId, frameVersion);
 };
 
 export const resolvePendingInvitesForEmail = async (
@@ -435,7 +581,7 @@ export const resolvePendingInvitesForEmail = async (
       await docClient.send(
         new UpdateCommand({
           TableName: AIFRAMES_TABLE,
-          Key: { frameSetId: item.frameSetId, version: item.version },
+          Key: { frameSetId: item.frameSetId, frameVersion: item.frameVersion ?? item.version },
           UpdateExpression: `
             SET allowedEmails = :allowed,
                 pendingInviteEmails = :pending,
@@ -458,7 +604,7 @@ export const resolvePendingInvitesForEmail = async (
 
       await recordUsageEvent(item.userId, "sharing.invite.accepted", {
         frameSetId: item.frameSetId,
-        version: item.version,
+        frameVersion: item.frameVersion ?? item.version,
         email: normalized,
         inviteeUserId: newUserId,
       });

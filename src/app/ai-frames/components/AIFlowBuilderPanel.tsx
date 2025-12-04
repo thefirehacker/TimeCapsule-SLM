@@ -61,7 +61,10 @@ import {
   Layers,
   Link,
 } from "lucide-react";
-import type { UseAIFlowBuilderReturn, PlannerChapter } from "../hooks/useAIFlowBuilder";
+import type {
+  UseAIFlowBuilderReturn,
+  PlannerChapter,
+} from "../hooks/useAIFlowBuilder";
 import type { AIFrame } from "../types/frames";
 import type { AIFlowModelTier } from "../lib/openRouterModels";
 import { OllamaConnectionModal } from "@/components/DeepResearch/components/OllamaConnectionModal";
@@ -69,6 +72,7 @@ import { ResearchSteps } from "@/components/DeepResearch/components/ResearchStep
 import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
 import { TIMECAPSULE_VERSION } from "@/lib/version";
 import { useTimeCapsuleCredits } from "../hooks/useTimeCapsuleCredits";
+import type { TimeCapsuleCloudSyncState } from "../hooks/useTimeCapsuleSync";
 
 interface WorkspaceStats {
   frames: number;
@@ -89,7 +93,17 @@ interface AIFlowBuilderPanelProps {
   activeTimeCapsuleId?: string;
   activeTimeCapsuleName?: string;
   allFrames?: AIFrame[];
+  cloudSync?: TimeCapsuleCloudSyncState;
 }
+
+const defaultCloudSyncState: TimeCapsuleCloudSyncState = {
+  isEnabled: false,
+  isSynced: true,
+  lastSyncedAt: null,
+  syncing: false,
+  error: null,
+  syncNow: async () => {},
+};
 
 // Helper function to format relative time
 const getRelativeTime = (date: Date | string) => {
@@ -120,7 +134,9 @@ export function AIFlowBuilderPanel({
   activeTimeCapsuleId,
   activeTimeCapsuleName,
   allFrames = [],
+  cloudSync,
 }: AIFlowBuilderPanelProps) {
+  const cloudSyncState = cloudSync ?? defaultCloudSyncState;
   const {
     prompt,
     setPrompt,
@@ -239,6 +255,9 @@ export function AIFlowBuilderPanel({
   }, [credits?.sharing?.frameVersion]);
 
   const sharingDisabled = !frameSetId;
+  const isCloudBuild = buildEnv === "cloud";
+  const shareLockedBySync = cloudSyncState.isEnabled && !cloudSyncState.isSynced;
+  const shareAvailable = !sharingDisabled && !shareLockedBySync;
 
   const shareLink = useMemo(() => {
     if (
@@ -255,11 +274,19 @@ export function AIFlowBuilderPanel({
     () => Object.keys(credits?.sharing?.pendingInviteTokens || {}),
     [credits?.sharing?.pendingInviteTokens]
   );
+  const activeCollaboratorCount =
+    (credits?.sharing?.allowedEmails?.length ?? 0) + pendingInviteList.length;
+  const hasActiveShare =
+    Boolean(credits?.sharing?.isLinkEnabled) || activeCollaboratorCount > 0;
 
   const handleShareToggle = useCallback(
     async (enabled: boolean) => {
       if (!frameSetId) {
         setShareError("Select a TimeCapsule project before updating sharing.");
+        return;
+      }
+      if (shareLockedBySync) {
+        setShareError("Sync this TimeCapsule to the cloud before updating sharing.");
         return;
       }
       setShareSaving(true);
@@ -270,7 +297,8 @@ export function AIFlowBuilderPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             frameSetId,
-            version: frameVersion,
+              frameVersion,
+              version: frameVersion,
             enable: enabled,
             timeCapsuleName: activeTimeCapsuleName,
           }),
@@ -288,13 +316,23 @@ export function AIFlowBuilderPanel({
         setShareSaving(false);
       }
     },
-    [frameSetId, frameVersion, activeTimeCapsuleName, refreshCredits]
+    [
+      frameSetId,
+      frameVersion,
+      activeTimeCapsuleName,
+      refreshCredits,
+      shareLockedBySync,
+    ]
   );
 
   const handleAddInvite = useCallback(async () => {
     if (!inviteInput.trim()) return;
     if (!frameSetId) {
       setInviteError("Select a TimeCapsule project before sending invites.");
+      return;
+    }
+    if (shareLockedBySync) {
+      setInviteError("Sync this TimeCapsule to the cloud before sending invites.");
       return;
     }
     setInviteSaving(true);
@@ -305,6 +343,7 @@ export function AIFlowBuilderPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           frameSetId,
+          frameVersion,
           version: frameVersion,
           emails: [inviteInput.trim()],
           timeCapsuleName: activeTimeCapsuleName,
@@ -323,12 +362,23 @@ export function AIFlowBuilderPanel({
     } finally {
       setInviteSaving(false);
     }
-  }, [inviteInput, frameSetId, frameVersion, activeTimeCapsuleName, refreshCredits]);
+  }, [
+    inviteInput,
+    frameSetId,
+    frameVersion,
+    activeTimeCapsuleName,
+    refreshCredits,
+    shareLockedBySync,
+  ]);
 
   const handleRemoveInvite = useCallback(
     async (email: string) => {
       if (!frameSetId) {
         setInviteError("Select a TimeCapsule project before removing invites.");
+        return;
+      }
+      if (shareLockedBySync) {
+        setInviteError("Sync this TimeCapsule to the cloud before updating collaborators.");
         return;
       }
       setInviteSaving(true);
@@ -339,9 +389,9 @@ export function AIFlowBuilderPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             frameSetId,
+            frameVersion,
             version: frameVersion,
             emails: [email],
-          timeCapsuleName: activeTimeCapsuleName,
           }),
         });
         if (!response.ok) {
@@ -357,7 +407,13 @@ export function AIFlowBuilderPanel({
         setInviteSaving(false);
       }
     },
-    [frameSetId, frameVersion, activeTimeCapsuleName, refreshCredits]
+    [
+      frameSetId,
+      frameVersion,
+      activeTimeCapsuleName,
+      refreshCredits,
+      shareLockedBySync,
+    ]
   );
 
   const handleCopyShareLink = useCallback(async () => {
@@ -748,7 +804,7 @@ const handleCopySwePrompt = async () => {
                   Build AI Frames with Knowledge Base Grounding
                 </CardTitle>
                 <CardDescription className="text-slate-500">
-                  Prompt the planner, ground generations with your Knowledge Base + Firecrawl, and gate progress with checkpoint quizzes before syncing to your graph.
+                  Design AI learning flows, auto-build frames from your Knowledge Base, and sync progress to your graph with built-in checkpoints.
                 </CardDescription>
               </div>
               <Button
@@ -783,6 +839,7 @@ const handleCopySwePrompt = async () => {
               </Alert>
             )}
             <section className={`grid gap-4 ${aiProviders.activeProvider === 'local-bridge' || aiProviders.activeProvider === 'ollama' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+              {!isCloudBuild && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-slate-700 font-medium">
@@ -854,6 +911,7 @@ const handleCopySwePrompt = async () => {
                   </div>
                 )}
               </div>
+              )}
 
               <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
@@ -926,17 +984,26 @@ const handleCopySwePrompt = async () => {
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <Label className="text-slate-700 font-medium flex items-center gap-2">
                     <Link className="h-4 w-4" />
                     Share TimeCapsule plan
                   </Label>
-                  <Badge
-                    variant={credits?.limits.maxInvitees ? "outline" : "secondary"}
-                    className="text-xs"
-                  >
-                    {credits?.limits.maxInvitees ? "Pro feature" : "Upgrade to use"}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {hasActiveShare && (
+                      <Badge variant="secondary" className="text-xs text-emerald-700">
+                        {credits?.sharing?.isLinkEnabled
+                          ? "Link active"
+                          : "Collaborators active"}
+                      </Badge>
+                    )}
+                    <Badge
+                      variant={credits?.limits.maxInvitees ? "outline" : "secondary"}
+                      className="text-xs"
+                    >
+                      {credits?.limits.maxInvitees ? "Pro feature" : "Upgrade to use"}
+                    </Badge>
+                  </div>
                 </div>
                 {creditsLoading ? (
                   <p className="text-sm text-slate-500">Loading sharing settings…</p>
@@ -948,108 +1015,167 @@ const handleCopySwePrompt = async () => {
                     </p>
                   ) : (
                     <>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600 flex items-center gap-2">
-                        Public link
-                        {shareSaving && <Loader2 className="h-3 w-3 animate-spin" />}
-                      </span>
-                      <Switch
-                        checked={Boolean(credits?.sharing?.isLinkEnabled)}
-                        onCheckedChange={handleShareToggle}
-                        disabled={shareSaving}
-                      />
-                    </div>
-                    {shareLink && (
-                      <div className="flex gap-2">
-                        <Input readOnly value={shareLink} className="bg-white border-slate-300" />
-                        <Button
-                          variant="secondary"
-                          onClick={handleCopyShareLink}
-                          disabled={!shareLink}
-                        >
-                          {shareLinkCopyState === "copied" ? "Copied" : "Copy"}
-                        </Button>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-slate-500">
-                      Target TimeCapsule ID{" "}
-                      <span className="font-mono text-slate-700">{frameSetId}</span> · Version{" "}
-                      <span className="font-mono text-slate-700">{frameVersion}</span>
-                    </p>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-slate-600 font-semibold">
-                        Invite by email (up to {credits.limits.maxInvitees} collaborators)
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="email"
-                          placeholder="teammate@example.com"
-                          value={inviteInput}
-                          onChange={(event) => setInviteInput(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              handleAddInvite();
-                            }
-                          }}
-                          className="bg-white border-slate-300"
-                        />
-                        <Button
-                          variant="secondary"
-                          onClick={handleAddInvite}
-                          disabled={!inviteInput.trim() || inviteSaving}
-                        >
-                          {inviteSaving ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              Sending
-                            </>
-                          ) : (
-                            "Invite"
-                          )}
-                        </Button>
-                      </div>
-                      {inviteError && (
-                        <p className="text-xs text-red-500">{inviteError}</p>
-                      )}
-                      {shareError && (
-                        <p className="text-xs text-red-500">{shareError}</p>
-                      )}
-                      <div className="flex flex-wrap gap-2">
-                        {credits?.sharing?.allowedEmails?.map((email) => (
-                          <Badge
-                            key={email}
-                            variant="secondary"
-                            className="flex items-center gap-1"
-                          >
-                            {email}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveInvite(email)}
-                              className="text-xs text-slate-600 hover:text-slate-900"
-                              aria-label={`Remove ${email}`}
-                            >
-                              ×
-                            </button>
-                          </Badge>
-                        ))}
-                        {pendingInviteList.map((email) => (
-                          <Badge
-                            key={`pending-${email}`}
-                            variant="outline"
-                            className="text-xs text-amber-700 border-amber-200 bg-amber-50"
-                          >
-                            {email} · awaiting signup
-                          </Badge>
-                        ))}
-                        {!credits?.sharing?.allowedEmails?.length &&
-                          !pendingInviteList.length && (
-                            <p className="text-xs text-slate-500">
-                              No collaborators yet.
+                      {cloudSyncState.isEnabled && (
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-semibold text-emerald-800">
+                            <span>Cloud sync</span>
+                            <span>
+                              {cloudSyncState.syncing
+                                ? "Syncing…"
+                                : cloudSyncState.lastSyncedAt
+                                ? `Last synced ${getRelativeTime(
+                                    cloudSyncState.lastSyncedAt
+                                  )}`
+                                : "Not synced yet"}
+                            </span>
+                          </div>
+                          {cloudSyncState.error && (
+                            <p className="text-xs text-red-600">
+                              {cloudSyncState.error}
                             </p>
                           )}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => cloudSyncState.syncNow()}
+                              disabled={cloudSyncState.syncing}
+                            >
+                              {cloudSyncState.syncing ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                                  Syncing…
+                                </>
+                              ) : (
+                                "Sync now"
+                              )}
+                            </Button>
+                            {shareLockedBySync && (
+                              <span className="text-[11px] text-amber-700">
+                                Sync to cloud before sharing.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 flex items-center gap-2">
+                          Public link
+                          {shareSaving && <Loader2 className="h-3 w-3 animate-spin" />}
+                        </span>
+                        <Switch
+                          checked={Boolean(credits?.sharing?.isLinkEnabled)}
+                          onCheckedChange={handleShareToggle}
+                          disabled={!shareAvailable || shareSaving}
+                        />
                       </div>
-                    </div>
+                      {shareLink && (
+                        <div className="flex gap-2">
+                          <Input
+                            readOnly
+                            value={shareLink}
+                            className="bg-white border-slate-300"
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={handleCopyShareLink}
+                            disabled={!shareLink}
+                          >
+                            {shareLinkCopyState === "copied" ? "Copied" : "Copy"}
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-slate-500">
+                        Target TimeCapsule{" "}
+                        <span className="font-semibold">
+                          {activeTimeCapsuleName || "Untitled project"}
+                        </span>{" "}
+                        · ID{" "}
+                        <span className="font-mono text-slate-700">{frameSetId}</span> ·
+                        Version <span className="font-mono text-slate-700">{frameVersion}</span>
+                      </p>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-slate-600 font-semibold">
+                          Invite by email (up to {credits.limits.maxInvitees} collaborators)
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="email"
+                            placeholder="teammate@example.com"
+                            value={inviteInput}
+                            onChange={(event) => setInviteInput(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                handleAddInvite();
+                              }
+                            }}
+                            className="bg-white border-slate-300"
+                            disabled={!shareAvailable || inviteSaving}
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={handleAddInvite}
+                            disabled={
+                              !shareAvailable || !inviteInput.trim() || inviteSaving
+                            }
+                          >
+                            {inviteSaving ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                Sending
+                              </>
+                            ) : (
+                              "Invite"
+                            )}
+                          </Button>
+                        </div>
+                        {inviteError && (
+                          <p className="text-xs text-red-500">{inviteError}</p>
+                        )}
+                        {shareError && (
+                          <p className="text-xs text-red-500">{shareError}</p>
+                        )}
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-slate-600">
+                            Collaborators
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {credits?.sharing?.allowedEmails?.map((email) => (
+                              <Badge
+                                key={email}
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                              >
+                                {email}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveInvite(email)}
+                                  className="text-xs text-slate-600 hover:text-slate-900"
+                                  aria-label={`Remove ${email}`}
+                                  disabled={!shareAvailable || inviteSaving}
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            ))}
+                            {pendingInviteList.map((email) => (
+                              <Badge
+                                key={`pending-${email}`}
+                                variant="outline"
+                                className="text-xs text-amber-700 border-amber-200 bg-amber-50"
+                              >
+                                {email} · awaiting signup
+                              </Badge>
+                            ))}
+                            {activeCollaboratorCount === 0 && (
+                              <p className="text-xs text-slate-500">
+                                No collaborators yet.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </>
                   )
                 ) : (
@@ -1131,32 +1257,32 @@ const handleCopySwePrompt = async () => {
                 </div>
               )}
 
-              {/* Hide OpenRouter card when Local SWE Bridge or Ollama is active */}
-              {aiProviders.activeProvider !== "local-bridge" &&
-                aiProviders.activeProvider !== "ollama" &&
-                (managedOpenRouter ? (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-emerald-900 font-semibold flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4" />
-                        Managed OpenRouter access
-                      </Label>
-                      <Badge variant="outline" className="text-xs text-emerald-800">
-                        TimeCapsule credits
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-emerald-900">
-                      OpenRouter calls run through the TimeCapsule proxy, so you don’t need
-                      a personal API key. Usage draws from your monthly agent-call credits.
-                    </p>
-                    <p className="text-xs text-emerald-800">
-                      Remaining agent calls:{" "}
-                      {credits
-                        ? `${credits.remaining.agentCalls}/${credits.limits.agentCalls}`
-                        : "—"}
-                    </p>
+              {/* Hide OpenRouter card when managed by TimeCapsule */}
+              {managedOpenRouter ? (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-emerald-900 font-semibold flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4" />
+                      TimeCapsule credits
+                    </Label>
+                    <Badge variant="outline" className="text-xs text-emerald-800">
+                      TimeCapsule credits
+                    </Badge>
                   </div>
-                ) : (
+                  <p className="text-sm text-emerald-900">
+                    TimeCapsule provides easy access to AI so you don’t need a personal API key. Usage draws from your monthly agent-call credits.
+                  </p>
+                  <p className="text-xs text-emerald-800">
+                    Remaining agent calls:{" "}
+                    {credits
+                      ? `${credits.remaining.agentCalls}/${credits.limits.agentCalls}`
+                      : "—"}
+                  </p>
+                </div>
+              ) : (
+                !isCloudBuild &&
+                aiProviders.activeProvider !== "local-bridge" &&
+                aiProviders.activeProvider !== "ollama" && (
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-slate-700 font-medium flex items-center gap-2">
@@ -1252,69 +1378,70 @@ const handleCopySwePrompt = async () => {
                       <p className="text-xs text-red-500">{openRouterState.error}</p>
                     )}
                   </div>
-                ))}
+                )
+              )}
 
               {/* Hide Firecrawl card when Local SWE Bridge is active */}
-              {aiProviders.activeProvider !== 'local-bridge' && (
+              {!isCloudBuild && aiProviders.activeProvider !== "local-bridge" && (
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="text-slate-700 font-medium flex items-center gap-2">
                       <Globe className="h-4 w-4" />
                       Firecrawl Key (Web Grounding)
                     </Label>
-                  {firecrawl.firecrawlState.configured && (
-                    <Badge className="bg-emerald-100 text-emerald-700 text-xs">
-                      Configured
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="password"
-                    placeholder="firecrawl_live_..."
-                    value={firecrawlKey}
-                    onChange={(event) => setFirecrawlKey(event.target.value)}
-                    className="bg-white border-slate-300"
-                  />
-                  <Button
-                    variant="secondary"
-                    onClick={async () => {
-                      if (!firecrawlKey.trim()) {
+                    {firecrawl.firecrawlState.configured && (
+                      <Badge className="bg-emerald-100 text-emerald-700 text-xs">
+                        Configured
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="firecrawl_live_..."
+                      value={firecrawlKey}
+                      onChange={(event) => setFirecrawlKey(event.target.value)}
+                      className="bg-white border-slate-300"
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={async () => {
+                        if (!firecrawlKey.trim()) {
+                          firecrawl.clearFirecrawlKey();
+                          return;
+                        }
+                        await firecrawl.saveFirecrawlKey(firecrawlKey.trim());
+                      }}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setFirecrawlKey("");
                         firecrawl.clearFirecrawlKey();
-                        return;
-                      }
-                      await firecrawl.saveFirecrawlKey(firecrawlKey.trim());
-                    }}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setFirecrawlKey("");
-                      firecrawl.clearFirecrawlKey();
-                    }}
-                    className="text-red-500 hover:text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600 flex items-center gap-2">
-                    <Database className="h-4 w-4" />
-                    Use Firecrawl in prompts
-                  </span>
-                  <Switch
-                    disabled={!firecrawl.firecrawlState.configured}
-                    checked={webSearchEnabled}
-                    onCheckedChange={(checked) => setWebSearchEnabled(checked)}
-                  />
-                </div>
-                {firecrawl.firecrawlState.error && (
-                  <p className="text-xs text-red-500">
-                    {firecrawl.firecrawlState.error}
-                  </p>
-                )}
+                      }}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600 flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Use Firecrawl in prompts
+                    </span>
+                    <Switch
+                      disabled={!firecrawl.firecrawlState.configured}
+                      checked={webSearchEnabled}
+                      onCheckedChange={(checked) => setWebSearchEnabled(checked)}
+                    />
+                  </div>
+                  {firecrawl.firecrawlState.error && (
+                    <p className="text-xs text-red-500">
+                      {firecrawl.firecrawlState.error}
+                    </p>
+                  )}
                 </div>
               )}
             </section>

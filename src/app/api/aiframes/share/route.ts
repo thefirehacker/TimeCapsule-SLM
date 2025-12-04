@@ -25,17 +25,24 @@ const formatSharingError = (error: unknown, fallback: string) => {
 
 const normalizeFrameTarget = (
   frameSetId: unknown,
-  version: unknown
-): { frameSetId: string; version: string } | { error: string } => {
+  frameVersion: unknown,
+  legacyVersion?: unknown
+): { frameSetId: string; frameVersion: string } | { error: string } => {
   if (typeof frameSetId !== "string" || !frameSetId.trim()) {
     return { error: "Select a TimeCapsule project before sharing." };
   }
-  if (typeof version !== "string" || !version.trim()) {
+  const resolvedVersion =
+    typeof frameVersion === "string" && frameVersion.trim()
+      ? frameVersion.trim()
+      : typeof legacyVersion === "string" && legacyVersion.trim()
+      ? legacyVersion.trim()
+      : null;
+  if (!resolvedVersion) {
     return { error: "TimeCapsule version is missing." };
   }
   return {
     frameSetId: frameSetId.trim(),
-    version: version.trim(),
+    frameVersion: resolvedVersion,
   };
 };
 
@@ -46,8 +53,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await parseBody(request);
-  const { frameSetId, version, enable = true, timeCapsuleName } = body || {};
-  const normalized = normalizeFrameTarget(frameSetId, version);
+  const {
+    frameSetId,
+    frameVersion,
+    version,
+    enable = true,
+    timeCapsuleName,
+  } = body || {};
+  const normalized = normalizeFrameTarget(frameSetId, frameVersion, version);
   if ("error" in normalized) {
     return NextResponse.json({ error: normalized.error }, { status: 400 });
   }
@@ -56,7 +69,7 @@ export async function POST(request: NextRequest) {
     const record = await toggleShareLink({
       userId: session.userId,
       frameSetId: normalized.frameSetId,
-      version: normalized.version,
+      frameVersion: normalized.frameVersion,
       enable: Boolean(enable),
       timeCapsuleName,
     });
@@ -77,8 +90,8 @@ export async function DELETE(request: NextRequest) {
   }
 
   const body = await parseBody(request);
-  const { frameSetId, version } = body || {};
-  const normalized = normalizeFrameTarget(frameSetId, version);
+  const { frameSetId, frameVersion, version } = body || {};
+  const normalized = normalizeFrameTarget(frameSetId, frameVersion, version);
   if ("error" in normalized) {
     return NextResponse.json({ error: normalized.error }, { status: 400 });
   }
@@ -87,7 +100,7 @@ export async function DELETE(request: NextRequest) {
     const record = await toggleShareLink({
       userId: session.userId,
       frameSetId: normalized.frameSetId,
-      version: normalized.version,
+      frameVersion: normalized.frameVersion,
       enable: false,
     });
     return NextResponse.json({ ok: true, share: record });

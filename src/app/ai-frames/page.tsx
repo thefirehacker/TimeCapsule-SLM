@@ -110,6 +110,7 @@ import type { Chapter } from "./types/frames";
 
 // UNIFIED: Replace old fragmented storage with unified system
 import { useUnifiedStorage } from "./hooks/useUnifiedStorage";
+import { useTimeCapsuleSync } from "./hooks/useTimeCapsuleSync";
 import { useAIFlowBuilder, PlannerChapter } from "./hooks/useAIFlowBuilder";
 import type { UnifiedAIFrame } from "./lib/unifiedStorage";
 import type { FlowGeneratedFrame } from "@/lib/multi-agent/interfaces/Context";
@@ -961,6 +962,15 @@ export default function AIFramesPage() {
   });
 
   const timeCapsule = useTimeCapsule(providerVectorStore);
+  const cloudSync = useTimeCapsuleSync({
+    activeTimeCapsuleId: timeCapsule.activeTimeCapsuleId,
+    frameVersion: TIMECAPSULE_VERSION,
+    timeCapsuleName: timeCapsule.activeTimeCapsule?.name,
+    frames: unifiedStorage.frames,
+    chapters: unifiedStorage.chapters,
+    graphState: unifiedStorage.graphState,
+    buildEnv,
+  });
 
   const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [copiedSharedId, setCopiedSharedId] = useState<string | null>(null);
@@ -3908,6 +3918,7 @@ export default function AIFramesPage() {
             activeTimeCapsuleId={timeCapsule.activeTimeCapsuleId || undefined}
             activeTimeCapsuleName={timeCapsule.activeTimeCapsule?.name}
             allFrames={unifiedStorage.frames}
+            cloudSync={cloudSync}
           />
         ) : (
           <div className="min-h-[32rem] rounded-3xl border border-slate-200 bg-white/70 flex flex-col items-center justify-center gap-4 text-center text-slate-500">
