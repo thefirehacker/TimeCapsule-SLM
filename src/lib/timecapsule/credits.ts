@@ -318,12 +318,3 @@ export const consumeCredit = async (
   return getCreditSnapshot(userId);
 };
 
-export const estimateDocumentComplexity = (
-  buffer: Buffer
-): DocumentComplexityEstimate => {
-  const bytes = buffer.byteLength;
-  const pageEstimate = Math.max(1, Math.ceil(bytes / 4000));
-  const tokenEstimate = Math.max(1, Math.ceil(bytes / 4));
-  return { pageEstimate, tokenEstimate };
-};
-

@@ -33,7 +33,7 @@ export const CREDIT_LIMITS: Record<TimeCapsuleTier, CreditLimits> = {
     sessions: 3,
     flowBuilders: 10,
     kbDocs: 15,
-    kbPagesPerDoc: 150,
+    kbPagesPerDoc: 500,
     kbTokensPerDoc: 300_000,
     agentCalls: 60,
     maxInvitees: 10,

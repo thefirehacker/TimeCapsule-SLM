@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ingestDocumentBuffer } from "@/lib/server/documentIngestion";
+import {
+  ingestDocumentBuffer,
+  extractDocumentText,
+} from "@/lib/server/documentIngestion";
 import type { DocumentType } from "@/components/VectorStore/VectorStore";
 import { auth } from "@/auth";
 import {
   consumeCredit,
   ensureDocumentWithinLimits,
-  estimateDocumentComplexity,
 } from "@/lib/timecapsule/credits";
 
 export async function POST(req: NextRequest) {
@@ -29,12 +31,26 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const complexity = estimateDocumentComplexity(buffer);
-    await ensureDocumentWithinLimits(session.userId, {
-      ...complexity,
+    const parsedDocument = await extractDocumentText({
+      buffer,
+      filename: file.name,
+      mimeType: file.type || "application/octet-stream",
+    });
+
+    const pageEstimate = Math.max(1, parsedDocument.pageCount || 1);
+    const tokenEstimate = Math.max(
+      1,
+      Math.ceil(parsedDocument.plainText.length / 4)
+    );
+
+    const complexity = {
+      pageEstimate,
+      tokenEstimate,
       filename: file.name,
       mimeType: file.type,
-    });
+    };
+
+    await ensureDocumentWithinLimits(session.userId, complexity);
 
     const documentType =
       (formData.get("documentType") as DocumentType) ?? "userdocs";
@@ -42,7 +58,6 @@ export async function POST(req: NextRequest) {
     await consumeCredit(session.userId, "kbDocs", 1, {
       ...complexity,
       documentType,
-      filename: file.name,
     });
 
     const processed = await ingestDocumentBuffer({
@@ -50,6 +65,7 @@ export async function POST(req: NextRequest) {
       filename: file.name,
       mimeType: file.type || "application/octet-stream",
       documentType,
+      parsed: parsedDocument,
     });
 
     return NextResponse.json({ document: processed });

@@ -176,6 +176,13 @@ export function AIFlowBuilderPanel({
   const [clearLogsDialogOpen, setClearLogsDialogOpen] = useState(false);
   const [deleteSessionDialogOpen, setDeleteSessionDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const {
+    credits,
+    loading: creditsLoading,
+    error: creditsError,
+    refresh: refreshCredits,
+  } = useTimeCapsuleCredits();
   const [shareSaving, setShareSaving] = useState(false);
   const [inviteSaving, setInviteSaving] = useState(false);
   const [inviteInput, setInviteInput] = useState("");
@@ -209,15 +216,10 @@ export function AIFlowBuilderPanel({
 
   const openRouterState = aiProviders.openrouter.connectionState;
   const openRouterModels = aiProviders.openrouter.modelOptions;
-  const {
-    credits,
-    loading: creditsLoading,
-    error: creditsError,
-    refresh: refreshCredits,
-  } = useTimeCapsuleCredits();
   const managedOpenRouter = openRouterState.managedProvider;
   const frameSetId = activeTimeCapsuleId || "workspace";
   const frameVersion = "latest";
+
   const shareLink = useMemo(() => {
     if (
       typeof window === "undefined" ||
@@ -228,10 +230,113 @@ export function AIFlowBuilderPanel({
     }
     return `${window.location.origin}/timecapsule/${credits.sharing.shareToken}`;
   }, [credits?.sharing?.shareToken, credits?.sharing?.isLinkEnabled]);
+
   const pendingInviteList = useMemo(
     () => Object.keys(credits?.sharing?.pendingInviteTokens || {}),
     [credits?.sharing?.pendingInviteTokens]
   );
+
+  const handleShareToggle = useCallback(
+    async (enabled: boolean) => {
+      setShareSaving(true);
+      setShareError(null);
+      try {
+        const response = await fetch("/api/aiframes/share", {
+          method: enabled ? "POST" : "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            frameSetId,
+            version: frameVersion,
+            enable: enabled,
+          }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to update sharing settings");
+        }
+        await refreshCredits();
+      } catch (error) {
+        setShareError(
+          error instanceof Error ? error.message : "Failed to update sharing settings"
+        );
+      } finally {
+        setShareSaving(false);
+      }
+    },
+    [frameSetId, frameVersion, refreshCredits]
+  );
+
+  const handleAddInvite = useCallback(async () => {
+    if (!inviteInput.trim()) return;
+    setInviteSaving(true);
+    setInviteError(null);
+    try {
+      const response = await fetch("/api/aiframes/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frameSetId,
+          version: frameVersion,
+          emails: [inviteInput.trim()],
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to send invite");
+      }
+      setInviteInput("");
+      await refreshCredits();
+    } catch (error) {
+      setInviteError(
+        error instanceof Error ? error.message : "Failed to send invite"
+      );
+    } finally {
+      setInviteSaving(false);
+    }
+  }, [inviteInput, frameSetId, frameVersion, refreshCredits]);
+
+  const handleRemoveInvite = useCallback(
+    async (email: string) => {
+      setInviteSaving(true);
+      setInviteError(null);
+      try {
+        const response = await fetch("/api/aiframes/invite", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            frameSetId,
+            version: frameVersion,
+            emails: [email],
+          }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to remove invite");
+        }
+        await refreshCredits();
+      } catch (error) {
+        setInviteError(
+          error instanceof Error ? error.message : "Failed to remove invite"
+        );
+      } finally {
+        setInviteSaving(false);
+      }
+    },
+    [frameSetId, frameVersion, refreshCredits]
+  );
+
+  const handleCopyShareLink = useCallback(async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareLinkCopyState("copied");
+      setTimeout(() => setShareLinkCopyState("idle"), 1200);
+    } catch (error) {
+      setShareError(
+        error instanceof Error ? error.message : "Failed to copy link"
+      );
+    }
+  }, [shareLink]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const selectedHistory = useMemo(
     () => historySessions.find((session) => session.id === selectedHistoryId) || null,
@@ -514,108 +619,6 @@ if (!isOpen) {
     }
   };
 
-  const handleShareToggle = useCallback(
-    async (enabled: boolean) => {
-      setShareSaving(true);
-      setShareError(null);
-      try {
-        const response = await fetch("/api/aiframes/share", {
-          method: enabled ? "POST" : "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            frameSetId,
-            version: frameVersion,
-            enable: enabled,
-          }),
-        });
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.error || "Failed to update sharing settings");
-        }
-        await refreshCredits();
-      } catch (error) {
-        setShareError(
-          error instanceof Error ? error.message : "Failed to update sharing settings"
-        );
-      } finally {
-        setShareSaving(false);
-      }
-    },
-    [frameSetId, frameVersion, refreshCredits]
-  );
-
-  const handleAddInvite = useCallback(async () => {
-    if (!inviteInput.trim()) return;
-    setInviteSaving(true);
-    setInviteError(null);
-    try {
-      const response = await fetch("/api/aiframes/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          frameSetId,
-          version: frameVersion,
-          emails: [inviteInput.trim()],
-        }),
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error || "Failed to send invite");
-      }
-      setInviteInput("");
-      await refreshCredits();
-    } catch (error) {
-      setInviteError(
-        error instanceof Error ? error.message : "Failed to send invite"
-      );
-    } finally {
-      setInviteSaving(false);
-    }
-  }, [inviteInput, frameSetId, frameVersion, refreshCredits]);
-
-  const handleRemoveInvite = useCallback(
-    async (email: string) => {
-      setInviteSaving(true);
-      setInviteError(null);
-      try {
-        const response = await fetch("/api/aiframes/invite", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            frameSetId,
-            version: frameVersion,
-            emails: [email],
-          }),
-        });
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.error || "Failed to remove invite");
-        }
-        await refreshCredits();
-      } catch (error) {
-        setInviteError(
-          error instanceof Error ? error.message : "Failed to remove invite"
-        );
-      } finally {
-        setInviteSaving(false);
-      }
-    },
-    [frameSetId, frameVersion, refreshCredits]
-  );
-
-  const handleCopyShareLink = useCallback(async () => {
-    if (!shareLink) return;
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setShareLinkCopyState("copied");
-      setTimeout(() => setShareLinkCopyState("idle"), 1200);
-    } catch (error) {
-      setShareError(
-        error instanceof Error ? error.message : "Failed to copy link"
-      );
-    }
-  }, [shareLink]);
-
   const plannedCount = frameDrafts.length;
   const readyToAcceptCount = frameDrafts.filter(
     (draft) => draft.masteryState === "completed" && draft.status === "generated"
@@ -763,7 +766,7 @@ const handleCopySwePrompt = async () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="openrouter">
-                      TimeCapsule Credits (Managed OpenRouter)
+                      TimeCapsule Credits
                     </SelectItem>
                     <SelectItem value="ollama">Ollama · Local</SelectItem>
                     <SelectItem

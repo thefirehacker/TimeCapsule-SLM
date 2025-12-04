@@ -31,6 +31,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import Image from "next/image";
+import { getUserInitials } from "@/lib/users/getInitials";
 
 interface DeepResearchNavigationProps {
   isDarkMode?: boolean;
@@ -55,15 +56,6 @@ export function DeepResearchNavigation({
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/" });
-  };
-
-  const getUserInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
   };
 
   return (
@@ -133,9 +125,7 @@ export function DeepResearchNavigation({
                       alt={session.user.name || "User"}
                     />
                     <AvatarFallback className="bg-secondary text-secondary-foreground">
-                      {session.user.name
-                        ? getUserInitials(session.user.name)
-                        : "U"}
+                      {getUserInitials(session.user.name, session.user.email)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import Script from 'next/script';
 import { analytics } from '../../lib/analytics';
 import { CookieConsent, useCookieConsent } from '../ui/cookie-consent';
 
@@ -9,6 +10,7 @@ export function Analytics() {
   const pathname = usePathname();
   const { preferences, hasConsent, updatePreferences, analytics: analyticsConsent } = useCookieConsent();
   const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
+  const measurementId = analytics.getMeasurementId();
   
   // Extract canUse from analytics consent object
   const canUseAnalytics = analyticsConsent.canUse;
@@ -82,6 +84,22 @@ export function Analytics() {
     <>
       {/* Cookie Consent Banner */}
       <CookieConsent onConsentChange={updatePreferences} />
+      {canUseAnalytics && measurementId && (
+        <>
+          <Script
+            id="ga4-script"
+            src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+            strategy="afterInteractive"
+            onError={(error) => console.error("❌ GA4: Failed to preload script via Next.js", error)}
+          />
+          <Script id="ga4-inline" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);};
+            `}
+          </Script>
+        </>
+      )}
     </>
   );
 }

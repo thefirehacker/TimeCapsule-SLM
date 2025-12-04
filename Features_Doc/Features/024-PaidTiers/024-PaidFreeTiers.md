@@ -9,7 +9,7 @@
 |------------|------|-----|
 | AI Frame sessions | 1 per month | 3 per month |
 | AI Flow Builder creations | 3 per month | 10 per month |
-| Knowledge base docs | 5 docs, 50 pages/doc (or 120k tokens) | 15 docs, 150 pages/doc (or 300k tokens) |
+| Knowledge base docs | 5 docs, 50 pages/doc (or 120k tokens) | 15 docs, 500 pages/doc (or 300k tokens) |
 | Agent call budget (SWE Bridge/OpenRouter proxy) | 40 calls | 60 calls |
 | AI Frames sharing | Disabled | Toggle link + invite up to 10 emails |
 

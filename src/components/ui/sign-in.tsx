@@ -13,6 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 import { User } from "lucide-react";
 import Link from "next/link";
+import { getUserInitials } from "@/lib/users/getInitials";
 
 export default function SignInButton() {
   const { data: session, status } = useSession();
@@ -56,15 +57,7 @@ export default function SignInButton() {
                 alt={session.user?.name || ""}
               />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm font-medium">
-                {session.user?.name ? (
-                  session.user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                ) : (
-                  <User className="h-4 w-4" />
-                )}
+                {getUserInitials(session.user?.name, session.user?.email)}
               </AvatarFallback>
             </Avatar>
           </Button>

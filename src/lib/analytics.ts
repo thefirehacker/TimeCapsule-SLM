@@ -319,17 +319,40 @@ export class Analytics {
    * Load Google Analytics script
    */
   private loadGtagScript(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src*="googletagmanager.com/gtag/js"]`)) {
-        resolve();
-        return;
+    if (typeof window === "undefined") {
+      return Promise.resolve();
+    }
+
+    const scriptUrl = `https://www.googletagmanager.com/gtag/js?id=${this.config.measurementId}`;
+    const existingScript = document.querySelector(
+      `script[src="${scriptUrl}"]`
+    ) as HTMLScriptElement | null;
+
+    if (existingScript) {
+      if (typeof window.gtag === "function") {
+        return Promise.resolve();
       }
 
-      const script = document.createElement('script');
+      return new Promise((resolve, reject) => {
+        const handleLoad = () => {
+          existingScript.removeEventListener("load", handleLoad);
+          resolve();
+        };
+        const handleError = () => {
+          existingScript.removeEventListener("error", handleError);
+          reject(new Error("Failed to load Google Analytics script"));
+        };
+        existingScript.addEventListener("load", handleLoad);
+        existingScript.addEventListener("error", handleError);
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
       script.async = true;
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${this.config.measurementId}`;
+      script.src = scriptUrl;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Google Analytics script'));
+      script.onerror = () => reject(new Error("Failed to load Google Analytics script"));
       document.head.appendChild(script);
     });
   }
@@ -542,6 +565,13 @@ export class Analytics {
    */
   getConfig(): GA4Config {
     return { ...this.config };
+  }
+
+  /**
+   * Expose measurement ID for client components (e.g., Next Script helpers)
+   */
+  getMeasurementId(): string {
+    return this.config.measurementId;
   }
 
   /**

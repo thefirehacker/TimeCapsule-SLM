@@ -585,6 +585,8 @@ export function DeepResearchComponent() {
                     tabConfigs={deepResearchTabConfigs}
                     title="Document Manager"
                     description="Manage your research documents organized by type and source."
+                    uploadJobs={documents.uploadJobs}
+                    onDismissUploadJob={documents.dismissUploadJob}
                   />
                 </div>
               </CardContent>

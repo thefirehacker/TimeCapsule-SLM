@@ -10,6 +10,17 @@ export interface DocumentStatus {
   totalVectors: number;
 }
 
+export type UploadJobStatus = "queued" | "uploading" | "success" | "error";
+
+export interface UploadJob {
+  id: string;
+  filename: string;
+  status: UploadJobStatus;
+  message?: string;
+  startedAt: string;
+  completedAt?: string;
+}
+
 export interface UseDocumentsReturn {
   documents: DocumentData[];
   documentStatus: DocumentStatus;
@@ -19,6 +30,8 @@ export interface UseDocumentsReturn {
   handleFileUpload: (files: FileList) => Promise<void>;
   deleteDocument: (docId: string) => Promise<void>;
   updateDocumentStatus: () => Promise<void>;
+  uploadJobs: UploadJob[];
+  dismissUploadJob: (jobId: string) => void;
   // Enhanced chunk management
   getDocumentChunks: (docId: string) => Promise<any[]>;
   getChunkDetails: (docId: string, chunkId: string) => Promise<any>;
@@ -43,6 +56,7 @@ export function useDocuments(
   });
   const [isUploading, setIsUploading] = useState(false);
   const [showDocumentManager, setShowDocumentManager] = useState(false);
+  const [uploadJobs, setUploadJobs] = useState<UploadJob[]>([]);
 
   const updateDocumentStatus = useCallback(async () => {
     if (!vectorStore) return;
@@ -92,6 +106,61 @@ export function useDocuments(
 
   const imageAnalyzer = options?.analyzeImage;
 
+  const registerUploadJob = useCallback((filename: string): UploadJob => {
+    const jobId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const job: UploadJob = {
+      id: jobId,
+      filename,
+      status: "queued",
+      startedAt: new Date().toISOString(),
+      message: "Waiting to start…",
+    };
+    setUploadJobs((prev) => {
+      const filtered = prev.filter((existing) => existing.id !== jobId);
+      return [job, ...filtered];
+    });
+    return job;
+  }, []);
+
+  const updateUploadJob = useCallback(
+    (jobId: string, patch: Partial<UploadJob>) => {
+      setUploadJobs((prev) =>
+        prev.map((job) => (job.id === jobId ? { ...job, ...patch } : job))
+      );
+    },
+    []
+  );
+
+  const dismissUploadJob = useCallback((jobId: string) => {
+    setUploadJobs((prev) => prev.filter((job) => job.id !== jobId));
+  }, []);
+
+  const scheduleSuccessCleanup = useCallback((jobId: string) => {
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      setUploadJobs((prev) => prev.filter((job) => job.id !== jobId));
+    }, 4000);
+  }, []);
+
+  const extractServerError = useCallback(async (response: Response) => {
+    const raw = await response.text();
+    try {
+      const payload = raw ? JSON.parse(raw) : null;
+      if (payload?.error && typeof payload.error === "string") {
+        return payload.error;
+      }
+      if (payload?.message && typeof payload.message === "string") {
+        return payload.message;
+      }
+      return raw || response.statusText;
+    } catch {
+      return raw || response.statusText;
+    }
+  }, []);
+
   const handleFileUpload = useCallback(
     async (files: FileList) => {
       if (!vectorStore || !files.length) return;
@@ -103,10 +172,17 @@ export function useDocuments(
       }
 
       setIsUploading(true);
+      let shouldRefreshStatus = false;
       try {
         for (let i = 0; i < files.length; i++) {
           const originalFile = files[i];
           console.log(`📄 Uploading ${originalFile.name}`);
+
+          const job = registerUploadJob(originalFile.name);
+          updateUploadJob(job.id, {
+            status: "uploading",
+            message: "Uploading to TimeCapsule…",
+          });
 
           let uploadFile: File = originalFile;
           if (originalFile.type.startsWith("image/")) {
@@ -127,36 +203,74 @@ export function useDocuments(
           formData.append("file", uploadFile);
           formData.append("documentType", "userdocs");
 
-          const response = await fetch("/api/kb/upload", {
-            method: "POST",
-            body: formData,
-          });
+          try {
+            const response = await fetch("/api/kb/upload", {
+              method: "POST",
+              body: formData,
+            });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(
-              `Upload failed (${response.status}): ${errorText || response.statusText}`
+            if (!response.ok) {
+              const serverMessage = await extractServerError(response);
+              throw new Error(
+                serverMessage
+                  ? `Upload failed (${response.status}): ${serverMessage}`
+                  : `Upload failed (${response.status})`
+              );
+            }
+
+            const payload = await response.json();
+            if (!payload?.document) {
+              throw new Error("Upload response missing document payload.");
+            }
+
+            await vectorStore.importProcessedDocument(
+              payload.document,
+              originalFile
             );
+            shouldRefreshStatus = true;
+            updateUploadJob(job.id, {
+              status: "success",
+              message: "Processed and indexed",
+              completedAt: new Date().toISOString(),
+            });
+            scheduleSuccessCleanup(job.id);
+            console.log(`✅ Server processed: ${originalFile.name}`);
+          } catch (fileError) {
+            const errorMessage =
+              fileError instanceof Error
+                ? fileError.message
+                : "Upload failed";
+            updateUploadJob(job.id, {
+              status: "error",
+              message: errorMessage,
+              completedAt: new Date().toISOString(),
+            });
+            throw fileError;
           }
-
-          const payload = await response.json();
-          if (!payload?.document) {
-            throw new Error("Upload response missing document payload.");
-          }
-
-          await vectorStore.importProcessedDocument(payload.document, originalFile);
-          console.log(`✅ Server processed: ${originalFile.name}`);
         }
-
-        await updateDocumentStatus();
         console.log(`✅ File upload complete`);
       } catch (error) {
         console.error("File upload failed:", error);
       } finally {
+        if (shouldRefreshStatus) {
+          try {
+            await updateDocumentStatus();
+          } catch (refreshError) {
+            console.error("Failed to refresh document status:", refreshError);
+          }
+        }
         setIsUploading(false);
       }
     },
-    [vectorStore, updateDocumentStatus, imageAnalyzer]
+    [
+      vectorStore,
+      updateDocumentStatus,
+      imageAnalyzer,
+      registerUploadJob,
+      updateUploadJob,
+      extractServerError,
+      scheduleSuccessCleanup,
+    ]
   );
 
   const deleteDocument = useCallback(
@@ -253,6 +367,8 @@ export function useDocuments(
     handleFileUpload,
     deleteDocument,
     updateDocumentStatus,
+    uploadJobs,
+    dismissUploadJob,
     // Enhanced chunk management
     getDocumentChunks,
     getChunkDetails,
