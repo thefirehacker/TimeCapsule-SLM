@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ import {
   Copy,
   ExternalLink,
   AlertTriangle,
+  GitFork,
 } from "lucide-react";
 
 // Import VectorStore and providers
@@ -79,7 +80,11 @@ import {
   getGraphStorageManager,
   GraphStorageManager,
 } from "@/lib/GraphStorageManager";
-import { useTimeCapsule, SharedTimeCapsuleSummary } from "./hooks/useTimeCapsule";
+import {
+  useTimeCapsule,
+  SharedTimeCapsuleSummary,
+  SharedCapsuleSelection,
+} from "./hooks/useTimeCapsule";
 import {
   BubblSpace,
   TimeCapsuleMetadata,
@@ -93,6 +98,7 @@ import Link from "next/link";
 import Image from "next/image";
 import SignInButton from "@/components/ui/sign-in";
 import { TIMECAPSULE_VERSION } from "@/lib/version";
+import type { TimeCapsuleSyncPayload } from "@/lib/timecapsule/aiframeSharing";
 
 // Import NEW MODULAR COMPONENTS
 import {
@@ -934,6 +940,7 @@ export default function AIFramesPage() {
   // Authentication hooks
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const buildEnv = getBuildEnv();
   const requireAuth = buildEnv === "cloud";
   const localBridgeEnabled = isLocalBuildEnv();
@@ -977,6 +984,13 @@ export default function AIFramesPage() {
   const [documentManagerTab, setDocumentManagerTab] = useState("user");
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
   const [semanticSearchResults, setSemanticSearchResults] = useState<any[]>([]);
+  const [sharedStatusMessage, setSharedStatusMessage] = useState<string | null>(null);
+  const [sharedConflictDetected, setSharedConflictDetected] = useState(false);
+  const [pendingSharedUpdate, setPendingSharedUpdate] =
+    useState<SharedCapsuleSelection | null>(null);
+  const [forkingShared, setForkingShared] = useState(false);
+  const handledSharedTokenRef = useRef<string | null>(null);
+  const sharedPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [currentSemanticQuery, setCurrentSemanticQuery] = useState("");
   const [showSemanticResults, setShowSemanticResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -2252,6 +2266,38 @@ export default function AIFramesPage() {
     }
   }, [unifiedStorage]);
 
+  const applySharedSnapshot = useCallback(
+    async (snapshot?: TimeCapsuleSyncPayload | null) => {
+      if (!snapshot) {
+        setSharedStatusMessage(
+          "The owner hasn’t synced this TimeCapsule to the cloud yet."
+        );
+        return false;
+      }
+      await unifiedStorage.clearAll();
+      const framesFromSnapshot =
+        (snapshot.frames as UnifiedAIFrame[])?.slice?.() || [];
+      const chaptersFromSnapshot =
+        (snapshot.chapters as Chapter[])?.slice?.() || [];
+      const graphStateFromSnapshot =
+        (snapshot.graphState as GraphState) || {
+          nodes: [],
+          edges: [],
+          selectedNodeId: null,
+        };
+      unifiedStorage.batchUpdate({
+        frames: framesFromSnapshot,
+        chapters: chaptersFromSnapshot,
+        graphState: graphStateFromSnapshot,
+      });
+      setCurrentFrameIndex(0);
+      setSharedStatusMessage("Loaded shared snapshot.");
+      setSharedConflictDetected(false);
+      return true;
+    },
+    [unifiedStorage]
+  );
+
   const handleSidebarHide = useCallback(() => {
     setSidebarCollapsed(true);
     setSidebarManualOverride(true);
@@ -2263,19 +2309,243 @@ export default function AIFramesPage() {
   }, []);
 
   const handleSharedTimeCapsuleSelect = useCallback(
-    (shared: SharedTimeCapsuleSummary) => {
-      if (typeof window === "undefined") return;
-      if (shared.shareToken) {
-        const target = `/timecapsule/${shared.shareToken}`;
-        window.open(target, "_blank", "noopener,noreferrer");
-      } else {
-        console.warn(
-          "Shared TimeCapsule is missing a share link. Ask the owner to enable public sharing."
+    async (shared: SharedTimeCapsuleSummary) => {
+      setPendingSharedUpdate(null);
+      setSharedConflictDetected(false);
+      setSharedStatusMessage("Loading shared project…");
+      const selection = await timeCapsule.loadSharedCapsule({
+        token: shared.shareToken,
+        frameSetId: shared.id,
+        frameVersion: shared.version ?? TIMECAPSULE_VERSION,
+      });
+      if (!selection) {
+        setSharedStatusMessage(null);
+        return;
+      }
+      await applySharedSnapshot(selection.snapshot);
+    },
+    [applySharedSnapshot, timeCapsule]
+  );
+
+  const handleExitSharedView = useCallback(() => {
+    timeCapsule.clearSharedSelection();
+    setSharedStatusMessage(null);
+    setSharedConflictDetected(false);
+    setPendingSharedUpdate(null);
+  }, [timeCapsule]);
+
+  const handleForkSharedCapsule = useCallback(async () => {
+    if (
+      !timeCapsule.sharedSelection ||
+      timeCapsule.sharedSelection.shareMode !== "read-only"
+    ) {
+      return;
+    }
+    if (forkingShared) return;
+    setForkingShared(true);
+    setSharedStatusMessage("Creating your own copy…");
+    try {
+      const forkName = `${
+        timeCapsule.sharedSelection.title || "Shared project"
+      } (fork)`;
+      const forkDescription = timeCapsule.sharedSelection.ownerName
+        ? `Forked from ${timeCapsule.sharedSelection.ownerName}`
+        : "Forked from shared TimeCapsule";
+      const newCapsule = await timeCapsule.createTimeCapsule(
+        forkName,
+        forkDescription
+      );
+      if (!newCapsule) {
+        throw new Error("Unable to create a new TimeCapsule in this workspace.");
+      }
+
+      const response = await fetch("/api/aiframes/fork", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: timeCapsule.sharedSelection.shareToken,
+          frameSetId: timeCapsule.sharedSelection.frameSetId,
+          frameVersion: timeCapsule.sharedSelection.frameVersion,
+          targetFrameSetId: newCapsule.id,
+          targetFrameVersion: TIMECAPSULE_VERSION,
+          targetName: newCapsule.name,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.error ||
+            "Fork failed. Ask the owner to sync their TimeCapsule first."
         );
       }
-    },
-    []
-  );
+      const result = await response.json();
+      await timeCapsule.switchTimeCapsule(newCapsule.id);
+      await applySharedSnapshot(result?.fork?.snapshot);
+      handleExitSharedView();
+      setSharedStatusMessage("Fork created. You're now editing your own copy.");
+    } catch (error) {
+      setSharedStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to fork shared TimeCapsule."
+      );
+    } finally {
+      setForkingShared(false);
+    }
+  }, [
+    timeCapsule,
+    applySharedSnapshot,
+    handleExitSharedView,
+    forkingShared,
+  ]);
+
+  const handleApplyPendingSharedUpdate = useCallback(async () => {
+    if (!timeCapsule.sharedSelection) {
+      return;
+    }
+    setSharedStatusMessage("Refreshing shared project…");
+    try {
+      const selection = await timeCapsule.loadSharedCapsule({
+        token:
+          pendingSharedUpdate?.shareToken ??
+          timeCapsule.sharedSelection.shareToken,
+        frameSetId: timeCapsule.sharedSelection.frameSetId,
+        frameVersion: timeCapsule.sharedSelection.frameVersion,
+      });
+      if (selection) {
+        await applySharedSnapshot(selection.snapshot);
+        setPendingSharedUpdate(null);
+        setSharedConflictDetected(false);
+        setSharedStatusMessage("Latest updates applied.");
+      } else {
+        setSharedStatusMessage(null);
+      }
+    } catch (error) {
+      console.error("Failed to refresh shared project:", error);
+      setSharedStatusMessage("Failed to load the latest shared changes.");
+    }
+  }, [
+    timeCapsule,
+    pendingSharedUpdate,
+    applySharedSnapshot,
+  ]);
+
+  const handleDismissPendingSharedUpdate = useCallback(() => {
+    setPendingSharedUpdate(null);
+    setSharedConflictDetected(false);
+  }, []);
+
+  useEffect(() => {
+    const token = searchParams.get("sharedToken");
+    if (!token || handledSharedTokenRef.current === token) {
+      return;
+    }
+    handledSharedTokenRef.current = token;
+    const frameSetId = searchParams.get("frameSetId");
+    const frameVersion =
+      searchParams.get("frameVersion") ?? TIMECAPSULE_VERSION;
+    setSharedStatusMessage("Opening shared project…");
+    timeCapsule
+      .loadSharedCapsule({
+        token,
+        frameSetId,
+        frameVersion,
+      })
+      .then(async (selection) => {
+        if (selection) {
+          await applySharedSnapshot(selection.snapshot);
+        } else {
+          setSharedStatusMessage(null);
+        }
+      })
+      .finally(() => {
+        if (typeof window === "undefined") {
+          return;
+        }
+        const url = new URL(window.location.href);
+        [
+          "sharedToken",
+          "frameSetId",
+          "frameVersion",
+          "sharedName",
+          "ownerName",
+          "ownerEmail",
+          "shareMode",
+          "lastSyncedAt",
+        ].forEach((param) => url.searchParams.delete(param));
+        const nextSearch = url.searchParams.toString();
+        const next =
+          url.pathname + (nextSearch ? `?${nextSearch}` : "") + url.hash;
+        window.history.replaceState({}, "", next);
+      });
+  }, [applySharedSnapshot, searchParams, timeCapsule]);
+
+  useEffect(() => {
+    setPendingSharedUpdate(null);
+    setSharedConflictDetected(false);
+  }, [
+    timeCapsule.sharedSelection?.frameSetId,
+    timeCapsule.sharedSelection?.payloadChecksum,
+  ]);
+
+  useEffect(() => {
+    if (
+      !timeCapsule.sharedSelection ||
+      timeCapsule.sharedSelection.shareMode !== "collaborative"
+    ) {
+      if (sharedPollIntervalRef.current) {
+        clearInterval(sharedPollIntervalRef.current);
+        sharedPollIntervalRef.current = null;
+      }
+      return;
+    }
+    const currentSelection = timeCapsule.sharedSelection;
+
+    const pollSharedChanges = async () => {
+      if (!currentSelection) return;
+      try {
+        const response = await fetch("/api/aiframes/shared/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: currentSelection.shareToken,
+            frameSetId: currentSelection.frameSetId,
+            frameVersion: currentSelection.frameVersion,
+          }),
+        });
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => null);
+        const nextSelection =
+          (payload?.selection as SharedCapsuleSelection | undefined) ?? null;
+        if (
+          nextSelection?.payloadChecksum &&
+          currentSelection.payloadChecksum &&
+          nextSelection.payloadChecksum !== currentSelection.payloadChecksum
+        ) {
+          setPendingSharedUpdate(nextSelection);
+          setSharedConflictDetected(true);
+        }
+      } catch (pollError) {
+        console.error("Failed to check shared updates:", pollError);
+      }
+    };
+
+    pollSharedChanges();
+    sharedPollIntervalRef.current = setInterval(pollSharedChanges, 60 * 1000);
+
+    return () => {
+      if (sharedPollIntervalRef.current) {
+        clearInterval(sharedPollIntervalRef.current);
+        sharedPollIntervalRef.current = null;
+      }
+    };
+  }, [
+    timeCapsule.sharedSelection?.frameSetId,
+    timeCapsule.sharedSelection?.frameVersion,
+    timeCapsule.sharedSelection?.shareMode,
+    timeCapsule.sharedSelection?.shareToken,
+    timeCapsule.sharedSelection?.payloadChecksum,
+  ]);
 
   const handleCopySharedLink = useCallback(
     async (shared: SharedTimeCapsuleSummary) => {
@@ -4040,7 +4310,98 @@ export default function AIFramesPage() {
                       sessions={flowBuilder.sessions}
                       frames={unifiedStorage.frames}
                       onSharedSelect={handleSharedTimeCapsuleSelect}
+                      activeSharedCapsule={timeCapsule.sharedSelection}
+                      sharedLoading={timeCapsule.sharedLoading}
                     />
+                    {timeCapsule.sharedSelection && (
+                      <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-indigo-900">
+                              Viewing shared project
+                            </p>
+                            <p className="text-xs text-indigo-700">
+                              {timeCapsule.sharedSelection.title ||
+                                timeCapsule.sharedSelection.frameSetId}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-[10px] uppercase">
+                              {timeCapsule.sharedSelection.shareMode === "read-only"
+                                ? "Read-only"
+                                : "Collaborative"}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={handleExitSharedView}
+                            >
+                              Exit
+                            </Button>
+                          </div>
+                        </div>
+                    {timeCapsule.sharedSelection.shareMode === "read-only" && (
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <Button
+                          size="sm"
+                          className="gap-2"
+                          disabled={forkingShared}
+                          onClick={() => void handleForkSharedCapsule()}
+                        >
+                          {forkingShared ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <GitFork className="h-3 w-3" />
+                          )}
+                          {forkingShared ? "Forking…" : "Fork copy"}
+                        </Button>
+                        <p className="text-xs text-slate-600">
+                          Fork your own copy to make changes while keeping the
+                          owner’s project untouched.
+                        </p>
+                      </div>
+                    )}
+                        {sharedStatusMessage && (
+                          <p className="text-xs text-indigo-700">{sharedStatusMessage}</p>
+                        )}
+                    {sharedConflictDetected && pendingSharedUpdate && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                        <div className="flex items-center gap-2 text-xs text-amber-900">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>
+                            New edits from{" "}
+                            {pendingSharedUpdate.ownerName ||
+                              pendingSharedUpdate.ownerEmail ||
+                              "another collaborator"}{" "}
+                            are available.
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="gap-1 text-xs"
+                            onClick={() => void handleApplyPendingSharedUpdate()}
+                          >
+                            Review latest updates
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs"
+                            onClick={handleDismissPendingSharedUpdate}
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                        {timeCapsule.sharedError && (
+                          <p className="text-xs text-red-600">{timeCapsule.sharedError}</p>
+                        )}
+                      </div>
+                    )}
                     <p className="text-xs text-slate-500">
                       {flowBuilder.sessions.filter(s => s.timeCapsuleId === timeCapsule.activeTimeCapsuleId).length} sessions · {sessionFilteredFrames.length} frames · {timeCapsule.activeTimeCapsule?.documentCount || 0} docs
                     </p>
@@ -4070,9 +4431,25 @@ export default function AIFramesPage() {
                                 <Badge variant="secondary" className="text-[10px]">
                                   Shared
                                 </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] border-slate-200 text-slate-600"
+                                >
+                                  {shared.shareMode === "read-only"
+                                    ? "Read-only"
+                                    : "Live"}
+                                </Badge>
                               </div>
                               <p className="text-xs text-slate-500">
-                                Owner: {shared.ownerUserId || "Unknown"} · Updated{" "}
+                                Owner:{" "}
+                                {shared.ownerName || shared.ownerEmail
+                                  ? `${shared.ownerName ?? "Unknown"}${
+                                      shared.ownerEmail
+                                        ? ` (${shared.ownerEmail})`
+                                        : ""
+                                    }`
+                                  : "Unknown"}{" "}
+                                · Updated{" "}
                                 {shared.updatedAt
                                   ? new Date(shared.updatedAt).toLocaleDateString()
                                   : "recently"}
@@ -4082,12 +4459,18 @@ export default function AIFramesPage() {
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                disabled={!shared.shareToken}
-                                onClick={() => handleSharedTimeCapsuleSelect(shared)}
+                                disabled={
+                                  timeCapsule.sharedLoading &&
+                                  timeCapsule.sharedSelection?.frameSetId === shared.id
+                                }
+                                onClick={() => void handleSharedTimeCapsuleSelect(shared)}
                                 className="gap-1"
                               >
                                 <ExternalLink className="h-3 w-3" />
-                                Open
+                                {timeCapsule.sharedLoading &&
+                                timeCapsule.sharedSelection?.frameSetId === shared.id
+                                  ? "Loading…"
+                                  : "Load"}
                               </Button>
                               <Button
                                 variant="ghost"

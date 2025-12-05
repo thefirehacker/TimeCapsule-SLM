@@ -41,6 +41,7 @@ export interface User {
     frameSetId?: string | null;
     frameVersion?: string | null;
     timeCapsuleName?: string | null;
+    shareMode?: "collaborative" | "read-only";
   };
 }
 

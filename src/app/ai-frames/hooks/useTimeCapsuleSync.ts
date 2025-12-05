@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UnifiedAIFrame, UnifiedChapter } from "../lib/unifiedStorage";
 import { GraphState } from "@/components/ai-graphs/types";
+import type {
+  ShareMode,
+  TimeCapsuleSyncPayload,
+} from "@/lib/timecapsule/aiframeSharing";
 
 interface UseTimeCapsuleSyncOptions {
   activeTimeCapsuleId: string | null | undefined;
@@ -12,12 +16,21 @@ interface UseTimeCapsuleSyncOptions {
   buildEnv: string;
 }
 
+export interface SyncConflict {
+  latestChecksum: string | null;
+  lastSyncedAt: string | null;
+  shareMode: ShareMode;
+  snapshot?: TimeCapsuleSyncPayload | null;
+}
+
 export interface TimeCapsuleCloudSyncState {
   isEnabled: boolean;
   isSynced: boolean;
   lastSyncedAt: string | null;
   syncing: boolean;
   error: string | null;
+  lastChecksum: string | null;
+  conflict: SyncConflict | null;
   syncNow: () => Promise<void>;
 }
 
@@ -34,11 +47,14 @@ export function useTimeCapsuleSync({
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastChecksum, setLastChecksum] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<SyncConflict | null>(null);
   const framesRef = useRef(frames);
   const chaptersRef = useRef(chapters);
   const graphRef = useRef(graphState);
   const initialSyncRef = useRef(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const checksumRef = useRef<string | null>(null);
 
   useEffect(() => {
     framesRef.current = frames;
@@ -52,12 +68,23 @@ export function useTimeCapsuleSync({
     graphRef.current = graphState;
   }, [graphState]);
 
+  useEffect(() => {
+    checksumRef.current = lastChecksum;
+  }, [lastChecksum]);
+
+  useEffect(() => {
+    setLastSyncedAt(null);
+    setLastChecksum(null);
+    setConflict(null);
+  }, [activeTimeCapsuleId, frameVersion]);
+
   const syncNow = useCallback(async () => {
     if (!cloudEnabled || !activeTimeCapsuleId) {
       return;
     }
     setSyncing(true);
     setError(null);
+    setConflict(null);
 
     try {
       const payload = {
@@ -77,16 +104,30 @@ export function useTimeCapsuleSync({
           frameVersion,
           timeCapsuleName,
           payload,
+          baselineChecksum: checksumRef.current,
         }),
       });
 
       if (!response.ok) {
+        if (response.status === 409) {
+          const conflictPayload = await response.json().catch(() => null);
+          setConflict(conflictPayload?.conflict ?? null);
+          setError(
+            conflictPayload?.error ||
+              "Another collaborator synced changes before you."
+          );
+          return;
+        }
         const result = await response.json().catch(() => null);
         throw new Error(result?.error || "Failed to sync TimeCapsule");
       }
 
       const result = await response.json().catch(() => ({} as any));
       setLastSyncedAt(result?.lastSyncedAt || new Date().toISOString());
+      setLastChecksum(
+        result?.payloadChecksum ?? result?.share?.payloadChecksum ?? null
+      );
+      setConflict(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sync TimeCapsule");
     } finally {
@@ -129,6 +170,8 @@ export function useTimeCapsuleSync({
     lastSyncedAt,
     syncing,
     error,
+    lastChecksum,
+    conflict,
     syncNow,
   };
 }

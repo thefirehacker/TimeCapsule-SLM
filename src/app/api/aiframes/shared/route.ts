@@ -33,19 +33,46 @@ export async function GET(_req: NextRequest) {
           "#version": "version",
         },
         ProjectionExpression:
-          "frameSetId, #version, userId, title, updatedAt, shareToken, isShared",
+          "frameSetId, #version, userId, title, updatedAt, shareToken, isShared, shareMode",
       })
     );
 
-    const shared = (response.Items || []).map((item) => ({
-      frameSetId: item.frameSetId,
-      version: item.version,
-      ownerUserId: item.userId,
-      title: item.title || null,
-      updatedAt: item.updatedAt || null,
-      shareToken: item.shareToken || null,
-      isShared: Boolean(item.isShared),
-    }));
+    const ownerIds = Array.from(
+      new Set((response.Items || []).map((item) => item.userId))
+    );
+    const owners = await Promise.all(
+      ownerIds.map(async (ownerId) => {
+        try {
+          const owner = await getUserById(ownerId);
+          return owner
+            ? {
+                userId: ownerId,
+                name: owner.name || null,
+                email: owner.email || null,
+              }
+            : { userId: ownerId, name: null, email: null };
+        } catch {
+          return { userId: ownerId, name: null, email: null };
+        }
+      })
+    );
+    const ownerMap = new Map(owners.map((owner) => [owner.userId, owner]));
+
+    const shared = (response.Items || []).map((item) => {
+      const owner = ownerMap.get(item.userId);
+      return {
+        frameSetId: item.frameSetId,
+        version: item.version,
+        ownerUserId: item.userId,
+        ownerName: owner?.name ?? null,
+        ownerEmail: owner?.email ?? null,
+        title: item.title || null,
+        updatedAt: item.updatedAt || null,
+        shareToken: item.shareToken || null,
+        isShared: Boolean(item.isShared),
+        shareMode: item.shareMode || null,
+      };
+    });
 
     return NextResponse.json({ shared });
   } catch (error) {

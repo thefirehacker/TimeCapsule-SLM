@@ -60,6 +60,7 @@ import {
   Edit,
   Layers,
   Link,
+  Share2,
 } from "lucide-react";
 import type {
   UseAIFlowBuilderReturn,
@@ -71,6 +72,7 @@ import { OllamaConnectionModal } from "@/components/DeepResearch/components/Olla
 import { ResearchSteps } from "@/components/DeepResearch/components/ResearchSteps";
 import { getBuildEnv, isLocalBuildEnv } from "../utils/buildEnv";
 import { TIMECAPSULE_VERSION } from "@/lib/version";
+import type { ShareMode } from "@/lib/timecapsule/aiframeSharing";
 import { useTimeCapsuleCredits } from "../hooks/useTimeCapsuleCredits";
 import type { TimeCapsuleCloudSyncState } from "../hooks/useTimeCapsuleSync";
 
@@ -102,6 +104,8 @@ const defaultCloudSyncState: TimeCapsuleCloudSyncState = {
   lastSyncedAt: null,
   syncing: false,
   error: null,
+  lastChecksum: null,
+  conflict: null,
   syncNow: async () => {},
 };
 
@@ -207,6 +211,8 @@ export function AIFlowBuilderPanel({
   const [shareError, setShareError] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [shareLinkCopyState, setShareLinkCopyState] = useState<"idle" | "copied">("idle");
+  const [shareMode, setShareMode] = useState<ShareMode>("collaborative");
+  const [shareModeSaving, setShareModeSaving] = useState(false);
   
   // Ref for click-outside detection
   const panelRef = useRef<HTMLDivElement>(null);
@@ -227,6 +233,13 @@ export function AIFlowBuilderPanel({
       localStorage.setItem('ai-flow-auto-download', String(autoDownloadFrames));
     }
   }, [autoDownloadFrames]);
+
+  useEffect(() => {
+    const sharing = credits?.sharing as { shareMode?: ShareMode } | undefined;
+    const currentMode =
+      sharing?.shareMode === "read-only" ? "read-only" : "collaborative";
+    setShareMode(currentMode);
+  }, [credits?.sharing]);
   
   const buildEnv = getBuildEnv();
   const localBridgeAvailable = isLocalBuildEnv();
@@ -323,6 +336,42 @@ export function AIFlowBuilderPanel({
       refreshCredits,
       shareLockedBySync,
     ]
+  );
+
+  const handleShareModeChange = useCallback(
+    async (mode: ShareMode) => {
+      if (!frameSetId) {
+        setShareError("Select a TimeCapsule project before updating share mode.");
+        return;
+      }
+      setShareMode(mode);
+      setShareModeSaving(true);
+      setShareError(null);
+      try {
+        const response = await fetch("/api/aiframes/share/mode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            frameSetId,
+            frameVersion,
+            version: frameVersion,
+            shareMode: mode,
+          }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to update share mode");
+        }
+        await refreshCredits();
+      } catch (error) {
+        setShareError(
+          error instanceof Error ? error.message : "Failed to update share mode"
+        );
+      } finally {
+        setShareModeSaving(false);
+      }
+    },
+    [frameSetId, frameVersion, refreshCredits]
   );
 
   const handleAddInvite = useCallback(async () => {
@@ -1085,6 +1134,42 @@ const handleCopySwePrompt = async () => {
                           </Button>
                         </div>
                       )}
+                      <div className="space-y-2 pt-2">
+                        <Label className="text-xs font-semibold text-slate-600">
+                          Share mode
+                        </Label>
+                        <div className="flex flex-wrap gap-2">
+                          {(["collaborative", "read-only"] as ShareMode[]).map(
+                            (mode) => (
+                              <Button
+                                key={mode}
+                                type="button"
+                                variant={
+                                  shareMode === mode ? "secondary" : "outline"
+                                }
+                                size="sm"
+                                disabled={!shareAvailable || shareModeSaving}
+                                onClick={() => handleShareModeChange(mode)}
+                                className="flex items-center gap-2"
+                              >
+                                {shareModeSaving && shareMode === mode ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Share2 className="h-3 w-3" />
+                                )}
+                                {mode === "collaborative"
+                                  ? "Collaborative (live)"
+                                  : "Read-only (fork required)"}
+                              </Button>
+                            )
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          {shareMode === "read-only"
+                            ? "Invitees can browse the original but must fork their own copy to edit."
+                            : "Invitees edit the original project. We'll flag conflicts if multiple people save at once."}
+                        </p>
+                      </div>
                       <p className="text-[11px] text-slate-500">
                         Target TimeCapsule{" "}
                         <span className="font-semibold">

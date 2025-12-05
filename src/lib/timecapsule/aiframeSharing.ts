@@ -6,6 +6,7 @@ import {
   ScanCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { createHash } from "crypto";
 import { docClient } from "../aws/dynamodb";
 import { shouldEnforceCredits, recordUsageEvent } from "./credits";
 import {
@@ -17,6 +18,8 @@ import { sendTimeCapsuleInviteEmail } from "../email/sendTimeCapsuleInvite";
 
 export const AIFRAMES_TABLE = process.env.AIFRAMES_TABLE || "aiframes";
 const USERS_TABLE = "Users";
+
+export type ShareMode = "collaborative" | "read-only";
 
 export interface AIFrameShareRecord {
   frameSetId: string;
@@ -36,6 +39,12 @@ export interface AIFrameShareRecord {
     chapters: number;
     lastSaved?: string | null;
   } | null;
+  snapshotPayload?: TimeCapsuleSyncPayload | null;
+  payloadChecksum?: string | null;
+  shareMode: ShareMode;
+  parentFrameSetId?: string | null;
+  parentFrameVersion?: string | null;
+  parentShareToken?: string | null;
 }
 
 const generateShareToken = () =>
@@ -92,6 +101,10 @@ const applyUserSharingPatch = async (
       patch.timeCapsuleName ??
       currentSharing.timeCapsuleName ??
       null,
+    shareMode:
+      (patch as any).shareMode ??
+      currentSharing.shareMode ??
+      "collaborative",
   };
 
   await docClient.send(
@@ -126,6 +139,12 @@ const hydrateFrameRecord = (item: any): AIFrameShareRecord | null => {
     createdAt: item.createdAt,
     lastSyncedAt: item.lastSyncedAt ?? null,
     syncSummary: item.syncSummary ?? null,
+    snapshotPayload: item.snapshotPayload ?? null,
+    payloadChecksum: item.payloadChecksum ?? null,
+    shareMode: (item.shareMode as ShareMode) ?? "collaborative",
+    parentFrameSetId: item.parentFrameSetId ?? null,
+    parentFrameVersion: item.parentFrameVersion ?? null,
+    parentShareToken: item.parentShareToken ?? null,
   };
 };
 
@@ -190,6 +209,12 @@ export const ensureFrameRecord = async ({
         pendingInviteTokens: {},
         createdAt: now,
         updatedAt: now,
+        shareMode: "collaborative",
+        snapshotPayload: null,
+        payloadChecksum: null,
+        parentFrameSetId: null,
+        parentFrameVersion: null,
+        parentShareToken: null,
       },
     })
   );
@@ -232,6 +257,30 @@ export const upsertTimeCapsuleRecord = async ({
   });
 
   const now = new Date().toISOString();
+  const sanitizedPayload = payload
+    ? {
+        frames: Array.isArray((payload as any).frames)
+          ? (payload as any).frames
+          : [],
+        chapters: Array.isArray((payload as any).chapters)
+          ? (payload as any).chapters
+          : [],
+        graphState: (payload as any).graphState ?? {
+          nodes: [],
+          edges: [],
+          selectedNodeId: null,
+        },
+        metadata: {
+          ...(payload as any).metadata,
+          lastSaved: (payload as any)?.metadata?.lastSaved ?? now,
+        },
+      }
+    : null;
+  const payloadChecksum = sanitizedPayload
+    ? createHash("sha256")
+        .update(JSON.stringify(sanitizedPayload))
+        .digest("hex")
+    : null;
   const summary: SyncPayloadSummary = {
     frames: Array.isArray((payload as any)?.frames)
       ? (payload as any).frames.length
@@ -251,13 +300,17 @@ export const upsertTimeCapsuleRecord = async ({
             title = :title,
             updatedAt = :now,
             lastSyncedAt = :now,
-            syncSummary = :summary
+            syncSummary = :summary,
+            snapshotPayload = :payload,
+            payloadChecksum = :checksum
       `,
       ExpressionAttributeValues: {
         ":userId": userId,
         ":title": title ?? existing.title ?? null,
         ":now": now,
         ":summary": summary,
+        ":payload": sanitizedPayload,
+        ":checksum": payloadChecksum,
       },
     })
   );
@@ -321,6 +374,7 @@ export const toggleShareLink = async ({
     })
   );
 
+  const nextRecord = await getFrameRecord(frameSetId, frameVersion);
   const ownerRecord = await getUserRecord(userId);
   const ownerTier = resolveTierFromUserType(ownerRecord?.userType);
   await applyUserSharingPatch(userId, {
@@ -330,6 +384,7 @@ export const toggleShareLink = async ({
     frameSetId,
     frameVersion,
     timeCapsuleName: timeCapsuleName ?? null,
+    shareMode: nextRecord?.shareMode ?? "collaborative",
   });
 
   await recordUsageEvent(userId, enable ? "sharing.enabled" : "sharing.disabled", {
@@ -337,7 +392,198 @@ export const toggleShareLink = async ({
     version: frameVersion,
   });
 
+  return nextRecord;
+};
+
+export const getShareRecordByToken = async (
+  shareToken: string
+): Promise<AIFrameShareRecord | null> => {
+  if (!shareToken) return null;
+  const response = await docClient.send(
+    new ScanCommand({
+      TableName: AIFRAMES_TABLE,
+      FilterExpression: "shareToken = :token",
+      ExpressionAttributeValues: {
+        ":token": shareToken,
+      },
+      Limit: 1,
+    })
+  );
+  if (!response.Items?.length) {
+    return null;
+  }
+  return hydrateFrameRecord(response.Items[0]);
+};
+
+export const getShareRecordByKey = async (
+  frameSetId: string,
+  frameVersion: string
+): Promise<AIFrameShareRecord | null> => {
   return getFrameRecord(frameSetId, frameVersion);
+};
+
+export const ensureInviteeAccessByToken = async ({
+  shareToken,
+  inviteeEmail,
+}: {
+  shareToken: string;
+  inviteeEmail?: string | null;
+}): Promise<AIFrameShareRecord | null> => {
+  if (!shareToken) return null;
+  const normalizedEmail = inviteeEmail?.trim().toLowerCase();
+  const record = await getShareRecordByToken(shareToken);
+  if (!record || !normalizedEmail) {
+    return record;
+  }
+
+  const allowed = new Set(record.allowedEmails || []);
+  const pending = new Set(record.pendingInviteEmails || []);
+  let changed = false;
+  if (!allowed.has(normalizedEmail)) {
+    allowed.add(normalizedEmail);
+    changed = true;
+  }
+  if (pending.has(normalizedEmail)) {
+    pending.delete(normalizedEmail);
+    changed = true;
+  }
+  if (!changed) {
+    return record;
+  }
+
+  const now = new Date().toISOString();
+  const nextAllowed = Array.from(allowed);
+  const nextPending = Array.from(pending);
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: AIFRAMES_TABLE,
+      Key: { frameSetId: record.frameSetId, frameVersion: record.frameVersion },
+      UpdateExpression: `
+        SET allowedEmails = :allowed,
+            pendingInviteEmails = :pending,
+            updatedAt = :now
+      `,
+      ExpressionAttributeValues: {
+        ":allowed": nextAllowed,
+        ":pending": nextPending,
+        ":now": now,
+      },
+    })
+  );
+
+  await applyUserSharingPatch(record.userId, {
+    allowedEmails: nextAllowed,
+    pendingInviteTokens: Object.fromEntries(
+      nextPending.map((email) => [email, "pending"])
+    ),
+    frameSetId: record.frameSetId,
+    frameVersion: record.frameVersion,
+    timeCapsuleName: record.title ?? null,
+  });
+
+  return {
+    ...record,
+    allowedEmails: nextAllowed,
+    pendingInviteEmails: nextPending,
+    updatedAt: now,
+  };
+};
+
+export const updateShareMode = async ({
+  userId,
+  frameSetId,
+  frameVersion,
+  shareMode,
+}: {
+  userId: string;
+  frameSetId: string;
+  frameVersion: string;
+  shareMode: ShareMode;
+}): Promise<AIFrameShareRecord | null> => {
+  const normalizedMode =
+    shareMode === "read-only" ? "read-only" : ("collaborative" as ShareMode);
+  await ensureFrameRecord({
+    userId,
+    frameSetId,
+    frameVersion,
+  });
+  const now = new Date().toISOString();
+  await docClient.send(
+    new UpdateCommand({
+      TableName: AIFRAMES_TABLE,
+      Key: { frameSetId, frameVersion },
+      UpdateExpression: `
+        SET shareMode = :mode,
+            updatedAt = :now
+      `,
+      ExpressionAttributeValues: {
+        ":mode": normalizedMode,
+        ":now": now,
+      },
+    })
+  );
+
+  await applyUserSharingPatch(userId, {
+    shareMode: normalizedMode,
+    frameSetId,
+    frameVersion,
+  });
+
+  return getFrameRecord(frameSetId, frameVersion);
+};
+
+export const forkSharedTimeCapsule = async ({
+  sourceRecord,
+  targetUserId,
+  targetFrameSetId,
+  targetFrameVersion,
+  targetTitle,
+}: {
+  sourceRecord: AIFrameShareRecord;
+  targetUserId: string;
+  targetFrameSetId: string;
+  targetFrameVersion: string;
+  targetTitle?: string | null;
+}): Promise<AIFrameShareRecord> => {
+  if (!sourceRecord.snapshotPayload) {
+    throw new Error("Owner has not synced this TimeCapsule to the cloud yet.");
+  }
+
+  const forked = await upsertTimeCapsuleRecord({
+    userId: targetUserId,
+    frameSetId: targetFrameSetId,
+    frameVersion: targetFrameVersion,
+    title: targetTitle ?? sourceRecord.title ?? null,
+    payload: sourceRecord.snapshotPayload,
+  });
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: AIFRAMES_TABLE,
+      Key: { frameSetId: targetFrameSetId, frameVersion: targetFrameVersion },
+      UpdateExpression: `
+        SET parentFrameSetId = :parentId,
+            parentFrameVersion = :parentVersion,
+            parentShareToken = :parentToken,
+            updatedAt = :now
+      `,
+      ExpressionAttributeValues: {
+        ":parentId": sourceRecord.frameSetId,
+        ":parentVersion": sourceRecord.frameVersion,
+        ":parentToken": sourceRecord.shareToken ?? null,
+        ":now": new Date().toISOString(),
+      },
+    })
+  );
+
+  await recordUsageEvent(targetUserId, "sharing.fork", {
+    parentFrameSetId: sourceRecord.frameSetId,
+    parentFrameVersion: sourceRecord.frameVersion,
+    forkFrameSetId: targetFrameSetId,
+  });
+
+  return forked;
 };
 
 export const addInvites = async ({
@@ -386,6 +632,7 @@ export const addInvites = async ({
     pendingInviteEmails: [],
     updatedAt: new Date().toISOString(),
     title: timeCapsuleName || null,
+    shareMode: "collaborative" as ShareMode,
   };
 
   const allowed = new Set(existing.allowedEmails || []);
@@ -447,12 +694,17 @@ export const addInvites = async ({
   const pendingEntries = Array.from<string>(pending).map<[string, string]>(
     (email) => [email, "pending"]
   );
+  const updatedRecord = await getFrameRecord(frameSetId, frameVersion);
   await applyUserSharingPatch(userId, {
     allowedEmails: Array.from(allowed),
     pendingInviteTokens: Object.fromEntries(pendingEntries),
-    frameSetId,
-    frameVersion,
-    timeCapsuleName: timeCapsuleName ?? existing.title ?? null,
+    frameSetId: updatedRecord?.frameSetId ?? frameSetId,
+    frameVersion: updatedRecord?.frameVersion ?? frameVersion,
+    timeCapsuleName: updatedRecord?.title ?? timeCapsuleName ?? existing.title ?? null,
+    isLinkEnabled: updatedRecord?.isShared ?? existing.isShared,
+    shareToken: updatedRecord?.shareToken ?? existing.shareToken ?? null,
+    maxInvitees: CREDIT_LIMITS[ownerTier].maxInvitees,
+    shareMode: updatedRecord?.shareMode ?? existing.shareMode ?? "collaborative",
   });
 
   await recordUsageEvent(userId, "sharing.invites.updated", {
@@ -461,8 +713,6 @@ export const addInvites = async ({
     accepted,
     awaitingSignup,
   });
-
-  const updatedRecord = await getFrameRecord(frameSetId, frameVersion);
 
   try {
     const shareUrl =
@@ -537,9 +787,17 @@ export const removeInvites = async ({
   );
 
   const pendingEntries = pending.map<[string, string]>((email) => [email, "pending"]);
+  const ownerRecordForRemoval = await getUserRecord(userId);
+  const ownerTierForRemoval = resolveTierFromUserType(ownerRecordForRemoval?.userType);
   await applyUserSharingPatch(userId, {
     allowedEmails: allowed,
     pendingInviteTokens: Object.fromEntries(pendingEntries),
+    frameSetId: existing.frameSetId,
+    frameVersion: existing.frameVersion,
+    timeCapsuleName: existing.title ?? null,
+    isLinkEnabled: existing.isShared,
+    shareToken: existing.shareToken ?? null,
+    maxInvitees: CREDIT_LIMITS[ownerTierForRemoval].maxInvitees,
   });
 
   await recordUsageEvent(userId, "sharing.invites.removed", {

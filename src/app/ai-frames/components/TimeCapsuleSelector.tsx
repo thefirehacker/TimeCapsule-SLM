@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Package, Plus, ChevronDown, Edit, Check, X, Share2 } from "lucide-react";
 import { TimeCapsule } from '@/lib/kb/types/timecapsule';
-import { SharedTimeCapsuleSummary } from '../hooks/useTimeCapsule';
+import { SharedCapsuleSelection, SharedTimeCapsuleSummary } from '../hooks/useTimeCapsule';
 
 export interface TimeCapsuleSelectorProps {
   timeCapsules: TimeCapsule[];
@@ -31,6 +31,8 @@ export interface TimeCapsuleSelectorProps {
   frames?: any[];    // To calculate frame count per TimeCapsule
   sharedTimeCapsules?: SharedTimeCapsuleSummary[];
   onSharedSelect?: (capsule: SharedTimeCapsuleSummary) => void;
+  activeSharedCapsule?: SharedCapsuleSelection | null;
+  sharedLoading?: boolean;
   shareState?: {
     isShared: boolean;
     collaboratorCount: number;
@@ -47,6 +49,8 @@ export function TimeCapsuleSelector({
   frames = [],
   sharedTimeCapsules = [],
   onSharedSelect,
+  activeSharedCapsule,
+  sharedLoading = false,
   shareState,
 }: TimeCapsuleSelectorProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -54,6 +58,7 @@ export function TimeCapsuleSelector({
   const [editingName, setEditingName] = useState('');
   
   const activeTimeCapsule = timeCapsules.find(tc => tc.id === activeId);
+  const viewingShared = activeSharedCapsule && activeSharedCapsule.frameSetId === activeId;
   
   // Calculate counts per TimeCapsule
   const getTimeCapsuleCounts = (tcId: string) => {
@@ -103,12 +108,16 @@ export function TimeCapsuleSelector({
             <Package className="h-4 w-4 flex-shrink-0" />
             <div className="flex flex-col leading-tight">
               <span className="truncate">
-                {activeTimeCapsule?.name || "Select Project"}
+                {viewingShared
+                  ? `${activeSharedCapsule?.title || "Shared project"}`
+                  : activeTimeCapsule?.name || "Select Project"}
               </span>
-              {shareState?.isShared && (
+              {(shareState?.isShared || viewingShared) && (
                 <span className="text-[11px] text-emerald-600 flex items-center gap-1">
                   <Share2 className="h-3 w-3" />
-                  {shareState.collaboratorCount > 0
+                  {viewingShared
+                    ? "Shared project"
+                    : shareState?.collaboratorCount
                     ? `${shareState.collaboratorCount} collaborator${shareState.collaboratorCount === 1 ? "" : "s"}`
                     : "Link active"}
                 </span>
@@ -204,9 +213,11 @@ export function TimeCapsuleSelector({
             <DropdownMenuItem
               key={`shared-${shared.id}`}
               className="flex flex-col items-start gap-1 opacity-90"
-              onSelect={(e) => {
+              disabled={sharedLoading && activeSharedCapsule?.frameSetId === shared.id}
+              onSelect={async (e) => {
                 e.preventDefault();
-                onSharedSelect?.(shared);
+                if (sharedLoading) return;
+                await onSharedSelect?.(shared);
               }}
             >
               <div className="flex w-full items-center justify-between">
@@ -216,20 +227,22 @@ export function TimeCapsuleSelector({
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Owner: {shared.ownerUserId || "Unknown"} · Updated{" "}
+                Owner:{" "}
+                {shared.ownerName || shared.ownerEmail
+                  ? `${shared.ownerName ?? "Unknown"}${
+                      shared.ownerEmail ? ` (${shared.ownerEmail})` : ""
+                    }`
+                  : "Unknown"}{" "}
+                · Updated{" "}
                 {shared.updatedAt
                   ? new Date(shared.updatedAt).toLocaleDateString()
                   : "recently"}
               </p>
-              {shared.shareToken ? (
-                <span className="text-[11px] text-blue-600">
-                  Click to open shared link in a new tab
-                </span>
-              ) : (
-                <span className="text-[11px] text-slate-500">
-                  Waiting for owner to generate a share link
-                </span>
-              )}
+              <span className="text-[11px] text-blue-600">
+                {sharedLoading && activeSharedCapsule?.frameSetId === shared.id
+                  ? "Loading…"
+                  : "Click to load inside AI Frames"}
+              </span>
             </DropdownMenuItem>
           ))
         ) : (

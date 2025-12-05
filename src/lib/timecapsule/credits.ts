@@ -68,6 +68,7 @@ const defaultSharingState = (
   frameSetId: null,
   frameVersion: null,
   timeCapsuleName: null,
+  shareMode: "collaborative",
 });
 
 const resolveTier = (user: User | null): TimeCapsuleTier => {
