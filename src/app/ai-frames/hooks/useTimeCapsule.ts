@@ -7,17 +7,63 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { VectorStore } from '@/components/VectorStore/VectorStore';
 import { TimeCapsule } from '@/lib/kb/types/timecapsule';
 import { TimeCapsuleStore } from '@/lib/kb/timeCapsuleStore';
+import type {
+  ShareMode,
+  TimeCapsuleSyncPayload,
+} from '@/lib/timecapsule/aiframeSharing';
 
 export interface UseTimeCapsuleReturn {
   activeTimeCapsuleId: string | null;
   activeTimeCapsule: TimeCapsule | null;
   timeCapsules: TimeCapsule[];
+  sharedTimeCapsules: SharedTimeCapsuleSummary[];
+  sharedSelection: SharedCapsuleSelection | null;
+  sharedLoading: boolean;
+  sharedError: string | null;
   isLoading: boolean;
   createTimeCapsule: (name: string, description: string) => Promise<TimeCapsule | null>;
   switchTimeCapsule: (timeCapsuleId: string) => Promise<void>;
   updateTimeCapsule: (id: string, updates: Partial<TimeCapsule>) => Promise<void>;
   deleteTimeCapsule: (id: string) => Promise<void>;
   refreshTimeCapsules: () => Promise<void>;
+  refreshSharedTimeCapsules: () => Promise<void>;
+  loadSharedCapsule: (input: SharedCapsuleRequest) => Promise<SharedCapsuleSelection | null>;
+  clearSharedSelection: () => void;
+}
+
+export interface SharedTimeCapsuleSummary {
+  id: string;
+  name: string;
+  version?: string | null;
+  ownerUserId?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  shareToken?: string | null;
+  updatedAt?: string | null;
+  isShared?: boolean;
+  shareMode?: ShareMode | null;
+}
+
+export interface SharedCapsuleSelection {
+  frameSetId: string;
+  frameVersion: string;
+  title?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  shareMode: ShareMode;
+  shareToken?: string | null;
+  lastSyncedAt?: string | null;
+  payloadChecksum?: string | null;
+  parentFrameSetId?: string | null;
+  parentFrameVersion?: string | null;
+  parentShareToken?: string | null;
+  snapshot?: TimeCapsuleSyncPayload | null;
+}
+
+interface SharedCapsuleRequest {
+  token?: string | null;
+  frameSetId?: string | null;
+  frameVersion?: string | null;
 }
 
 /**
@@ -26,6 +72,12 @@ export interface UseTimeCapsuleReturn {
 export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleReturn {
   const [activeTimeCapsuleId, setActiveTimeCapsuleId] = useState<string | null>(null);
   const [timeCapsules, setTimeCapsules] = useState<TimeCapsule[]>([]);
+  const [sharedTimeCapsules, setSharedTimeCapsules] = useState<SharedTimeCapsuleSummary[]>([]);
+  const [sharedSelection, setSharedSelection] = useState<SharedCapsuleSelection | null>(null);
+  const [sharedLoading, setSharedLoading] = useState(false);
+  const [sharedError, setSharedError] = useState<string | null>(null);
+  const lastOwnedCapsuleIdRef = useRef<string | null>(null);
+  const activeIdRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const timeCapsuleStoreRef = useRef<TimeCapsuleStore | null>(null);
 
@@ -38,7 +90,30 @@ export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleR
   }, [vectorStore]);
 
   // Active TimeCapsule object
-  const activeTimeCapsule = timeCapsules.find(tc => tc.id === activeTimeCapsuleId) || null;
+  const ownedActiveTimeCapsule =
+    timeCapsules.find((tc) => tc.id === activeTimeCapsuleId) || null;
+  const activeTimeCapsule =
+    ownedActiveTimeCapsule ||
+    (sharedSelection
+      ? {
+          id: sharedSelection.frameSetId,
+          name:
+            sharedSelection.title ||
+            `Shared project (${sharedSelection.frameSetId.slice(-4)})`,
+          description: sharedSelection.ownerName
+            ? `Shared by ${sharedSelection.ownerName}`
+            : "Shared project",
+          createdAt: sharedSelection.lastSyncedAt || new Date().toISOString(),
+          updatedAt: sharedSelection.lastSyncedAt || new Date().toISOString(),
+          frameCount: Array.isArray((sharedSelection.snapshot as any)?.frames)
+            ? (sharedSelection.snapshot as any).frames.length
+            : 0,
+          documentCount: 0,
+          settings: {
+            defaultView: "split",
+          },
+        }
+      : null);
 
   /**
    * Initialize default TimeCapsule on first launch
@@ -121,6 +196,8 @@ export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleR
     }
     
     // Update active ID
+    lastOwnedCapsuleIdRef.current = newTimeCapsuleId;
+    setSharedSelection(null);
     setActiveTimeCapsuleId(newTimeCapsuleId);
     localStorage.setItem('activeTimeCapsuleId', newTimeCapsuleId);
     
@@ -189,6 +266,92 @@ export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleR
     }
   }, [timeCapsules, activeTimeCapsuleId, switchTimeCapsule]);
 
+  const loadSharedCapsule = useCallback(
+    async (input: SharedCapsuleRequest): Promise<SharedCapsuleSelection | null> => {
+      setSharedLoading(true);
+      setSharedError(null);
+      try {
+        const response = await fetch("/api/aiframes/shared/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        if (!response.ok) {
+          const result = await response.json().catch(() => null);
+          throw new Error(result?.error || "Failed to load shared TimeCapsule");
+        }
+        const result = await response.json();
+        const selection = result?.selection as SharedCapsuleSelection | undefined;
+        if (selection?.frameSetId) {
+          if (activeIdRef.current) {
+            lastOwnedCapsuleIdRef.current = activeIdRef.current;
+          }
+          setSharedSelection(selection);
+          setActiveTimeCapsuleId(selection.frameSetId);
+        }
+        return selection ?? null;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load shared TimeCapsule";
+        setSharedError(message);
+        return null;
+      } finally {
+        setSharedLoading(false);
+      }
+    },
+    []
+  );
+
+  const clearSharedSelection = useCallback(() => {
+    setSharedSelection(null);
+    setSharedError(null);
+    if (lastOwnedCapsuleIdRef.current) {
+      setActiveTimeCapsuleId(lastOwnedCapsuleIdRef.current);
+    }
+  }, []);
+
+  const refreshSharedTimeCapsules = useCallback(async () => {
+    try {
+      const response = await fetch("/api/aiframes/shared", {
+        method: "GET",
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch shared TimeCapsules");
+      }
+      const data = await response.json();
+      const summaries: SharedTimeCapsuleSummary[] = (data.shared || []).map(
+        (item: any) => ({
+          id: item.frameSetId,
+          name:
+            item.title ||
+            `Shared project (${String(item.frameSetId).slice(-4)})`,
+          version: item.version || item.frameVersion || null,
+          ownerUserId: item.ownerUserId || null,
+          ownerName: item.ownerName || null,
+          ownerEmail: item.ownerEmail || null,
+          shareToken: item.shareToken || null,
+          updatedAt: item.updatedAt || null,
+          isShared: Boolean(item.isShared),
+          shareMode: item.shareMode || null,
+        })
+      );
+      setSharedTimeCapsules(summaries);
+    } catch (error) {
+      console.error("Failed to load shared TimeCapsules:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSharedTimeCapsules();
+  }, [refreshSharedTimeCapsules]);
+
+  useEffect(() => {
+    activeIdRef.current = activeTimeCapsuleId;
+  }, [activeTimeCapsuleId]);
+
   /**
    * Refresh TimeCapsules list
    */
@@ -208,12 +371,19 @@ export function useTimeCapsule(vectorStore: VectorStore | null): UseTimeCapsuleR
     activeTimeCapsuleId,
     activeTimeCapsule,
     timeCapsules,
+    sharedTimeCapsules,
+    sharedSelection,
+    sharedLoading,
+    sharedError,
     isLoading,
     createTimeCapsule,
     switchTimeCapsule,
     updateTimeCapsule,
     deleteTimeCapsule,
     refreshTimeCapsules,
+    refreshSharedTimeCapsules,
+    loadSharedCapsule,
+    clearSharedSelection,
   };
 }
 

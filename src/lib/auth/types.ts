@@ -38,6 +38,10 @@ export interface User {
     pendingInviteTokens?: Record<string, string>;
     maxInvitees?: number;
     updatedAt?: string;
+    frameSetId?: string | null;
+    frameVersion?: string | null;
+    timeCapsuleName?: string | null;
+    shareMode?: "collaborative" | "read-only";
   };
 }
 

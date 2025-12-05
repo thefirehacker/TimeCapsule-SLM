@@ -48,6 +48,9 @@ export async function createUser(user: {
     pendingInviteTokens: {},
     maxInvitees: CREDIT_LIMITS[tier].maxInvitees,
     updatedAt: nowIso,
+    frameSetId: null,
+    frameVersion: null,
+    timeCapsuleName: null,
   };
 
   const params = {

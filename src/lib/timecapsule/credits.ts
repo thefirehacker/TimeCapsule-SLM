@@ -65,6 +65,10 @@ const defaultSharingState = (
   pendingInviteTokens: {},
   maxInvitees: CREDIT_LIMITS[tier].maxInvitees,
   updatedAt: new Date().toISOString(),
+  frameSetId: null,
+  frameVersion: null,
+  timeCapsuleName: null,
+  shareMode: "collaborative",
 });
 
 const resolveTier = (user: User | null): TimeCapsuleTier => {
